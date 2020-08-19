@@ -124,23 +124,37 @@ class FullLogger:
 
     def debug(self, message, *args):
         """Writes log message with DEBUG logging level."""
-        self.__logger.debug(message, *args)
-        self.__print(logging.DEBUG, message, *args)
+        if self.level <= logging.DEBUG:
+            self.__logger.debug(message, *args)
+            self.__print(logging.DEBUG, message, *args)
 
     def info(self, message, *args):
         """Writes log message with INFO logging level."""
-        self.__logger.info(message, *args)
-        self.__print(logging.INFO, message, *args)
+        if self.level <= logging.INFO:
+            self.__logger.info(message, *args)
+            self.__print(logging.INFO, message, *args)
 
     def warning(self, message, *args):
         """Writes log message with WARNING logging level."""
-        self.__logger.warning(message, *args)
-        self.__print(logging.WARNING, message, *args)
+        if self.level <= logging.WARNING:
+            self.__logger.warning(message, *args)
+            self.__print(logging.WARNING, message, *args)
 
     def error(self, message, *args):
         """Writes log message with ERROR logging level."""
-        self.__logger.error(message, *args)
-        self.__print(logging.ERROR, message, *args)
+        if self.level <= logging.ERROR:
+            self.__logger.error(message, *args)
+            self.__print(logging.ERROR, message, *args)
+
+    @property
+    def level(self):
+        """Returns the logging level of the logger."""
+        return self.__logger.level
+
+    @level.setter
+    def level(self, log_level):
+        """Sets the logging level of the logger to log_level."""
+        self.__logger.setLevel(log_level)
 
     def __print(self, message_level, message, *args):
         if self.__log_level <= message_level:
