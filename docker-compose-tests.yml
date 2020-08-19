@@ -1,0 +1,19 @@
+version: '3.5'
+
+services:
+
+  simulation_manager_tests:
+    build:
+      context: .
+      dockerfile: Dockerfile-tests
+    image: simulation_tools_tests:0.1
+    container_name: simulation_tools_tests
+    restart: "no"
+    environment:
+      - SIMULATION_LOG_LEVEL=50
+    networks:
+      - tools_test_network
+
+networks:
+  tools_test_network:
+    name: tools_test_network
