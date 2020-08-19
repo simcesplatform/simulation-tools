@@ -6,8 +6,8 @@ import inspect
 import json
 import threading
 
-from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, SimulationStateMessage, \
-                           StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
+from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, ErrorMessage, \
+                           SimulationStateMessage, StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
 from tools.tools import FullLogger
 
 LOGGER = FullLogger(__name__)
@@ -41,12 +41,7 @@ class MessageCallback():
 
     def log_last_message(self):
         """Writes a log message based on the last received message."""
-        if isinstance(self.last_message, AbstractResultMessage):
-            LOGGER.info("Received '{:s}' message from '{:s}' for epoch {:d}".format(
-                self.last_message.message_type,
-                self.last_message.source_process_id,
-                self.last_message.epoch_number))
-        elif isinstance(self.last_message, SimulationStateMessage):
+        if isinstance(self.last_message, SimulationStateMessage):
             LOGGER.info("Received simulation state message '{:s}' from '{:s}'".format(
                 self.last_message.simulation_state, self.last_message.source_process_id))
         elif isinstance(self.last_message, EpochMessage):
@@ -57,6 +52,14 @@ class MessageCallback():
                 self.last_message.end_time))
         elif isinstance(self.last_message, StatusMessage):
             LOGGER.info("Status message received from '{:s}' for epoch number {:d}".format(
+                self.last_message.source_process_id,
+                self.last_message.epoch_number))
+        elif isinstance(self.last_message, ErrorMessage):
+            LOGGER.info("Error message received from '{:s}'".format(
+                self.last_message.source_process_id))
+        elif isinstance(self.last_message, AbstractResultMessage):
+            LOGGER.info("Received '{:s}' message from '{:s}' for epoch {:d}".format(
+                self.last_message.message_type,
                 self.last_message.source_process_id,
                 self.last_message.epoch_number))
         elif isinstance(self.last_message, AbstractMessage):
