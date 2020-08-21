@@ -17,12 +17,16 @@ from tools.tests.messages_common import SIMULATION_ID_ATTRIBUTE
 from tools.tests.messages_common import SOURCE_PROCESS_ID_ATTRIBUTE
 from tools.tests.messages_common import MESSAGE_ID_ATTRIBUTE
 from tools.tests.messages_common import SIMULATION_STATE_ATTRIBUTE
+from tools.tests.messages_common import NAME_ATTRIBUTE
+from tools.tests.messages_common import DESCRIPTION_ATTRIBUTE
 from tools.tests.messages_common import DEFAULT_TYPE
 from tools.tests.messages_common import DEFAULT_TIMESTAMP
 from tools.tests.messages_common import DEFAULT_SIMULATION_ID
 from tools.tests.messages_common import DEFAULT_SOURCE_PROCESS_ID
 from tools.tests.messages_common import DEFAULT_MESSAGE_ID
 from tools.tests.messages_common import DEFAULT_SIMULATION_STATE
+from tools.tests.messages_common import DEFAULT_NAME
+from tools.tests.messages_common import DEFAULT_DESCRIPTION
 from tools.tests.messages_common import FULL_JSON
 from tools.tests.messages_common import ALTERNATE_JSON
 
@@ -49,6 +53,8 @@ class SimulationStateMessage(unittest.TestCase):
         self.assertEqual(message_full.source_process_id, DEFAULT_SOURCE_PROCESS_ID)
         self.assertEqual(message_full.message_id, DEFAULT_MESSAGE_ID)
         self.assertEqual(message_full.simulation_state, DEFAULT_SIMULATION_STATE)
+        self.assertEqual(message_full.name, DEFAULT_NAME)
+        self.assertEqual(message_full.description, DEFAULT_DESCRIPTION)
 
         # Test with explicitely set timestamp
         message_timestamped = tools.messages.SimulationStateMessage(Timestamp=DEFAULT_TIMESTAMP, **FULL_JSON)
@@ -58,6 +64,8 @@ class SimulationStateMessage(unittest.TestCase):
         self.assertEqual(message_timestamped.source_process_id, DEFAULT_SOURCE_PROCESS_ID)
         self.assertEqual(message_timestamped.message_id, DEFAULT_MESSAGE_ID)
         self.assertEqual(message_timestamped.simulation_state, DEFAULT_SIMULATION_STATE)
+        self.assertEqual(message_timestamped.name, DEFAULT_NAME)
+        self.assertEqual(message_timestamped.description, DEFAULT_DESCRIPTION)
 
     def test_message_json(self):
         """Unit test for testing that the json from a message has correct attributes."""
@@ -69,7 +77,9 @@ class SimulationStateMessage(unittest.TestCase):
         self.assertIn(MESSAGE_ID_ATTRIBUTE, message_full_json)
         self.assertIn(TIMESTAMP_ATTRIBUTE, message_full_json)
         self.assertIn(SIMULATION_STATE_ATTRIBUTE, message_full_json)
-        self.assertEqual(len(message_full_json), 6)
+        self.assertIn(NAME_ATTRIBUTE, message_full_json)
+        self.assertIn(DESCRIPTION_ATTRIBUTE, message_full_json)
+        self.assertEqual(len(message_full_json), 8)
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
@@ -85,6 +95,8 @@ class SimulationStateMessage(unittest.TestCase):
         self.assertEqual(message_copy.source_process_id, message_full.source_process_id)
         self.assertEqual(message_copy.message_id, message_full.message_id)
         self.assertEqual(message_copy.simulation_state, message_full.simulation_state)
+        self.assertEqual(message_copy.name, message_full.name)
+        self.assertEqual(message_copy.description, message_full.description)
 
     def test_message_equals(self):
         """Unit test for testing if the __eq__ comparison works correctly."""
@@ -101,7 +113,9 @@ class SimulationStateMessage(unittest.TestCase):
             "source_process_id",
             "message_id",
             "timestamp",
-            "simulation_state"
+            "simulation_state",
+            "name",
+            "description"
         ]
         for attribute_name in attributes:
             setattr(message_copy, attribute_name, getattr(message_alternate, attribute_name))
@@ -134,13 +148,20 @@ class SimulationStateMessage(unittest.TestCase):
             message_full.simulation_state = simulation_state_str
             self.assertEqual(message_full.simulation_state, simulation_state_str)
 
+        optional_attributes = [
+            NAME_ATTRIBUTE,
+            DESCRIPTION_ATTRIBUTE
+        ]
+
         invalid_attribute_exceptions = {
             MESSAGE_TYPE_ATTRIBUTE: tools.exceptions.messages.MessageTypeError,
             SIMULATION_ID_ATTRIBUTE: tools.exceptions.messages.MessageDateError,
             SOURCE_PROCESS_ID_ATTRIBUTE: tools.exceptions.messages.MessageSourceError,
             MESSAGE_ID_ATTRIBUTE: tools.exceptions.messages.MessageIdError,
             TIMESTAMP_ATTRIBUTE: tools.exceptions.messages.MessageDateError,
-            SIMULATION_STATE_ATTRIBUTE: tools.exceptions.messages.MessageStateValueError
+            SIMULATION_STATE_ATTRIBUTE: tools.exceptions.messages.MessageStateValueError,
+            NAME_ATTRIBUTE: tools.exceptions.messages.MessageValueError,
+            DESCRIPTION_ATTRIBUTE: tools.exceptions.messages.MessageValueError
         }
         invalid_attribute_values = {
             MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, ""],
@@ -148,10 +169,12 @@ class SimulationStateMessage(unittest.TestCase):
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
             MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""],
             TIMESTAMP_ATTRIBUTE: ["timestamp", 12, "2020-07-31T24:11:11.123Z", ""],
-            SIMULATION_STATE_ATTRIBUTE: ["waiting", 12, ""]
+            SIMULATION_STATE_ATTRIBUTE: ["waiting", 12, ""],
+            NAME_ATTRIBUTE: [1, 15],
+            DESCRIPTION_ATTRIBUTE: [1, 15]
         }
         for invalid_attribute in invalid_attribute_exceptions:
-            if invalid_attribute != TIMESTAMP_ATTRIBUTE:
+            if invalid_attribute != TIMESTAMP_ATTRIBUTE and invalid_attribute not in optional_attributes:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute.pop(invalid_attribute)
                 self.assertRaises(

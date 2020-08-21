@@ -335,7 +335,7 @@ class SimulationStateMessage(AbstractMessage):
     MESSAGE_ATTRIBUTES = {
         "SimulationState": "simulation_state"
     }
-    OPTIONAL_ATTRIBUTES = []
+    OPTIONAL_ATTRIBUTES = ["Name", "Description"]
 
     MESSAGE_ATTRIBUTES_FULL = {
         **AbstractMessage.MESSAGE_ATTRIBUTES_FULL,
@@ -360,6 +360,16 @@ class SimulationStateMessage(AbstractMessage):
         """The simulation state attribute."""
         return self.__simulation_state
 
+    @property
+    def name(self):
+        """The name of the simulation."""
+        return self.__name
+
+    @property
+    def description(self):
+        """The description for the simulation."""
+        return self.__description
+
     @simulation_state.setter
     def simulation_state(self, simulation_state):
         if not self._check_simulation_state(simulation_state):
@@ -367,16 +377,38 @@ class SimulationStateMessage(AbstractMessage):
                 str(simulation_state)))
         self.__simulation_state = simulation_state
 
+    @name.setter
+    def name(self, name):
+        if not self._check_name(name):
+            raise MessageValueError("The simulation name must be either None or a string.")
+        self.__name = name
+
+    @description.setter
+    def description(self, description):
+        if not self._check_description(description):
+            raise MessageValueError("The simulation description must be either None or a string.")
+        self.__description = description
+
     def __eq__(self, other):
         return (
             super().__eq__(other) and
             isinstance(other, SimulationStateMessage) and
-            self.simulation_state == other.simulation_state
+            self.simulation_state == other.simulation_state and
+            self.name == other.name and
+            self.description == other.description
         )
 
     @classmethod
     def _check_simulation_state(cls, simulation_state):
         return simulation_state in cls.SIMULATION_STATES
+
+    @classmethod
+    def _check_name(cls, name):
+        return name is None or isinstance(name, str)
+
+    @classmethod
+    def _check_description(cls, description):
+        return description is None or isinstance(description, str)
 
 
 class EpochMessage(AbstractResultMessage):
