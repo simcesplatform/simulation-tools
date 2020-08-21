@@ -25,6 +25,7 @@ from tools.tests.messages_common import START_TIME_ATTRIBUTE
 from tools.tests.messages_common import END_TIME_ATTRIBUTE
 from tools.tests.messages_common import VALUE_ATTRIBUTE
 from tools.tests.messages_common import DESCRIPTION_ATTRIBUTE
+from tools.tests.messages_common import NAME_ATTRIBUTE
 from tools.tests.messages_common import DEFAULT_TYPE
 from tools.tests.messages_common import DEFAULT_TIMESTAMP
 from tools.tests.messages_common import DEFAULT_SIMULATION_ID
@@ -39,6 +40,7 @@ from tools.tests.messages_common import DEFAULT_START_TIME
 from tools.tests.messages_common import DEFAULT_END_TIME
 from tools.tests.messages_common import DEFAULT_VALUE
 from tools.tests.messages_common import DEFAULT_DESCRIPTION
+from tools.tests.messages_common import DEFAULT_NAME
 from tools.tests.messages_common import DEFAULT_EXTRA_ATTRIBUTES
 from tools.tests.messages_common import FULL_JSON
 from tools.tests.messages_common import ALTERNATE_JSON
@@ -74,6 +76,7 @@ class TestResultMessage(unittest.TestCase):
         self.assertEqual(message_full.result_values[END_TIME_ATTRIBUTE], DEFAULT_END_TIME)
         self.assertEqual(message_full.result_values[VALUE_ATTRIBUTE], DEFAULT_VALUE)
         self.assertEqual(message_full.result_values[DESCRIPTION_ATTRIBUTE], DEFAULT_DESCRIPTION)
+        self.assertEqual(message_full.result_values[NAME_ATTRIBUTE], DEFAULT_NAME)
         for extra_attribute_name, extra_attribute_value in DEFAULT_EXTRA_ATTRIBUTES.items():
             self.assertEqual(message_full.result_values[extra_attribute_name], extra_attribute_value)
 
@@ -93,6 +96,7 @@ class TestResultMessage(unittest.TestCase):
         self.assertEqual(message_timestamped.result_values[END_TIME_ATTRIBUTE], DEFAULT_END_TIME)
         self.assertEqual(message_timestamped.result_values[VALUE_ATTRIBUTE], DEFAULT_VALUE)
         self.assertEqual(message_timestamped.result_values[DESCRIPTION_ATTRIBUTE], DEFAULT_DESCRIPTION)
+        self.assertEqual(message_timestamped.result_values[NAME_ATTRIBUTE], DEFAULT_NAME)
         for extra_attribute_name, extra_attribute_value in DEFAULT_EXTRA_ATTRIBUTES.items():
             self.assertEqual(message_timestamped.result_values[extra_attribute_name], extra_attribute_value)
 
@@ -105,6 +109,7 @@ class TestResultMessage(unittest.TestCase):
         stripped_json.pop(END_TIME_ATTRIBUTE)
         stripped_json.pop(VALUE_ATTRIBUTE)
         stripped_json.pop(DESCRIPTION_ATTRIBUTE)
+        stripped_json.pop(NAME_ATTRIBUTE)
         for extra_attribute_name in DEFAULT_EXTRA_ATTRIBUTES:
             stripped_json.pop(extra_attribute_name)
         message_stripped = tools.messages.ResultMessage(Timestamp=DEFAULT_TIMESTAMP, **stripped_json)
@@ -137,9 +142,10 @@ class TestResultMessage(unittest.TestCase):
         self.assertIn(END_TIME_ATTRIBUTE, message_full_json)
         self.assertIn(VALUE_ATTRIBUTE, message_full_json)
         self.assertIn(DESCRIPTION_ATTRIBUTE, message_full_json)
+        self.assertIn(NAME_ATTRIBUTE, message_full_json)
         for extra_attribute_name in DEFAULT_EXTRA_ATTRIBUTES:
             self.assertIn(extra_attribute_name, message_full_json)
-        self.assertEqual(len(message_full_json), 16)
+        self.assertEqual(len(message_full_json), 17)
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""

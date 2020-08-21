@@ -333,7 +333,9 @@ class SimulationStateMessage(AbstractMessage):
     CLASS_MESSAGE_TYPE = "SimState"
 
     MESSAGE_ATTRIBUTES = {
-        "SimulationState": "simulation_state"
+        "SimulationState": "simulation_state",
+        "Name": "name",
+        "Description": "description"
     }
     OPTIONAL_ATTRIBUTES = ["Name", "Description"]
 
