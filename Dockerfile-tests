@@ -6,6 +6,7 @@ COPY requirements.txt /requirements.txt
 RUN pip install --upgrade pip
 RUN pip install -r /requirements.txt
 
+COPY resources/ /tests/resources/
 COPY tools/ /tests/tools/
 
 WORKDIR /tests

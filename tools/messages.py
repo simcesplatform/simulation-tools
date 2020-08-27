@@ -630,7 +630,14 @@ class ResultMessage(AbstractResultMessage):
 
     def json(self):
         """Returns the message as a JSON object."""
-        return {**get_json(self), **self.result_values}
+        result_values_json = {}
+        for result_name, result_value in self.result_values.items():
+            if getattr(result_value, "json", None) is None:
+                result_values_json[result_name] = result_value
+            else:
+                result_values_json[result_name] = result_value.json()
+
+        return {**get_json(self), **result_values_json}
 
 
 class GeneralMessage(AbstractMessage):
@@ -686,7 +693,14 @@ class GeneralMessage(AbstractMessage):
 
     def json(self):
         """Returns the message as a JSON object."""
-        return {**get_json(self), **self.general_attributes}
+        general_attributes_json = {}
+        for attribute_name, attribute_value in self.general_attributes.items():
+            if getattr(attribute_value, "json", None) is None:
+                general_attributes_json[attribute_name] = attribute_value
+            else:
+                general_attributes_json[attribute_name] = attribute_value.json()
+
+        return {**get_json(self), **general_attributes_json}
 
 
 MESSAGE_TYPES = {
