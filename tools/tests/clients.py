@@ -43,83 +43,82 @@ class TestRabbitmqClient(aiounittest.AsyncTestCase):
     async def test_message_sending_and_receiving(self):
         """Tests sending and receiving message using RabbitMQ message bus using RabbitmqClient.
            Checks that the correct messages are received and in the correct order."""
-        # Setup the RabbitMQ clients.
-        client1 = RabbitmqClient()
-        client2 = RabbitmqClient()
-        client3 = RabbitmqClient()
-        client4 = RabbitmqClient()
-
-        # Setup the message storage objects for the callback functions.
-        message_storage1 = MessageStorage()
-        message_storage2 = MessageStorage()
-        message_storage3 = MessageStorage()
-        message_storage4 = MessageStorage()
-
-        # Setup the listeners for the clients.
-        client1.add_listener(["TopicA.*", "TopicB.Error"], message_storage1.callback)
-        client2.add_listener(["TopicA.Error", "TopicB.Epoch", "TopicB"], message_storage2.callback)
-        client3.add_listener(["TopicA.Epoch", "TopicA.Status", "TopicB.#"], message_storage3.callback)
-        client4.add_listener("#", message_storage4.callback)
-        # 5 second wait to allow the listeners to setup
-        await asyncio.sleep(5)
-
-        # Setup the message id generators.
-        id_generator1 = get_next_message_id("manager")
-        id_generator2 = get_next_message_id("tester")
-        id_generator3 = get_next_message_id("helper")
-
         # Load the base message objects.
         epoch_message = EpochMessage(**EPOCH_TEST_JSON)
         error_message = ErrorMessage(**ERROR_TEST_JSON)
         general_message = GeneralMessage(**GENERAL_TEST_JSON)
         status_message = StatusMessage(**STATUS_TEST_JSON)
 
-        # Setup the check lists that are used to check whether the correct message were received.
-        # At the end these should correspond to message_storage1.messages, message_storage2.messages, ...
-        check_list1 = []
-        check_list2 = []
-        check_list3 = []
-        check_list4 = []
+        # Setup the RabbitMQ clients and the message storage objects for the callback functions.
+        clients = []
+        message_storages = []
+        for _ in range(3):
+            clients.append(RabbitmqClient())
+            message_storages.append(MessageStorage())
 
-        # Setup the test message schema. Each element contains the topic name, base message and
-        # a list of the check lists that correspond to the lists that are expected to receive the messages.
-        test_list = [
-            ("TopicA", general_message, [check_list4]),
-            ("TopicA.Epoch", epoch_message, [check_list1, check_list3, check_list4]),
-            ("TopicA.Status", status_message, [check_list1, check_list3, check_list4]),
-            ("TopicA.Error", error_message, [check_list1, check_list2, check_list4]),
-            ("TopicA.Error.Special", error_message, [check_list4]),
-            ("TopicB", general_message, [check_list2, check_list3, check_list4]),
-            ("TopicB.Epoch", epoch_message, [check_list2, check_list3, check_list4]),
-            ("TopicB.Status", status_message, [check_list3, check_list4]),
-            ("TopicB.Error", error_message, [check_list1, check_list3, check_list4]),
-            ("TopicB.Error.Special", error_message, [check_list3, check_list4]),
-            ("TopicC", general_message, [check_list4])
+        # Setup the listeners for the clients.
+        client_topic_lists = [
+            ["TopicA.*", "TopicB.Error"],
+            ["TopicA.Error", "TopicB.Epoch", "TopicB"],
+            ["TopicA.Epoch", "TopicA.Status", "TopicB.#"],
+            ["#"]
+        ]
+        for client, message_storage, topic_list in zip(clients, message_storages, client_topic_lists):
+            client.add_listener(topic_list, message_storage.callback)
+
+        # Setup the message id generators.
+        id_generators = [
+            get_next_message_id(process_id)
+            for process_id in ["manager", "tester", "helper"]
         ]
 
-        for send_client, message_id_generator in zip([client1, client2, client3],
-                                                     [id_generator1, id_generator2, id_generator3]):
-            for test_topic, test_message, check_lists in test_list:
+        # Setup the check lists that are used to check whether the correct message were received.
+        # At the end these should correspond to message_storage1.messages, message_storage2.messages, ...
+        check_lists = [[], [], [], []]
+
+        # Setup the test message schema. Each element contains the topic name, base message and
+        # a list of the check list indexes that correspond to the lists that are expected to receive the messages.
+        test_list = [
+            ("TopicA", general_message, [3]),
+            ("TopicA.Epoch", epoch_message, [0, 2, 3]),
+            ("TopicA.Status", status_message, [0, 2, 3]),
+            ("TopicA.Error", error_message, [0, 1, 3]),
+            ("TopicA.Error.Special", error_message, [3]),
+            ("TopicB", general_message, [1, 2, 3]),
+            ("TopicB.Epoch", epoch_message, [1, 2, 3]),
+            ("TopicB.Status", status_message, [2, 3]),
+            ("TopicB.Error", error_message, [0, 2, 3]),
+            ("TopicB.Error.Special", error_message, [2, 3]),
+            ("TopicC", general_message, [3])
+        ]
+
+        # 5 second wait to allow the listeners to setup.
+        await asyncio.sleep(5)
+        for client, topic_list in zip(clients, client_topic_lists):
+            self.assertEqual(client.listened_topics, list(set(topic_list)))
+
+        # Sends the test messages.
+        for send_client, message_id_generator in zip(clients, id_generators):
+            for test_topic, test_message, check_list_indexes in test_list:
                 # Create a new message with a new timestamp and message id.
                 new_test_message = get_new_message(test_message, message_id_generator)
                 await send_client.send_message(test_topic, new_test_message.bytes())
-                for check_list in check_lists:
-                    check_list.append((new_test_message, test_topic))
+                for check_list_index in check_list_indexes:
+                    check_lists[check_list_index].append((new_test_message, test_topic))
 
         # 5 second wait to allow the message handlers to finish.
         await asyncio.sleep(5)
 
         # Check that the received messages equal to the excpected messages.
-        self.assertEqual(message_storage1.messages, check_list1)
-        self.assertEqual(message_storage2.messages, check_list2)
-        self.assertEqual(message_storage3.messages, check_list3)
-        self.assertEqual(message_storage4.messages, check_list4)
+        for message_storage, check_list in zip(message_storages, check_lists):
+            self.assertEqual(message_storage.messages, check_list)
 
         # Close the clients.
-        await client1.close()
-        await client2.close()
-        await client3.close()
-        await client4.close()
+        for client in clients:
+            self.assertFalse(client.is_closed)
+            await client.close()
+            self.assertTrue(client.is_closed)
+            self.assertEqual(client.listened_topics, [])
 
         # 5 second wait to allow the clients to properly close.
         await asyncio.sleep(5)
