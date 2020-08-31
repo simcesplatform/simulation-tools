@@ -3,7 +3,6 @@
 """This module contains a class for keeping track of the simulation components."""
 
 import asyncio
-import threading
 
 import aio_pika
 
@@ -63,6 +62,53 @@ def validate_message(topic_name, message_to_publish):
     return topic_name, message_to_publish
 
 
+class RabbitmqConnection:
+    """Class for holding a RabbitMQ connection including the a channel and an exchange."""
+    def __init__(self, connection_parameters, exchange_name):
+        self.__connection_parameters = connection_parameters
+        self.__exchange_name = exchange_name
+
+        self.__rabbitmq_connection = None
+        self.__rabbitmq_channel = None
+        self.__rabbitmq_exchange = None
+
+    async def get_connection(self):
+        """Returns a RabbitMQ connection. Creates the connection on the first call.
+           If the connection has been closed, tries to create a new connection."""
+        if self.__rabbitmq_connection is None or self.__rabbitmq_connection.is_closed:
+            self.__rabbitmq_connection = await aio_pika.connect_robust(**self.__connection_parameters)
+            self.__rabbitmq_channel = None
+            self.__rabbitmq_exchange = None
+        return self.__rabbitmq_connection
+
+    async def get_channel(self):
+        """Returns a channel for a RabbitMQ connection. Creates the channel on the first call."""
+        if self.__rabbitmq_channel is None or self.__rabbitmq_channel.is_closed:
+            connection = await self.get_connection()
+            self.__rabbitmq_channel = await connection.channel()
+            self.__rabbitmq_exchange = None
+        return self.__rabbitmq_channel
+
+    async def get_exchange(self):
+        """Returns an exchange for a RabbitMQ connection. Declares the exchange on the first call."""
+        if self.__rabbitmq_exchange is None:
+            channel = await self.get_channel()
+            self.__rabbitmq_exchange = await channel.declare_exchange(
+                self.__exchange_name,
+                aio_pika.exchange.ExchangeType.TOPIC,
+                durable=True)
+        return self.__rabbitmq_exchange
+
+    async def close(self):
+        """Closes the RabbitMQ connection."""
+        if self.__rabbitmq_connection is not None and not self.__rabbitmq_connection.is_closed:
+            await self.__rabbitmq_connection.close()
+
+        self.__rabbitmq_connection = None
+        self.__rabbitmq_channel = None
+        self.__rabbitmq_exchange = None
+
+
 class RabbitmqClient:
     """RabbitMQ client that can be used to send messages and to create topic listeners."""
     DEFAULT_ENV_VARIABLE_PREFIX = "RABBITMQ_"
@@ -70,131 +116,146 @@ class RabbitmqClient:
     OPTIONAL_SSL_PARAMETER_TOP = "ssl_options"
     OPTIONAL_SSL_PARAMETER = "ssl_version"
 
+    EXCHANGE_ATTRIBUTE_NAME = "exchange"
+
     MESSAGE_ENCODING = "UTF-8"
 
     def __init__(self, **kwargs):
         if not kwargs:
             kwargs = load_config_from_env_variables()
+
         self.__connection_parameters = RabbitmqClient.__get_connection_parameters_only(kwargs)
-        self.__exchange_name = kwargs["exchange"]
+        self.__exchange_name = kwargs[RabbitmqClient.EXCHANGE_ATTRIBUTE_NAME]
 
-        self.__listeners = {}
+        self.__send_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_name)
+        self.__listened_topics = set()
+        self.__listener_connections = []
+        self.__listener_tasks = []
 
-    def close(self):
-        """Closes the sender thread and all the listener threads.
-           Note: not really needed since all threads have been created with the daemon flag."""
+        # self.__lock = asyncio.Lock()
+        self.__is_closed = False
+
+    async def close(self):
+        """Closes the sender thread and all the listener threads."""
+        # async with self.__lock:
+        await self.remove_listeners()
+        await self.__send_connection.close()
+        self.__is_closed = True
+        print(self.__listener_tasks)
 
     @property
-    def listeners(self):
-        """Returns a dictionary containing the topic names as keys and
-           a list of (thread, callback function)-tuples as values."""
-        return self.__listeners
+    def is_closed(self):
+        """Returns True if the connections for the client have been closed."""
+        return self.__is_closed
+
+    @property
+    def exchange_name(self):
+        """Returns the RabbitMQ exchange name that the client uses."""
+        return self.__exchange_name
+
+    @property
+    def listened_topics(self):
+        """Returns a list of the topics the client is currently listening."""
+        return list(self.__listened_topics)
 
     def add_listener(self, topic_names, callback_function):
         """Adds a new listener to the given topic."""
+        if self.is_closed:
+            return
+
         if isinstance(topic_names, str):
             topic_names = [topic_names]
 
-        new_listener_thread = threading.Thread(
-            name="listen_thread_{:s}".format(",".join(topic_names)),
-            target=RabbitmqClient.listener_thread,
-            daemon=True,
-            kwargs={
-                "connection_parameters": self.__connection_parameters,
-                "exchange_name": self.__exchange_name,
-                "topic_names": topic_names,
-                "callback_class": MessageCallback(callback_function)
-            })
+        new_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_name)
+        asyncio.get_event_loop().set_exception_handler(handle_async_exception)
+        listener_task = asyncio.create_task(self.__listen_to_topics(
+            connection_class=new_connection,
+            topic_names=topic_names,
+            callback_class=MessageCallback(callback_function)
+        ))
 
-        new_listener_thread.start()
+        self.__listener_connections.append(new_connection)
+        self.__listener_tasks.append(listener_task)
         for topic_name in topic_names:
-            if topic_name not in self.__listeners:
-                self.__listeners[topic_name] = []
-            self.__listeners[topic_name].append((new_listener_thread, callback_function))
+            self.__listened_topics.add(topic_name)
 
-    # def remove_listener(self, topic_name):
-    #     """Removes all listeners from the given topic."""
+    async def remove_listeners(self):
+        """Removes all listeners from the client."""
+        print("remove", self.__listener_tasks)
+        for listener_connection in self.__listener_connections:
+            await listener_connection.close()
+
+        self.__listener_connections = []
+        self.__listener_tasks = []
+        self.__listened_topics = set()
 
     async def send_message(self, topic_name, message_bytes):
         """Sends the given message to the given topic. Assumes that the message is in bytes format."""
-        publish_message_task = asyncio.create_task(self.send_message_task(topic_name, message_bytes))
-        await asyncio.wait([publish_message_task])
+        # async with self.__lock:
+        if self.is_closed:
+            LOGGER.warning("Message not sent because the client is closed.")
+            return
 
-    async def send_message_task(self, topic_name, message_to_publish):
-        """Publishes the given message to the given topic."""
-        topic_name, message_to_publish = validate_message(topic_name, message_to_publish)
+        topic_name, message_to_publish = validate_message(topic_name, message_bytes)
         if topic_name is None or message_to_publish is None:
             return
 
         try:
-            asyncio.get_running_loop().set_exception_handler(handle_async_exception)
-            rabbitmq_connection = await aio_pika.connect_robust(**self.__connection_parameters)
-
-            rabbitmq_channel = await rabbitmq_connection.channel()
-            rabbitmq_exchange = await rabbitmq_channel.declare_exchange(
-                self.__exchange_name, aio_pika.exchange.ExchangeType.TOPIC)
-
-            await rabbitmq_exchange.publish(aio_pika.Message(message_to_publish), routing_key=topic_name)
+            send_exchange = await self.__send_connection.get_exchange()
+            await send_exchange.publish(aio_pika.Message(message_to_publish), routing_key=topic_name)
             LOGGER.debug("Message '{:s}' send to topic: '{:s}'".format(
                 message_to_publish.decode(RabbitmqClient.MESSAGE_ENCODING), topic_name))
 
+        except SystemExit:
+            LOGGER.debug("SystemExit received when trying to publish message.")
+            await self.__send_connection.close()
+            raise
         except RuntimeError as error:
             LOGGER.warning("RunTimeError: '{:s}' when trying to publish message.".format(str(error)))
         except OSError as error:
             LOGGER.warning("OSError: '{:s}' when trying to publish message.".format(str(error)))
 
-    @classmethod
-    def listener_thread(cls, connection_parameters, exchange_name, topic_names, callback_class):
-        """The listener thread loop that listens to the given topic in the message bus and
-           sends the received messages to the callback() function of the given callback class."""
-        LOGGER.info("Opening listener thread for RabbitMQ client for the topics '{:s}'".format(", ".join(topic_names)))
-        asyncio.run(cls.start_listen_connection(
-            connection_parameters=connection_parameters,
-            exchange_name=exchange_name,
-            topic_names=topic_names,
-            callback_class=callback_class))
-        LOGGER.info("Closing listener thread for RabbitMQ client for the topics '{:s}'".format(", ".join(topic_names)))
-
-    @classmethod
-    async def start_listen_connection(cls, connection_parameters, exchange_name, topic_names, callback_class):
-        """The actual connection and topic listener function for the listener thread."""
+    async def __listen_to_topics(self, connection_class, topic_names, callback_class):
+        """Starts a RabbitMQ message bus listener for the given topics."""
         if isinstance(topic_names, str):
             topic_names = [topic_names]
+        LOGGER.info("Opening RabbitMQ listener for the topics: '{:s}'".format(", ".join(topic_names)))
 
-        asyncio.get_running_loop().set_exception_handler(handle_async_exception)
-        while True:
-            try:
-                rabbitmq_connection = await aio_pika.connect_robust(**connection_parameters)
+        # keep_listening = True
+        # while keep_listening:
+        try:
+            rabbitmq_connection = await connection_class.get_connection()
 
-                async with rabbitmq_connection:
-                    rabbitmq_channel = await rabbitmq_connection.channel()
-                    rabbitmq_exchange = await rabbitmq_channel.declare_exchange(
-                        exchange_name, aio_pika.exchange.ExchangeType.TOPIC)
+            async with rabbitmq_connection:
+                rabbitmq_channel = await connection_class.get_channel()
+                rabbitmq_queue = await rabbitmq_channel.declare_queue(
+                    auto_delete=True,  # Delete the queue when no one uses it anymore
+                    exclusive=True     # No other application can access the queue; delete on exit
+                )
+                rabbitmq_exchange = await connection_class.get_exchange()
 
-                    # Declaring a queue; type: aio_pika.Queue
-                    # No name provided -> the server generates a random name
-                    rabbitmq_queue = await rabbitmq_channel.declare_queue(
-                        auto_delete=True,  # Delete the queue when no one uses it anymore
-                        exclusive=True     # No other application can access the queue; delete on exit
-                    )
+                # Binding the queue to the given topics
+                for topic_name in topic_names:
+                    # await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
+                    await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
+                    LOGGER.info("Now listening to messages; exc={:s}, topic={:s}".format(
+                        rabbitmq_exchange.name, topic_name))
 
-                    # Binding the queue to the given topics
-                    for topic_name in topic_names:
-                        await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
-                        LOGGER.info("Now listening to messages; exc={:s}, topic={:s}".format(
-                            exchange_name, topic_name))
+                async with rabbitmq_queue.iterator() as queue_iter:
+                    async for message in queue_iter:
+                        async with message.process():
+                            LOGGER.debug("Message '{:s}' received from topic: '{:s}'".format(
+                                message.body.decode(RabbitmqClient.MESSAGE_ENCODING), message.routing_key))
+                            await callback_class.callback(message)
 
-                    async with rabbitmq_queue.iterator() as queue_iter:
-                        async for message in queue_iter:
-                            async with message.process():
-                                LOGGER.debug("Message '{:s}' received from topic: '{:s}'".format(
-                                    message.body.decode(cls.MESSAGE_ENCODING), message.routing_key))
-                                await callback_class.callback(message)
-
-            except RuntimeError as error:
-                LOGGER.warning("RuntimeError: '{:s}' when trying to listen to the message bus.".format(str(error)))
-            except OSError as error:
-                LOGGER.warning("OSError: '{:s}' when trying to listen to the message bus.".format(str(error)))
+        except SystemExit:
+            LOGGER.debug("SystemExit received when trying to listen to the message bus.")
+            await connection_class.close()
+            raise
+        except RuntimeError as error:
+            LOGGER.warning("RuntimeError: '{:s}' when trying to listen to the message bus.".format(str(error)))
+        except OSError as error:
+            LOGGER.warning("OSError: '{:s}' when trying to listen to the message bus.".format(str(error)))
 
     @classmethod
     def __get_connection_parameters_only(cls, connection_config_dict):

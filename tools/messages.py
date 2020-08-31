@@ -152,6 +152,12 @@ class AbstractMessage():
             self.timestamp == other.timestamp
         )
 
+    def __str__(self):
+        return json.dumps(self.json())
+
+    def __repr__(self):
+        return self.__str__()
+
     @classmethod
     def _check_datetime(cls, datetime_value):
         return to_iso_format_datetime_string(datetime_value) is not None

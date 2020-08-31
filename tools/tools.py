@@ -182,4 +182,9 @@ LOGGER = FullLogger(__name__)
 def handle_async_exception(event_loop, context):
     """Prints out any unhandled exceptions from async tasks."""
     # pylint: disable=unused-argument
-    LOGGER.warning("Exception in async task: {:s}".format(str(context)))
+    if isinstance(context, dict):
+        exception = context.get("exception", None)
+        if isinstance(exception, SystemExit):
+            LOGGER.debug("SystemExit caught by async exception handler.")
+    else:
+        LOGGER.warning("Exception in async task: {:s}".format(str(context)))

@@ -107,4 +107,5 @@ class MessageCallback():
             if inspect.iscoroutinefunction(self.__callback_function):
                 await self.__callback_function(message_object, message.routing_key)
             else:
-                LOGGER.error("Callback function '{:s}' is not awaitable.".format(str(type(self.__callback_function))))
+                LOGGER.error("Callback function '{:s}' is not awaitable.".format(
+                    str(getattr(self.__callback_function, "__name__", None))))
