@@ -132,16 +132,15 @@ class RabbitmqClient:
         self.__listener_connections = []
         self.__listener_tasks = []
 
-        # self.__lock = asyncio.Lock()
+        self.__lock = asyncio.Lock()
         self.__is_closed = False
 
     async def close(self):
         """Closes the sender thread and all the listener threads."""
-        # async with self.__lock:
-        await self.remove_listeners()
-        await self.__send_connection.close()
-        self.__is_closed = True
-        print(self.__listener_tasks)
+        async with self.__lock:
+            await self.remove_listeners()
+            await self.__send_connection.close()
+            self.__is_closed = True
 
     @property
     def is_closed(self):
@@ -181,8 +180,8 @@ class RabbitmqClient:
 
     async def remove_listeners(self):
         """Removes all listeners from the client."""
-        print("remove", self.__listener_tasks)
-        for listener_connection in self.__listener_connections:
+        for listener_connection, listener_task in zip(self.__listener_connections, self.__listener_tasks):
+            listener_task.cancel()
             await listener_connection.close()
 
         self.__listener_connections = []
@@ -191,29 +190,31 @@ class RabbitmqClient:
 
     async def send_message(self, topic_name, message_bytes):
         """Sends the given message to the given topic. Assumes that the message is in bytes format."""
-        # async with self.__lock:
-        if self.is_closed:
-            LOGGER.warning("Message not sent because the client is closed.")
-            return
+        async with self.__lock:
+            if self.is_closed:
+                LOGGER.warning("Message not sent because the client is closed.")
+                return
 
-        topic_name, message_to_publish = validate_message(topic_name, message_bytes)
-        if topic_name is None or message_to_publish is None:
-            return
+            topic_name, message_to_publish = validate_message(topic_name, message_bytes)
+            if topic_name is None or message_to_publish is None:
+                return
 
-        try:
-            send_exchange = await self.__send_connection.get_exchange()
-            await send_exchange.publish(aio_pika.Message(message_to_publish), routing_key=topic_name)
-            LOGGER.debug("Message '{:s}' send to topic: '{:s}'".format(
-                message_to_publish.decode(RabbitmqClient.MESSAGE_ENCODING), topic_name))
+            try:
+                send_exchange = await self.__send_connection.get_exchange()
+                await send_exchange.publish(aio_pika.Message(message_to_publish), routing_key=topic_name)
+                LOGGER.debug("Message '{:s}' send to topic: '{:s}'".format(
+                    message_to_publish.decode(RabbitmqClient.MESSAGE_ENCODING), topic_name))
 
-        except SystemExit:
-            LOGGER.debug("SystemExit received when trying to publish message.")
-            await self.__send_connection.close()
-            raise
-        except RuntimeError as error:
-            LOGGER.warning("RunTimeError: '{:s}' when trying to publish message.".format(str(error)))
-        except OSError as error:
-            LOGGER.warning("OSError: '{:s}' when trying to publish message.".format(str(error)))
+            except SystemExit:
+                LOGGER.debug("SystemExit received when trying to publish message.")
+                await self.__send_connection.close()
+                raise
+            except RuntimeError as error:
+                LOGGER.warning("RunTimeError: '{:s}' when trying to publish message.".format(str(error)))
+            except OSError as error:
+                LOGGER.warning("OSError: '{:s}' when trying to publish message.".format(str(error)))
+            except GeneratorExit:
+                LOGGER.warning("GeneratorExit received when trying to publish message.")
 
     async def __listen_to_topics(self, connection_class, topic_names, callback_class):
         """Starts a RabbitMQ message bus listener for the given topics."""
@@ -221,8 +222,6 @@ class RabbitmqClient:
             topic_names = [topic_names]
         LOGGER.info("Opening RabbitMQ listener for the topics: '{:s}'".format(", ".join(topic_names)))
 
-        # keep_listening = True
-        # while keep_listening:
         try:
             rabbitmq_connection = await connection_class.get_connection()
 

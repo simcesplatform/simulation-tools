@@ -20,5 +20,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 ## Run unit tests
 
 ```bash
+docker network create tools_test_network
+docker-compose -f rabbitmq/docker-compose-rabbitmq.yml up --detach
 docker-compose -f docker-compose-tests.yml up --build
 ```

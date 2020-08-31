@@ -2,18 +2,24 @@ version: '3.5'
 
 services:
 
-  simulation_manager_tests:
+  simulation_tools_tests:
     build:
       context: .
       dockerfile: Dockerfile-tests
-    image: simulation_tools_tests:0.1
+    image: simulation_tools_tests:0.2
     container_name: simulation_tools_tests
     restart: "no"
     environment:
       - SIMULATION_LOG_LEVEL=50
+      - RABBITMQ_HOST=rabbitmq_tools_tests
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_SSL=false
+      - RABBITMQ_SSL_VERSION=PROTOCOL_TLS
+      - RABBITMQ_EXCHANGE=procem.simulation_tools_exchange
     networks:
       - tools_test_network
 
 networks:
   tools_test_network:
+    external: true
     name: tools_test_network
