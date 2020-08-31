@@ -235,7 +235,6 @@ class RabbitmqClient:
 
                 # Binding the queue to the given topics
                 for topic_name in topic_names:
-                    # await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
                     await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
                     LOGGER.info("Now listening to messages; exc={:s}, topic={:s}".format(
                         rabbitmq_exchange.name, topic_name))
