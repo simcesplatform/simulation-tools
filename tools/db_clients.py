@@ -20,7 +20,7 @@ def default_env_variable_definitions():
 
     return [
         (env_variable_name("host"), str, "localhost"),
-        (env_variable_name("port"), int, 5672),
+        (env_variable_name("port"), int, 27017),
         (env_variable_name("username"), str, ""),
         (env_variable_name("password"), str, ""),
         (env_variable_name("database"), str, "db"),
@@ -70,6 +70,30 @@ class MongodbClient:
     ]
 
     def __init__(self, **kwargs):
+        """Required attributes:
+           - host                        : the host name for the MongoDB
+           - port                        : the port number for the MongoDB
+           - username                    : username for access to the MongoDB
+           - password                    : password for access to the MongoDB
+           - database                    : the database name used with the MongoDB
+           - appname                     : application name for the connection to the MongoDB
+           - tz_aware                    : are datetime values timezone aware (True/False)
+           - metadata_collection         : the collection name for the simulation metadata
+           - messages_collection_prefix  : the prefix for the collection names for the simulation messages
+           - collection_identifier       : the attribute name in the messages that tells the simulation id
+
+           If called without any parameters, the values for the attributes are read from the environmental variables
+           - MONGODB_HOST (default value: "localhost")
+           - MONGODB_PORT (default value: 27017)
+           - MONGODB_USERNAME (default value: "")
+           - MONGODB_PASSWORD (default value: "")
+           - MONGODB_DATABASE (default value: "db")
+           - MONGODB_APPNAME (default value: "log_writert")
+           - MONGODB_TZ_AWARE (default value: True)
+           - MONGODB_METADATA_COLLECTION (default value: "simulations")
+           - MONGODB_MESSAGES_COLLECTION_PREFIX (default value: "simulation_")
+           - MONGODB_COLLECTION_IDENTIFIER (default value: "SimulationId")
+        """
         if not kwargs:
             kwargs = load_config_from_env_variables()
         self.__connection_parameters = MongodbClient.__get_connection_parameters_only(kwargs)

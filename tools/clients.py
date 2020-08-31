@@ -63,7 +63,9 @@ def validate_message(topic_name, message_to_publish):
 
 
 class RabbitmqConnection:
-    """Class for holding a RabbitMQ connection including the a channel and an exchange."""
+    """Class for holding a RabbitMQ connection including the a channel and an exchange.
+       This is mainly intended for the use of RabbitmqClient objects.
+    """
     def __init__(self, connection_parameters, exchange_name):
         self.__connection_parameters = connection_parameters
         self.__exchange_name = exchange_name
@@ -121,6 +123,24 @@ class RabbitmqClient:
     MESSAGE_ENCODING = "UTF-8"
 
     def __init__(self, **kwargs):
+        """Required attributes:
+           - host         : the host name for the RabbitMQ server
+           - port         : the port number for the RabbitMQ server
+           - login        : username for access to the RabbitMQ server
+           - password     : password for access to the RabbitMQ server
+           - ssl          : use SSL connection to the RabbitMQ server
+           - ssl_version  : the SSL version parameter for the SSL connection
+           - exchange     : the name for the exchange used by the client
+
+           If called without any parameters, the values for the attributes are read from the environmental variables
+           - RABBITMQ_HOST (default value: "localhost")
+           - RABBITMQ_PORT (default value: 5672)
+           - RABBITMQ_LOGIN (default value: "")
+           - RABBITMQ_PASSWORD (default value: "")
+           - RABBITMQ_SSL (default value: False)
+           - RABBITMQ_SSL_VERSION (default value: "PROTOCOL_TLS")
+           - RABBITMQ_EXCHANGE (default value: "")
+        """
         if not kwargs:
             kwargs = load_config_from_env_variables()
 
