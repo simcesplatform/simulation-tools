@@ -5,6 +5,7 @@
 import datetime
 import operator
 
+import motor.motor_asyncio
 import pymongo
 
 from tools.datetime_tools import to_utc_datetime_object
@@ -103,13 +104,16 @@ class MongodbClient:
         self.__collection_identifier = kwargs["collection_identifier"]
 
         # Set up the Mongo database connection and the metadata collection
-        self.__mongo_client = pymongo.MongoClient(**self.__connection_parameters)
+        # self.__mongo_client = pymongo.MongoClient(**self.__connection_parameters)
+        self.__mongo_client = motor.motor_asyncio.AsyncIOMotorClient(**self.__connection_parameters)
         self.__mongo_database = self.__mongo_client[self.__database_name]
         self.__metadata_collection = self.__mongo_database[self.__metadata_collection_name]
 
-    def store_message(self, json_document: dict, document_topic=None):
+    async def store_message(self, json_document: dict, document_topic=None):
         """Stores a new JSON message to the database. The used collection is determined by
-           the 'simulation_id' attribute in the message."""
+           the 'simulation_id' attribute in the message.
+           Returns True, if writing to the database was successful.
+        """
         if isinstance(document_topic, str):
             # Adds or replaces the topic attribute in the given JSON document with the parameter document_topic.
             json_document[MongodbClient.TOPIC_ATTRIBUTE] = document_topic
@@ -119,33 +123,33 @@ class MongodbClient:
             LOGGER.warning("Document does not have '{:s}' attribute.".format(self.__collection_identifier))
             return None
 
-        MongodbClient.datetime_attributes_to_objects(json_document)
+        await MongodbClient.datetime_attributes_to_objects(json_document)
 
         mongodb_collection = self.__mongo_database[message_collection_name]
-        write_result = mongodb_collection.insert_one(json_document)
-        return write_result
+        write_result = await mongodb_collection.insert_one(json_document)
+        return write_result.acknowledged
 
-    def update_metadata(self, simulation_id: str, **attribute_updates):
+    async def update_metadata(self, simulation_id: str, **attribute_updates):
         """Creates or updates the metadata information for a simulation."""
         if not isinstance(simulation_id, str):
             LOGGER.warning("Given simulation id was not of type str: '{:s}'".format(str(type(simulation_id))))
             return False
 
         simple_document = {self.__collection_identifier: simulation_id}
-        metadata_document = self.__metadata_collection.find_one(simple_document)
+        metadata_document = await self.__metadata_collection.find_one(simple_document)
 
         # Add a new metadata document.
         if metadata_document is None:
-            metadata_document = self.get_metadata_json(simple_document, attribute_updates)
-            write_result = self.__metadata_collection.insert_one(metadata_document)
+            metadata_document = await self.get_metadata_json(simple_document, attribute_updates)
+            write_result = await self.__metadata_collection.insert_one(metadata_document)
             return (
                 isinstance(write_result, pymongo.results.InsertOneResult) and
                 write_result.acknowledged
             )
 
         # Update previous document.
-        metadata_document = self.get_metadata_json(metadata_document, attribute_updates)
-        write_result = self.__metadata_collection.replace_one(simple_document, metadata_document)
+        metadata_document = await self.get_metadata_json(metadata_document, attribute_updates)
+        write_result = await self.__metadata_collection.replace_one(simple_document, metadata_document)
         return (
             isinstance(write_result, pymongo.results.UpdateResult) and
             write_result.acknowledged and
@@ -159,13 +163,13 @@ class MongodbClient:
         return self.__messages_collection_prefix + json_document[self.__collection_identifier]
 
     @classmethod
-    def datetime_attributes_to_objects(cls, json_document: dict):
+    async def datetime_attributes_to_objects(cls, json_document: dict):
         """Convert the datetime attributes from type str to datetime.datetime."""
         for datetime_attribute in MongodbClient.DATETIME_ATTRIBUTES:
             if datetime_attribute in json_document and isinstance(json_document[datetime_attribute], str):
                 json_document[datetime_attribute] = to_utc_datetime_object(json_document[datetime_attribute])
 
-    def get_metadata_json(self, old_values: dict, new_values: dict):
+    async def get_metadata_json(self, old_values: dict, new_values: dict):
         """Returns a validated metadata document. Any attributes that not
            simulation_id or in METADATA_ATTRIBUTES list are ignored."""
         if new_values is None:
