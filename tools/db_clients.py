@@ -53,7 +53,18 @@ class MongodbClient:
     TOPIC_ATTRIBUTE = "Topic"
 
     # These attributes will be converted to datetime objects before writing to database.
-    DATETIME_ATTRIBUTES = ["Timestamp", "StartTime", "EndTime"]
+    TIMESTAMP_ATTRIBUTE = "Timestamp"
+    STARTTIME_ATTRIBUTE = "StartTime"
+    ENDTIME_ATTRIBUTE = "EndTime"
+    DATETIME_ATTRIBUTES = [
+        TIMESTAMP_ATTRIBUTE,
+        STARTTIME_ATTRIBUTE,
+        ENDTIME_ATTRIBUTE
+    ]
+
+    # Additional attributes that are used in the collection indexes.
+    EPOCH_ATTRIBUTE = "EpochNumber"
+    PROCESS_ATTRIBUTE = "SourceProcessId"
 
     # List of possible metadata attributes in addition to the simulation id.
     # Each element is a tuple (attribute_name, attribute_types, comparison_operator)
@@ -155,6 +166,71 @@ class MongodbClient:
             write_result.acknowledged and
             write_result.modified_count == 1
         )
+
+    async def update_metadata_indexes(self):
+        """Updates indexes to the metadata collection and adds them if they do not exist yet."""
+        metadata_indexes = [
+            pymongo.IndexModel(
+                [(self.__collection_identifier, pymongo.ASCENDING)],
+                name="simulation_id_index",
+                unique=True
+            ),
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.STARTTIME_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.ENDTIME_ATTRIBUTE, pymongo.ASCENDING)
+                ],
+                name="start_time_index"
+            ),
+            pymongo.IndexModel(
+                [(MongodbClient.ENDTIME_ATTRIBUTE, pymongo.ASCENDING)],
+                name="end_time_index",
+                sparse=True
+            )
+        ]
+
+        result = await self.__metadata_collection.create_indexes(metadata_indexes)
+
+        if len(result) != len(metadata_indexes):
+            LOGGER.warning("Problem with updating metadata collection indexes, result: {:s}".format(str(result)))
+        else:
+            LOGGER.debug("Updated the metadata collection indexes successfully.")
+
+    async def add_simulation_indexes(self, simulation_id: str):
+        """Adds indexes to the collection containing the messages from the specified simulation."""
+        simulation_indexes = [
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.EPOCH_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.PROCESS_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.TOPIC_ATTRIBUTE, pymongo.ASCENDING),
+                ],
+                name="epoch_index"
+            ),
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.PROCESS_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.TOPIC_ATTRIBUTE, pymongo.ASCENDING)
+                ],
+                name="process_index"
+            ),
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.TOPIC_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.STARTTIME_ATTRIBUTE, pymongo.ASCENDING)
+                ],
+                name="topic_index"
+            )
+        ]
+
+        message_collection_name = self.__get_message_collection({self.__collection_identifier: simulation_id})
+        result = await self.__mongo_database[message_collection_name].create_indexes(simulation_indexes)
+
+        if len(result) != len(simulation_indexes):
+            LOGGER.warning("Problem with updating message collection indexes for {:s}, result: {:s}".format(
+                simulation_id, str(result)))
+        else:
+            LOGGER.debug("Updated the message collection indexes for {:s} successfully.".format(simulation_id))
 
     def __get_message_collection(self, json_document: dict):
         """Returns the collection name for the document."""
