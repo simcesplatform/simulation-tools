@@ -4,6 +4,7 @@
 
 import datetime
 import operator
+from typing import Union
 
 import motor.motor_asyncio
 import pymongo
@@ -132,13 +133,45 @@ class MongodbClient:
         message_collection_name = self.__get_message_collection(json_document)
         if message_collection_name is None:
             LOGGER.warning("Document does not have '{:s}' attribute.".format(self.__collection_identifier))
-            return None
+            return False
 
         await MongodbClient.datetime_attributes_to_objects(json_document)
 
         mongodb_collection = self.__mongo_database[message_collection_name]
         write_result = await mongodb_collection.insert_one(json_document)
         return write_result.acknowledged
+
+    async def store_messages(self, documents: list):
+        """Stores several messages to the database. All documents are expected to belong to the same simulation.
+           The simulation is identified based on the first message on the list.
+
+           documents parameters is expected to be a list of tuples (message_json, topic_name),
+           where message_json is the message in JSON format and topic_name is a string for the message topic."""
+        if not documents or not isinstance(documents, list):
+            return []
+
+        # Add the topic attribute to the JSON documents.
+        full_documents = [
+            {
+                **document,
+                MongodbClient.TOPIC_ATTRIBUTE: topic_name
+            }
+            for document, topic_name in documents
+        ]
+
+        message_collection_name = self.__get_message_collection(full_documents[0])
+        if message_collection_name is None:
+            LOGGER.warning("The first document does not have '{:s}' attribute.".format(self.__collection_identifier))
+            return []
+
+        await MongodbClient.datetime_attributes_to_objects(full_documents)
+
+        mongodb_collection = self.__mongo_database[message_collection_name]
+        write_result = await mongodb_collection.insert_many(full_documents)
+
+        if write_result.acknowledged:
+            return write_result.inserted_ids
+        return []
 
     async def update_metadata(self, simulation_id: str, **attribute_updates):
         """Creates or updates the metadata information for a simulation."""
@@ -239,11 +272,15 @@ class MongodbClient:
         return self.__messages_collection_prefix + json_document[self.__collection_identifier]
 
     @classmethod
-    async def datetime_attributes_to_objects(cls, json_document: dict):
+    async def datetime_attributes_to_objects(cls, json_documents: Union[dict, list]):
         """Convert the datetime attributes from type str to datetime.datetime."""
-        for datetime_attribute in MongodbClient.DATETIME_ATTRIBUTES:
-            if datetime_attribute in json_document and isinstance(json_document[datetime_attribute], str):
-                json_document[datetime_attribute] = to_utc_datetime_object(json_document[datetime_attribute])
+        if not isinstance(json_documents, list):
+            json_documents = [json_documents]
+
+        for json_document in json_documents:
+            for datetime_attribute in MongodbClient.DATETIME_ATTRIBUTES:
+                if datetime_attribute in json_document and isinstance(json_document[datetime_attribute], str):
+                    json_document[datetime_attribute] = to_utc_datetime_object(json_document[datetime_attribute])
 
     async def get_metadata_json(self, old_values: dict, new_values: dict):
         """Returns a validated metadata document. Any attributes that not
