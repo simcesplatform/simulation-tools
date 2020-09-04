@@ -8,6 +8,7 @@ from typing import Union
 
 import motor.motor_asyncio
 import pymongo
+import pymongo.results
 
 from tools.datetime_tools import to_utc_datetime_object
 from tools.tools import FullLogger, load_environmental_variables

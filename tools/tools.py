@@ -5,6 +5,7 @@
 import datetime
 import logging
 import os
+from typing import Any, List, Tuple, Union
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
 SIMULATION_LOG_FILE = "SIMULATION_LOG_FILE"
@@ -66,14 +67,12 @@ class EnvironmentVariables:
         for variable in variables:
             self.add_variable(variable)
 
-    def add_variable(self, new_variable):
+    def add_variable(self, new_variable: Union[EnvironmentVariable, List[Any], Tuple[Any]]):
         """Adds new variable to the variable list."""
         if isinstance(new_variable, (list, tuple)) and new_variable:
             self.__variables[new_variable[0]] = EnvironmentVariable(*new_variable)
         elif isinstance(new_variable, EnvironmentVariable):
-            self.__variables[new_variable] = new_variable
-        else:
-            self.__variables[new_variable] = EnvironmentVariable(new_variable)
+            self.__variables[new_variable.variable_name] = new_variable
 
     def get_variables(self):
         """Returns a list of the registered environment variable names."""
@@ -118,29 +117,29 @@ class FullLogger:
         logging.ERROR: "ERROR"
     }
 
-    def __init__(self, logger_name):
+    def __init__(self, logger_name: str):
         self.__logger = get_logger(logger_name)
         self.__log_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
 
-    def debug(self, message, *args):
+    def debug(self, message: str, *args):
         """Writes log message with DEBUG logging level."""
         if self.level <= logging.DEBUG:
             self.__logger.debug(message, *args)
             self.__print(logging.DEBUG, message, *args)
 
-    def info(self, message, *args):
+    def info(self, message: str, *args):
         """Writes log message with INFO logging level."""
         if self.level <= logging.INFO:
             self.__logger.info(message, *args)
             self.__print(logging.INFO, message, *args)
 
-    def warning(self, message, *args):
+    def warning(self, message: str, *args):
         """Writes log message with WARNING logging level."""
         if self.level <= logging.WARNING:
             self.__logger.warning(message, *args)
             self.__print(logging.WARNING, message, *args)
 
-    def error(self, message, *args):
+    def error(self, message: str, *args):
         """Writes log message with ERROR logging level."""
         if self.level <= logging.ERROR:
             self.__logger.error(message, *args)
@@ -152,7 +151,7 @@ class FullLogger:
         return self.__logger.level
 
     @level.setter
-    def level(self, log_level):
+    def level(self, log_level: int):
         """Sets the logging level of the logger to log_level."""
         self.__logger.setLevel(log_level)
 
@@ -164,14 +163,18 @@ class FullLogger:
                 flush=True)
 
 
-def get_logger(logger_name):
+def get_logger(logger_name: str):
     """Returns a logger object."""
     new_logger = logging.getLogger(logger_name)
-    new_logger.setLevel(COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL])
+    new_logger_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
+    if isinstance(new_logger_level, int):
+        new_logger.setLevel(new_logger_level)
 
-    log_file_handler = logging.FileHandler(COMMON_ENV_VARIABLES[SIMULATION_LOG_FILE])
-    log_file_handler.setFormatter(logging.Formatter(COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT]))
-    new_logger.addHandler(log_file_handler)
+    log_file_name = COMMON_ENV_VARIABLES[SIMULATION_LOG_FILE]
+    if isinstance(log_file_name, str):
+        log_file_handler = logging.FileHandler(log_file_name)
+        log_file_handler.setFormatter(logging.Formatter(COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT]))
+        new_logger.addHandler(log_file_handler)
 
     return new_logger
 

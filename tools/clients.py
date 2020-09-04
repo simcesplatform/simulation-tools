@@ -3,6 +3,7 @@
 """This module contains a class for keeping track of the simulation components."""
 
 import asyncio
+from typing import Any, Awaitable, Callable, Dict, List, Tuple, Union
 
 import aio_pika
 
@@ -13,9 +14,9 @@ from tools.tools import FullLogger, handle_async_exception, load_environmental_v
 LOGGER = FullLogger(__name__)
 
 
-def default_env_variable_definitions():
+def default_env_variable_definitions() -> List[Tuple[str, Any, Any]]:
     """Returns the default environment variable definitions."""
-    def env_variable_name(simple_variable_name):
+    def env_variable_name(simple_variable_name: str) -> str:
         return "{:s}{:s}".format(RabbitmqClient.DEFAULT_ENV_VARIABLE_PREFIX, simple_variable_name.upper())
 
     return [
@@ -25,13 +26,15 @@ def default_env_variable_definitions():
         (env_variable_name("password"), str, ""),
         (env_variable_name("ssl"), bool, False),
         (env_variable_name("ssl_version"), str, "PROTOCOL_TLS"),
-        (env_variable_name("exchange"), str, "")
+        (env_variable_name("exchange"), str, ""),
+        (env_variable_name("exchange_autodelete"), bool, False),
+        (env_variable_name("exchange_durable"), bool, False)
     ]
 
 
-def load_config_from_env_variables():
+def load_config_from_env_variables() -> Dict[str, Any]:
     """Returns configuration dictionary from which values are fetched from environmental variables."""
-    def simple_name(env_variable_name):
+    def simple_name(env_variable_name: str) -> str:
         return env_variable_name[len(RabbitmqClient.DEFAULT_ENV_VARIABLE_PREFIX):].lower()
 
     env_variables = load_environmental_variables(*default_env_variable_definitions())
@@ -42,7 +45,8 @@ def load_config_from_env_variables():
     }
 
 
-def validate_message(topic_name, message_to_publish):
+def validate_message(topic_name: str, message_to_publish: Union[bytes, AbstractMessage]) \
+        -> Union[Tuple[None, None], Tuple[str, bytes]]:
     """Validates the message received from a queue for publishing.
        Returns a tuple (topic_name: str, message_to_publish: bytes) if the message is valid.
        Otherwise, returns (None, None)."""
@@ -62,19 +66,42 @@ def validate_message(topic_name, message_to_publish):
     return topic_name, message_to_publish
 
 
+class RabbitmqExchangeParameters:
+    """Class for holding the parameters required for declaring """
+    def __init__(self, exchange_name: str, exchange_autodelete: bool, exchange_durable: bool):
+        self.__exchange_name = exchange_name
+        self.__auto_delete = exchange_autodelete
+        self.__durable = exchange_durable
+
+    @property
+    def exchange_name(self) -> str:
+        """Returns the name for the exchangee."""
+        return self.__exchange_name
+
+    @property
+    def auto_delete(self) -> bool:
+        """Returns the auto_dele for the exchangee."""
+        return self.__auto_delete
+
+    @property
+    def durable(self) -> bool:
+        """Returns the name for the exchangee."""
+        return self.__durable
+
+
 class RabbitmqConnection:
     """Class for holding a RabbitMQ connection including the a channel and an exchange.
        This is mainly intended for the use of RabbitmqClient objects.
     """
-    def __init__(self, connection_parameters, exchange_name):
+    def __init__(self, connection_parameters: dict, exchange_parameters: RabbitmqExchangeParameters):
         self.__connection_parameters = connection_parameters
-        self.__exchange_name = exchange_name
+        self.__exchange_parameters = exchange_parameters
 
         self.__rabbitmq_connection = None
         self.__rabbitmq_channel = None
         self.__rabbitmq_exchange = None
 
-    async def get_connection(self):
+    async def get_connection(self) -> aio_pika.connection.ConnectionType:
         """Returns a RabbitMQ connection. Creates the connection on the first call.
            If the connection has been closed, tries to create a new connection."""
         if self.__rabbitmq_connection is None or self.__rabbitmq_connection.is_closed:
@@ -83,25 +110,26 @@ class RabbitmqConnection:
             self.__rabbitmq_exchange = None
         return self.__rabbitmq_connection
 
-    async def get_channel(self):
+    async def get_channel(self) -> aio_pika.channel.Channel:
         """Returns a channel for a RabbitMQ connection. Creates the channel on the first call."""
         if self.__rabbitmq_channel is None or self.__rabbitmq_channel.is_closed:
             connection = await self.get_connection()
-            self.__rabbitmq_channel = await connection.channel()
+            self.__rabbitmq_channel = await connection.channel()  # type: ignore
             self.__rabbitmq_exchange = None
         return self.__rabbitmq_channel
 
-    async def get_exchange(self):
+    async def get_exchange(self) -> aio_pika.exchange.Exchange:
         """Returns an exchange for a RabbitMQ connection. Declares the exchange on the first call."""
         if self.__rabbitmq_exchange is None:
             channel = await self.get_channel()
             self.__rabbitmq_exchange = await channel.declare_exchange(
-                self.__exchange_name,
+                self.__exchange_parameters.exchange_name,
                 aio_pika.exchange.ExchangeType.TOPIC,
-                durable=True)
+                auto_delete=self.__exchange_parameters.auto_delete,
+                durable=self.__exchange_parameters.durable)
         return self.__rabbitmq_exchange
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes the RabbitMQ connection."""
         if self.__rabbitmq_connection is not None and not self.__rabbitmq_connection.is_closed:
             await self.__rabbitmq_connection.close()
@@ -119,11 +147,16 @@ class RabbitmqClient:
     OPTIONAL_SSL_PARAMETER = "ssl_version"
 
     EXCHANGE_ATTRIBUTE_NAME = "exchange"
+    EXCHANGE_ATTRIBUTE_AUTODELETE = "exchange_autodelete"
+    EXCHANGE_ATTRIBUTE_DURABLE = "exchange_durable"
+    EXCHANGE_PARAMETERS = [EXCHANGE_ATTRIBUTE_NAME, EXCHANGE_ATTRIBUTE_AUTODELETE, EXCHANGE_ATTRIBUTE_DURABLE]
+
+    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + [OPTIONAL_SSL_PARAMETER] + EXCHANGE_PARAMETERS
 
     MESSAGE_ENCODING = "UTF-8"
 
     def __init__(self, **kwargs):
-        """Required attributes:
+        """Available attributes, all other attributes are ignored:
            - host         : the host name for the RabbitMQ server
            - port         : the port number for the RabbitMQ server
            - login        : username for access to the RabbitMQ server
@@ -131,8 +164,11 @@ class RabbitmqClient:
            - ssl          : use SSL connection to the RabbitMQ server
            - ssl_version  : the SSL version parameter for the SSL connection
            - exchange     : the name for the exchange used by the client
+           - exchange_autodelete  : whether to automatically delete the exchange after use
+           - exchange_durable     : whether to setup the exchange to survive message bus restarts
 
-           If called without any parameters, the values for the attributes are read from the environmental variables
+           If a value for attribute is missing from kwargs, the value is read from
+           the corresponding environmental variable with the given default value as a backup.
            - RABBITMQ_HOST (default value: "localhost")
            - RABBITMQ_PORT (default value: 5672)
            - RABBITMQ_LOGIN (default value: "")
@@ -140,14 +176,22 @@ class RabbitmqClient:
            - RABBITMQ_SSL (default value: False)
            - RABBITMQ_SSL_VERSION (default value: "PROTOCOL_TLS")
            - RABBITMQ_EXCHANGE (default value: "")
+           - RABBITMQ_EXCHANGE_AUTODELETE (default value: False)
+           - RABBITMQ_EXCHANGE_DURABLE (default value: False)
         """
-        if not kwargs:
-            kwargs = load_config_from_env_variables()
+        kwargs_env = load_config_from_env_variables()
+        kwargs = {
+            attribute_name: kwargs.get(attribute_name, kwargs_env[attribute_name])
+            for attribute_name in RabbitmqClient.FULL_ATTRIBUTE_NAME_LIST
+        }
 
         self.__connection_parameters = RabbitmqClient.__get_connection_parameters_only(kwargs)
-        self.__exchange_name = kwargs[RabbitmqClient.EXCHANGE_ATTRIBUTE_NAME]
+        self.__exchange_parameters = RabbitmqExchangeParameters(
+            exchange_name=str(kwargs[RabbitmqClient.EXCHANGE_ATTRIBUTE_NAME]),
+            exchange_autodelete=bool(kwargs[RabbitmqClient.EXCHANGE_ATTRIBUTE_AUTODELETE]),
+            exchange_durable=bool(kwargs[RabbitmqClient.EXCHANGE_ATTRIBUTE_DURABLE]))
 
-        self.__send_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_name)
+        self.__send_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_parameters)
         self.__listened_topics = set()
         self.__listener_connections = []
         self.__listener_tasks = []
@@ -155,7 +199,7 @@ class RabbitmqClient:
         self.__lock = asyncio.Lock()
         self.__is_closed = False
 
-    async def close(self):
+    async def close(self) -> None:
         """Closes the sender thread and all the listener threads."""
         async with self.__lock:
             await self.remove_listeners()
@@ -163,21 +207,22 @@ class RabbitmqClient:
             self.__is_closed = True
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         """Returns True if the connections for the client have been closed."""
         return self.__is_closed
 
     @property
-    def exchange_name(self):
+    def exchange_name(self) -> str:
         """Returns the RabbitMQ exchange name that the client uses."""
-        return self.__exchange_name
+        return self.__exchange_parameters.exchange_name
 
     @property
-    def listened_topics(self):
+    def listened_topics(self) -> List[str]:
         """Returns a list of the topics the client is currently listening."""
         return list(self.__listened_topics)
 
-    def add_listener(self, topic_names, callback_function):
+    def add_listener(self, topic_names: Union[str, List[str]],
+                     callback_function: Callable[[Union[AbstractMessage, dict, str], str], Awaitable[None]]) -> None:
         """Adds a new listener to the given topic."""
         if self.is_closed:
             return
@@ -185,7 +230,7 @@ class RabbitmqClient:
         if isinstance(topic_names, str):
             topic_names = [topic_names]
 
-        new_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_name)
+        new_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_parameters)
         asyncio.get_event_loop().set_exception_handler(handle_async_exception)
         listener_task = asyncio.create_task(self.__listen_to_topics(
             connection_class=new_connection,
@@ -198,7 +243,7 @@ class RabbitmqClient:
         for topic_name in topic_names:
             self.__listened_topics.add(topic_name)
 
-    async def remove_listeners(self):
+    async def remove_listeners(self) -> None:
         """Removes all listeners from the client."""
         for listener_connection, listener_task in zip(self.__listener_connections, self.__listener_tasks):
             listener_task.cancel()
@@ -208,15 +253,15 @@ class RabbitmqClient:
         self.__listener_tasks = []
         self.__listened_topics = set()
 
-    async def send_message(self, topic_name, message_bytes):
+    async def send_message(self, topic_name: str, message_bytes: bytes) -> None:
         """Sends the given message to the given topic. Assumes that the message is in bytes format."""
         async with self.__lock:
             if self.is_closed:
                 LOGGER.warning("Message not sent because the client is closed.")
                 return
 
-            topic_name, message_to_publish = validate_message(topic_name, message_bytes)
-            if topic_name is None or message_to_publish is None:
+            validated_topic_name, message_to_publish = validate_message(topic_name, message_bytes)
+            if validated_topic_name is None or message_to_publish is None:
                 return
 
             try:
@@ -236,7 +281,8 @@ class RabbitmqClient:
             except GeneratorExit:
                 LOGGER.warning("GeneratorExit received when trying to publish message.")
 
-    async def __listen_to_topics(self, connection_class, topic_names, callback_class):
+    async def __listen_to_topics(self, connection_class: RabbitmqConnection, topic_names: Union[str, List[str]],
+                                 callback_class: MessageCallback) -> None:
         """Starts a RabbitMQ message bus listener for the given topics."""
         if isinstance(topic_names, str):
             topic_names = [topic_names]
@@ -276,7 +322,7 @@ class RabbitmqClient:
             LOGGER.warning("OSError: '{:s}' when trying to listen to the message bus.".format(str(error)))
 
     @classmethod
-    def __get_connection_parameters_only(cls, connection_config_dict):
+    def __get_connection_parameters_only(cls, connection_config_dict: dict) -> dict:
         """Returns only the parameters needed for creating a connection."""
         stripped_connection_config = {
             config_parameter: parameter_value

@@ -5,6 +5,9 @@
 import inspect
 import json
 import threading
+from typing import Awaitable, Callable, Union
+
+import aio_pika.message
 
 from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, ErrorMessage, \
                            SimulationStateMessage, StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
@@ -17,7 +20,8 @@ class MessageCallback():
     """The callback class for handling received messages that are instances of AbstractMessage."""
     MESSAGE_CODING = "UTF-8"
 
-    def __init__(self, callback_function, message_type=None):
+    def __init__(self, callback_function: Callable[[Union[AbstractMessage, dict, str], str], Awaitable[None]],
+                 message_type: Union[str, None] = None):
         self.__lock = threading.Lock()
         self.__callback_function = callback_function
 
@@ -30,16 +34,16 @@ class MessageCallback():
         self.__last_topic = None
 
     @property
-    def last_message(self):
+    def last_message(self) -> Union[AbstractMessage, dict, str, None]:
         """Returns the last message that was received."""
         return self.__last_message
 
     @property
-    def last_topic(self):
+    def last_topic(self) -> Union[str, None]:
         """Returns the topic from which the last message was received."""
         return self.__last_topic
 
-    def log_last_message(self):
+    def log_last_message(self) -> None:
         """Writes a log message based on the last received message."""
         if isinstance(self.last_message, SimulationStateMessage):
             LOGGER.info("Received simulation state message '{:s}' from '{:s}'".format(
@@ -74,9 +78,11 @@ class MessageCallback():
         else:
             LOGGER.warning("The last message in unknown format: '{:s}'".format(str(self.last_message)))
 
-    async def callback(self, message):
+    async def callback(self, message: aio_pika.message.IncomingMessage) -> None:
         """Callback function for the received messages from the message bus."""
         with self.__lock:
+            message_str = ""
+            message_json = {}
             try:
                 message_str = message.body.decode(MessageCallback.MESSAGE_CODING)
                 message_json = json.loads(message_str)

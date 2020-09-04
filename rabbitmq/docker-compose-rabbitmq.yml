@@ -8,6 +8,8 @@ services:
     restart: always
     expose:
       - 5672
+    environment:
+      - RABBITMQ_EXCHANGE=procem.tools_tests
     networks:
       - tools_test_network
 

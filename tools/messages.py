@@ -333,6 +333,14 @@ class AbstractResultMessage(AbstractMessage):
                 return False
         return True
 
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
+
 
 class SimulationStateMessage(AbstractMessage):
     """Class containing all the attributes for a simulation state message."""
@@ -418,6 +426,14 @@ class SimulationStateMessage(AbstractMessage):
     def _check_description(cls, description):
         return description is None or isinstance(description, str)
 
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
+
 
 class EpochMessage(AbstractResultMessage):
     """Class containing all the attributes for a epoch message."""
@@ -490,6 +506,14 @@ class EpochMessage(AbstractResultMessage):
     def _check_end_time(cls, end_time):
         return cls._check_datetime(end_time)
 
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
+
 
 class StatusMessage(AbstractResultMessage):
     """Class containing all the attributes for a status message."""
@@ -538,6 +562,14 @@ class StatusMessage(AbstractResultMessage):
     def _check_value(cls, value):
         return isinstance(value, str) and value in cls.STATUS_VALUES
 
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
+
 
 class ErrorMessage(AbstractResultMessage):
     """Class containing all the attributes for an error message."""
@@ -583,6 +615,14 @@ class ErrorMessage(AbstractResultMessage):
     @classmethod
     def _check_description(cls, description):
         return isinstance(description, str) and len(description) > 0
+
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
 
 
 class ResultMessage(AbstractResultMessage):
@@ -644,6 +684,14 @@ class ResultMessage(AbstractResultMessage):
                 result_values_json[result_name] = result_value.json()
 
         return {**get_json(self), **result_values_json}
+
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
 
 
 class GeneralMessage(AbstractMessage):
@@ -707,6 +755,14 @@ class GeneralMessage(AbstractMessage):
                 general_attributes_json[attribute_name] = attribute_value.json()
 
         return {**get_json(self), **general_attributes_json}
+
+    @classmethod
+    def from_json(cls, json_message: dict):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
 
 
 MESSAGE_TYPES = {
