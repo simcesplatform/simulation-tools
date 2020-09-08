@@ -3,17 +3,18 @@
 """Common tools for the use of Omega and Simulation Manager."""
 
 import datetime
+from typing import Union
 
 UTC_TIMEZONE_MARK = "Z"
 DIGITS_IN_MILLISECONDS = 3
 
 
-def get_utcnow_in_milliseconds():
+def get_utcnow_in_milliseconds() -> str:
     """Returns the current ISO 8601 format datetime string in UTC timezone."""
     return isoformat_to_milliseconds(datetime.datetime.utcnow().isoformat()) + UTC_TIMEZONE_MARK
 
 
-def to_iso_format_datetime_string(datetime_value):
+def to_iso_format_datetime_string(datetime_value: Union[str, datetime.datetime]) -> Union[str, None]:
     """Returns the given datetime value as ISO 8601 formatted string in UTC timezone.
        Accepts either datetime objects or strings.
        Return None if the given values was invalidate."""
@@ -26,12 +27,12 @@ def to_iso_format_datetime_string(datetime_value):
     return None
 
 
-def to_utc_datetime_object(datetime_str):
+def to_utc_datetime_object(datetime_str: str) -> datetime.datetime:
     """Returns a datetime object corresponding to the given ISO 8601 formatted string."""
     return datetime.datetime.fromisoformat(datetime_str.replace(UTC_TIMEZONE_MARK, "+00:00"))
 
 
-def isoformat_to_milliseconds(datetime_str: str):
+def isoformat_to_milliseconds(datetime_str: str) -> Union[str, None]:
     """Returns the given ISO 8601 format datetime string in millisecond precision.
        Also removes timezone information."""
     date_mark_index = datetime_str.find("T")

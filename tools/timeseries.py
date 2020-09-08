@@ -4,7 +4,9 @@
 
 import collections
 import csv
+import datetime
 import pathlib
+from typing import Any, Dict, List, Union
 
 from tools.datetime_tools import to_iso_format_datetime_string
 from tools.exceptions.timeseries import TimeSeriesError, TimeSeriesDateError, TimeSeriesUnitError, TimeSeriesValueError
@@ -24,7 +26,7 @@ class UnitCode:
     UNIT_CODE_LIST = {}
 
     @classmethod
-    def is_valid(cls, unit_code: str):
+    def is_valid(cls, unit_code: str) -> bool:
         """Returns True if unit_code is a valid UCUM code.
            Only codes listed in https://www.hl7.org/fhir/valueset-ucum-units.html are considered as valid."""
         if not cls.UNIT_CODE_LIST:
@@ -33,7 +35,7 @@ class UnitCode:
         return unit_code in cls.UNIT_CODE_LIST
 
     @classmethod
-    def get_description(cls, unit_code: str):
+    def get_description(cls, unit_code: str) -> Union[str, None]:
         """Returns the description for the given unit code. Return None if the code is not valid."""
         if not cls.UNIT_CODE_LIST:
             cls.UNIT_CODE_LIST = cls.__return_unit_code_list()
@@ -41,7 +43,7 @@ class UnitCode:
         return cls.UNIT_CODE_LIST.get(unit_code, None)
 
     @classmethod
-    def __return_unit_code_list(cls):
+    def __return_unit_code_list(cls) -> Dict[str, str]:
         unit_code_dict = {}
 
         current_path = pathlib.Path(".")
@@ -80,23 +82,23 @@ class TimeSeriesAttribute:
                     kwargs.get(json_attribute_name, None))
 
     @property
-    def unit_of_measurement(self):
+    def unit_of_measurement(self) -> str:
         """The unit of measurement for the time series."""
         return self.__unit_of_measurement
 
     @property
-    def values(self):
+    def values(self) -> Union[List[bool], List[int], List[float], List[str]]:
         """The values for the time series."""
         return self.__values
 
     @unit_of_measurement.setter
-    def unit_of_measurement(self, unit_of_measurement):
+    def unit_of_measurement(self, unit_of_measurement: str):
         if not self._check_unit_of_measurement(unit_of_measurement):
             raise TimeSeriesUnitError("'{:s}' is not an allowed unit of measurement".format(str(unit_of_measurement)))
         self.__unit_of_measurement = unit_of_measurement
 
     @values.setter
-    def values(self, values):
+    def values(self, values: Union[List[bool], List[int], List[float], List[str]]):
         if not self._check_values(values):
             raise TimeSeriesValueError("'{:s}' is not a valid time series value list".format(str(values)))
         self.__values = values
@@ -107,14 +109,18 @@ class TimeSeriesAttribute:
 
     @classmethod
     def _check_values(cls, values):
-        if not isinstance(values, (list, tuple)):
+        if not isinstance(values, list):
             return False
+        if not values:  # accept empty list
+            return True
+
+        value_type = type(values[0])
         for value in values:
-            if not isinstance(value, (bool, int, float, str)):
+            if not isinstance(value, (bool, int, float, str)) or not isinstance(value, value_type):
                 return False
         return True
 
-    def json(self):
+    def json(self) -> Dict[str, Any]:
         """Returns the time series attribute as JSON object"""
         return {
             json_attribute_name: getattr(self, object_attribute_name)
@@ -122,7 +128,7 @@ class TimeSeriesAttribute:
         }
 
     @classmethod
-    def validate_json(cls, json_timeseries: dict):
+    def validate_json(cls, json_timeseries: Dict[str, Any]) -> bool:
         """Validates the given the given json object for the attributes covered in TimeSeriesAttribute class.
            Returns True if the time series is ok. Otherwise, return False."""
         for json_attribute_name, object_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES.items():
@@ -140,7 +146,7 @@ class TimeSeriesAttribute:
         return True
 
     @classmethod
-    def from_json(cls, json_timeseries: dict):
+    def from_json(cls, json_timeseries: Dict[str, Any]):
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is not validated returns None."""
         if cls.validate_json(json_timeseries):
@@ -162,37 +168,43 @@ class TimeSeriesBlock():
                     kwargs.get(json_attribute_name, None))
 
     @property
-    def time_index(self):
+    def time_index(self) -> List[str]:
         """The list of date times for the time series in ISO 8601 format (UTC)."""
         return self.__time_index
 
     @property
-    def series(self):
+    def series(self) -> Dict[str, TimeSeriesAttribute]:
         """The list of the time series values as dictionary with the series name as keys and
            TimeSeriesAttribute objects as values."""
         return self.__series
 
-    def get_single_series(self, series_name: str):
+    def get_single_series(self, series_name: str) -> Union[TimeSeriesAttribute, None]:
         """Returns the corresponding time series values as a TimeSeriesAttribute object.
            Returns None if the series does not exist."""
         return self.__series.get(series_name, None)
 
     @time_index.setter
-    def time_index(self, time_index):
+    def time_index(self, time_index: List[Union[str, datetime.datetime]]):
         if getattr(self, "series", None) is None:
             expected_list_length = None
         else:
             expected_list_length = len(self.get_single_series(next(iter(self.series))).values)
 
-        if not self._check_time_index(time_index, expected_list_length):
+        if self._check_time_index(time_index, expected_list_length):
+            new_time_index_list = []
+            for datetime_value in time_index:
+                iso_format_string = to_iso_format_datetime_string(datetime_value)
+                if isinstance(iso_format_string, str):
+                    new_time_index_list.append(iso_format_string)
+                else:
+                    raise TimeSeriesDateError("'{:s}' is not a valid date time value".format(str(datetime_value)))
+            self.__time_index = new_time_index_list
+
+        else:
             raise TimeSeriesDateError("'{:s}' is not a valid list of date times".format(str(time_index)))
-        self.__time_index = [
-            to_iso_format_datetime_string(datetime_value)
-            for datetime_value in time_index
-        ]
 
     @series.setter
-    def series(self, series):
+    def series(self, series: Dict[str, TimeSeriesAttribute]):
         if getattr(self, "time_index", None) is None:
             expected_list_length = None
         else:
@@ -200,12 +212,7 @@ class TimeSeriesBlock():
 
         if not self._check_series(series, expected_list_length):
             raise TimeSeriesValueError("'{:s}' is not a valid dictionary of time series values".format(str(series)))
-        self.__series = {
-            series_name: (
-                series_values if isinstance(series_values, TimeSeriesAttribute)
-                else TimeSeriesAttribute.from_json(series_values))
-            for series_name, series_values in series.items()
-        }
+        self.__series = series
 
     def add_series(self, series_name: str, series_values: TimeSeriesAttribute):
         """Adds a new or replaces an old time series for the TimeSeriesBlock."""
@@ -216,7 +223,7 @@ class TimeSeriesBlock():
                 str(series_name), str(series_values)))
 
     @classmethod
-    def _check_time_index(cls, time_index, list_length=None):
+    def _check_time_index(cls, time_index, list_length: int = None):
         if not isinstance(time_index, (list, tuple)):
             return False
         if list_length is not None and len(time_index) != list_length:
@@ -229,7 +236,7 @@ class TimeSeriesBlock():
         return True
 
     @classmethod
-    def _check_series(cls, series, list_length=None):
+    def _check_series(cls, series, list_length: int = None):
         if not isinstance(series, dict) or len(series) == 0:
             return False
 
@@ -248,7 +255,7 @@ class TimeSeriesBlock():
 
         return True
 
-    def json(self):
+    def json(self) -> Dict[str, Any]:
         """Returns the timeseries block as a JSON object."""
         return {
             "TimeIndex": self.time_index,
@@ -259,7 +266,7 @@ class TimeSeriesBlock():
         }
 
     @classmethod
-    def validate_json(cls, json_timeseries_block: dict):
+    def validate_json(cls, json_timeseries_block: Dict[str, Any]):
         """Validates the given the given json object for the attributes covered in TimeSeriesBlock class.
            Returns True if the time series block is ok. Otherwise, return False."""
         try:
@@ -272,7 +279,7 @@ class TimeSeriesBlock():
             return False
 
     @classmethod
-    def from_json(cls, json_timeseries_block: dict):
+    def from_json(cls, json_timeseries_block: Dict[str, Any]):
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is not validated returns None."""
         if cls.validate_json(json_timeseries_block):
