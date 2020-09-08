@@ -320,6 +320,8 @@ class RabbitmqClient:
             LOGGER.warning("RuntimeError: '{:s}' when trying to listen to the message bus.".format(str(error)))
         except OSError as error:
             LOGGER.warning("OSError: '{:s}' when trying to listen to the message bus.".format(str(error)))
+        finally:
+            LOGGER.info("Closing listener for topics: '{:s}'".format(", ".join(topic_names)))
 
     @classmethod
     def __get_connection_parameters_only(cls, connection_config_dict: dict) -> dict:
