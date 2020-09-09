@@ -4,7 +4,7 @@
 
 import datetime
 import operator
-from typing import Union
+from typing import List, Tuple, Union
 
 import motor.motor_asyncio
 import pymongo
@@ -122,7 +122,17 @@ class MongodbClient:
         self.__mongo_database = self.__mongo_client[self.__database_name]
         self.__metadata_collection = self.__mongo_database[self.__metadata_collection_name]
 
-    async def store_message(self, json_document: dict, document_topic=None):
+    @property
+    def host(self) -> str:
+        """The host name of the MongoDB."""
+        return str(self.__connection_parameters["host"])
+
+    @property
+    def port(self) -> int:
+        """The port number of the MongoDB."""
+        return int(str(self.__connection_parameters["port"]))
+
+    async def store_message(self, json_document: dict, document_topic=None) -> bool:
         """Stores a new JSON message to the database. The used collection is determined by
            the 'simulation_id' attribute in the message.
            Returns True, if writing to the database was successful.
@@ -142,7 +152,7 @@ class MongodbClient:
         write_result = await mongodb_collection.insert_one(json_document)
         return write_result.acknowledged
 
-    async def store_messages(self, documents: list):
+    async def store_messages(self, documents: List[Tuple[dict, str]]):
         """Stores several messages to the database. All documents are expected to belong to the same simulation.
            The simulation is identified based on the first message on the list.
 

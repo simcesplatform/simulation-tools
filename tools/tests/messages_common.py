@@ -125,6 +125,43 @@ GENERAL_TEST_JSON = {
     "Value2": "hello",
 }
 
+RESULT_TEST_JSON = {
+    MESSAGE_TYPE_ATTRIBUTE: "Result",
+    SIMULATION_ID_ATTRIBUTE: "2020-05-05T01:02:03.456Z",
+    SOURCE_PROCESS_ID_ATTRIBUTE: "tester",
+    MESSAGE_ID_ATTRIBUTE: "tester-25",
+    EPOCH_NUMBER_ATTRIBUTE: 11,
+    TRIGGERING_MESSAGE_IDS_ATTRIBUTE: ["tester-24"],
+    "Values": {
+        "TimeIndex": [
+            "2020-01-01T00:00:00.000Z",
+            "2020-01-01T01:00:00.000Z",
+            "2020-01-01T02:00:00.000Z",
+            "2020-01-01T03:00:00.000Z"
+        ],
+        "Series": {
+            "X": {
+                "UnitOfMeasure": "m",
+                "Values": [
+                    111,
+                    222,
+                    333,
+                    444
+                ]
+            },
+            "Y": {
+                "UnitOfMeasure": "kg",
+                "Values": [
+                    12.3,
+                    12.4,
+                    12.6,
+                    12.9
+                ]
+            }
+        }
+    }
+}
+
 
 class TestMessageHelpers(unittest.TestCase):
     """Unit tests for the Message class helper functions."""
