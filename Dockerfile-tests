@@ -20,11 +20,24 @@ RUN echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mo
 RUN apt-get update
 RUN apt-get install -y mongodb-org-shell=4.2.7
 
+# install Node.js 12
+RUN apt-get install -y curl
+RUN curl -sL https://deb.nodesource.com/setup_12.x -o nodesource_setup.sh
+RUN bash nodesource_setup.sh
+RUN apt-get install -y nodejs
+
+# the simulation tools specific requirements
 RUN mkdir -p /tests/tools
 
+# install the python libraries
 COPY requirements.txt /requirements.txt
 RUN pip3 install -r /requirements.txt
 
+# install the Node.js libraries
+COPY package.json /package.json
+RUN npm install -g
+
+# copy the source code files to the container
 COPY resources/ /tests/resources/
 COPY tools/ /tests/tools/
 
