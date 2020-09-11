@@ -5,6 +5,7 @@
 import collections
 import csv
 import datetime
+import json
 import pathlib
 import subprocess
 from typing import Any, Dict, List, Union
@@ -184,6 +185,16 @@ class TimeSeriesAttribute:
             for json_attribute_name, object_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES.items()
         }
 
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, TimeSeriesAttribute) and
+            self.unit_of_measurement == other.unit_of_measurement and
+            self.values == other.values
+        )
+
+    def __str__(self) -> str:
+        return json.dumps(self.json())
+
     @classmethod
     def validate_json(cls, json_timeseries: Dict[str, Any]) -> bool:
         """Validates the given the given json object for the attributes covered in TimeSeriesAttribute class.
@@ -261,7 +272,7 @@ class TimeSeriesBlock():
             raise TimeSeriesDateError("'{:s}' is not a valid list of date times".format(str(time_index)))
 
     @series.setter
-    def series(self, series: Dict[str, TimeSeriesAttribute]):
+    def series(self, series: Dict[str, Union[TimeSeriesAttribute, dict]]):
         if getattr(self, "time_index", None) is None:
             expected_list_length = None
         else:
@@ -269,11 +280,19 @@ class TimeSeriesBlock():
 
         if not self._check_series(series, expected_list_length):
             raise TimeSeriesValueError("'{:s}' is not a valid dictionary of time series values".format(str(series)))
-        self.__series = series
+
+        self.__series = {}
+        for series_name, series_values in series.items():
+            if isinstance(series_values, TimeSeriesAttribute):
+                self.__series[series_name] = series_values
+            else:
+                attribute_series = TimeSeriesAttribute.from_json(series_values)
+                if attribute_series is not None:
+                    self.__series[series_name] = attribute_series
 
     def add_series(self, series_name: str, series_values: TimeSeriesAttribute):
         """Adds a new or replaces an old time series for the TimeSeriesBlock."""
-        if self._check_series({series_name: series_values}):
+        if self._check_series({series_name: series_values}, len(self.__time_index)):
             self.series[series_name] = series_values
         else:
             raise TimeSeriesValueError("'{:s}' is not a valid value series for {:s}".format(
@@ -287,7 +306,10 @@ class TimeSeriesBlock():
             return False
 
         for datetime_value in time_index:
-            if to_iso_format_datetime_string(datetime_value) is None:
+            try:
+                if to_iso_format_datetime_string(datetime_value) is None:
+                    return False
+            except ValueError:
                 return False
 
         return True
@@ -321,6 +343,16 @@ class TimeSeriesBlock():
                 for attribute_name, attribute_value in self.series.items()
             }
         }
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, TimeSeriesBlock) and
+            self.time_index == other.time_index and
+            self.series == other.series
+        )
+
+    def __str__(self) -> str:
+        return json.dumps(self.json())
 
     @classmethod
     def validate_json(cls, json_timeseries_block: Dict[str, Any]):
