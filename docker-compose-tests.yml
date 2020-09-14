@@ -22,6 +22,10 @@ services:
       - MONGODB_PASSWORD=testpass
       - MONGODB_DATABASE=test_logs
       - MONGODB_TZ_AWARE=true
+      - ENV_TEST_VALUE_BOOL=true
+      - ENV_TEST_VALUE_INT=12
+      - ENV_TEST_VALUE_FLOAT=2.34
+      - ENV_TEST_VALUE_STRING=hello
     networks:
       - tools_test_network
 

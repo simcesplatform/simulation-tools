@@ -114,12 +114,14 @@ class FullLogger:
         logging.DEBUG: "DEBUG",
         logging.INFO: "INFO",
         logging.WARNING: "WARNING",
-        logging.ERROR: "ERROR"
+        logging.ERROR: "ERROR",
+        logging.CRITICAL: "CRITICAL"
     }
 
-    def __init__(self, logger_name: str):
-        self.__logger = get_logger(logger_name)
-        self.__log_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
+    def __init__(self, logger_name: str, logger_level: Union[int, None] = None, stdout_output: bool = True):
+        self.__logger = get_logger(logger_name, log_level=logger_level)
+        self.__log_level = self.__logger.level
+        self.__stdout_output = stdout_output
 
     def debug(self, message: str, *args):
         """Writes log message with DEBUG logging level."""
@@ -145,8 +147,14 @@ class FullLogger:
             self.__logger.error(message, *args)
             self.__print(logging.ERROR, message, *args)
 
+    def critical(self, message: str, *args):
+        """Writes log message with CRITICAL logging level."""
+        if self.level <= logging.CRITICAL:
+            self.__logger.critical(message, *args)
+            self.__print(logging.CRITICAL, message, *args)
+
     @property
-    def level(self):
+    def level(self) -> int:
         """Returns the logging level of the logger."""
         return self.__logger.level
 
@@ -155,18 +163,31 @@ class FullLogger:
         """Sets the logging level of the logger to log_level."""
         self.__logger.setLevel(log_level)
 
-    def __print(self, message_level, message, *args):
-        if self.__log_level <= message_level:
+    @property
+    def logger_name(self) -> str:
+        """Returns the logger name."""
+        return self.__logger.name
+
+    @property
+    def logger(self):
+        """Returns the Logger object."""
+        return self.__logger
+
+    def __print(self, message_level: int, message: str, *args):
+        if self.__stdout_output and self.__log_level <= message_level:
             print(
                 datetime.datetime.now().isoformat(),
                 FullLogger.MESSAGE_LEVEL[message_level], ":", message % args,
                 flush=True)
 
 
-def get_logger(logger_name: str):
+def get_logger(logger_name: str, log_level: Union[int, None] = None):
     """Returns a logger object."""
     new_logger = logging.getLogger(logger_name)
-    new_logger_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
+    if log_level is None:
+        new_logger_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
+    else:
+        new_logger_level = log_level
     if isinstance(new_logger_level, int):
         new_logger.setLevel(new_logger_level)
 
