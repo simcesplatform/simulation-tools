@@ -57,7 +57,9 @@ class UnitCode:
             return True
 
         except subprocess.CalledProcessError:
-            pass
+            LOGGER.warning("CalledProcessError when trying to validate unit code: {:s}".format(unit_code))
+        except OSError:
+            LOGGER.warning("OSError when trying to validate unit code: {:s}".format(unit_code))
 
         return False
 
@@ -199,13 +201,16 @@ class TimeSeriesAttribute:
     def validate_json(cls, json_timeseries: Dict[str, Any]) -> bool:
         """Validates the given the given json object for the attributes covered in TimeSeriesAttribute class.
            Returns True if the time series is ok. Otherwise, return False."""
-        for json_attribute_name, object_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES.items():
+        if not isinstance(json_timeseries, dict):
+            return False
+
+        for json_attribute_name, object_attribute_name in cls.TIMESERIES_ATTRIBUTES.items():
             if json_attribute_name not in json_timeseries:
                 LOGGER.warning("{:s} attribute is missing from the time series".format(json_attribute_name))
                 return False
 
             if not getattr(
-                    TimeSeriesAttribute,
+                    cls,
                     "_".join(["_check", object_attribute_name]))(json_timeseries[json_attribute_name]):
                 LOGGER.warning("'{:s}' is not valid value for {:s}".format(
                     str(json_timeseries[json_attribute_name]), json_attribute_name))
