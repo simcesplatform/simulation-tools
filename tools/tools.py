@@ -25,7 +25,7 @@ class EnvironmentVariable:
         if default_value is None:
             self.__default_value = variable_type()
         else:
-            self.__default_value = default_value
+            self.__default_value = variable_type(default_value)
 
         self.__value_fetched = False
         self.__value = default_value
