@@ -5,89 +5,113 @@
 import datetime
 import logging
 import os
-from typing import Any, List, Tuple, Union
+from typing import Dict, List, Tuple, Type, Union
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
 SIMULATION_LOG_FILE = "SIMULATION_LOG_FILE"
 SIMULATION_LOG_FORMAT = "SIMULATION_LOG_FORMAT"
 
+EnvironmentVariableValue = Union[bool, int, float, str]
+EnvironmentVariableType = Union[Type[bool], Type[int], Type[float], Type[str]]
+
 
 class EnvironmentVariable:
     """Class for accessing and holding environment information."""
 
-    def __init__(self, variable_name: str, variable_type=str, default_value=""):
+    def __init__(self, variable_name: str, variable_type: EnvironmentVariableType,
+                 default_value: EnvironmentVariableValue = None):
         self.__variable_name = variable_name
         self.__variable_type = variable_type
-        self.__default_value = default_value
+        if default_value is None:
+            self.__default_value = variable_type()
+        else:
+            self.__default_value = default_value
 
         self.__value_fetched = False
         self.__value = default_value
 
     @property
-    def variable_name(self):
+    def variable_name(self) -> str:
         """Return the variable name."""
         return self.__variable_name
 
     @property
-    def variable_type(self):
+    def variable_type(self) -> EnvironmentVariableType:
         """Returns the variable type."""
         return self.__variable_type
 
     @property
-    def default_value(self):
+    def default_value(self) -> EnvironmentVariableValue:
         """Returns the default value for the variable."""
         return self.__default_value
 
     @property
-    def value(self):
+    def value(self) -> EnvironmentVariableValue:
         """Returns the value of the environmental value.
            The value is only fetched from the environment at the first call."""
         if not self.__value_fetched:
-            new_value = os.environ.get(self.variable_name, self.default_value)
-
-            if self.variable_type is datetime.datetime:
-                self.__value = datetime.datetime.fromisoformat(new_value.replace("Z", "+00:00"))
-            elif self.variable_type is bool and isinstance(new_value, str):
+            new_value = os.environ.get(self.variable_name)
+            if new_value is None:
+                self.__value = self.__default_value
+            elif self.variable_type is bool:
                 self.__value = new_value.lower() == "true"
             else:
                 self.__value = self.variable_type(new_value)
             self.__value_fetched = True
+
+        # This is added to allow pylance linter to recognize that self.__value cannot be None
+        if self.__value is None:
+            self.__value = self.default_value
+
         return self.__value
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Returns the string representation of the variable name and value."""
         return "{:s}: {:s}".format(self.variable_name, str(self.value))
+
+
+EnvironmentVariableSetupType = Union[EnvironmentVariable, Tuple[str, EnvironmentVariableType],
+                                     Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]
 
 
 class EnvironmentVariables:
     """A class for accessing several environment variables."""
 
-    def __init__(self, *variables):
+    def __init__(self, *variables: EnvironmentVariableSetupType):
         self.__variables = dict()
         for variable in variables:
             self.add_variable(variable)
 
-    def add_variable(self, new_variable: Union[EnvironmentVariable, List[Any], Tuple[Any]]):
-        """Adds new variable to the variable list."""
-        if isinstance(new_variable, (list, tuple)) and new_variable:
-            self.__variables[new_variable[0]] = EnvironmentVariable(*new_variable)
+    def add_variable(self, new_variable: EnvironmentVariableSetupType):
+        """Adds new variable to the variable list.
+           new_variable is either a EnvironmentVariable object or a tuple that can be used to create one."""
+        if isinstance(new_variable, tuple):
+            # The tuple parts handled explicitly to allow pylance linter to recognize the types.
+            if len(new_variable) == 2:
+                self.__variables[new_variable[0]] = EnvironmentVariable(new_variable[0], new_variable[1])
+            elif len(new_variable) == 3:
+                self.__variables[new_variable[0]] = EnvironmentVariable(
+                    new_variable[0], new_variable[1], new_variable[2])
         elif isinstance(new_variable, EnvironmentVariable):
             self.__variables[new_variable.variable_name] = new_variable
 
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         """Returns a list of the registered environment variable names."""
         return list(self.__variables.keys())
 
-    def get_value(self, variable_name):
+    def get_value(self, variable_name: str) -> EnvironmentVariableValue:
         """Returns the value of the wanted environmental parameter.
-           The value for each parameter is only fetched from the environment at the first call."""
+           The value for each parameter is only fetched from the environment at the first call.
+           If the given variable is not registered to the EnvironmentVariables instance, returns an empty string."""
         if variable_name in self.__variables:
             return self.__variables[variable_name].value
-        LOGGER.info("Environment variable %s not registered.", variable_name)
-        return None
+
+        LOGGER.info("Environment variable {:s} not registered.".format(variable_name))
+        return str()
 
 
-def load_environmental_variables(*env_variable_specifications):
+def load_environmental_variables(*env_variable_specifications: EnvironmentVariableSetupType) \
+         -> Dict[str, EnvironmentVariableValue]:
     """Returns the realized environmental variable values as a dictionary."""
     env_variables = EnvironmentVariables(*env_variable_specifications)
     return {
@@ -194,7 +218,7 @@ def get_logger(logger_name: str, log_level: Union[int, None] = None):
     log_file_name = COMMON_ENV_VARIABLES[SIMULATION_LOG_FILE]
     if isinstance(log_file_name, str):
         log_file_handler = logging.FileHandler(log_file_name)
-        log_file_handler.setFormatter(logging.Formatter(COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT]))
+        log_file_handler.setFormatter(logging.Formatter(str(COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT])))
         new_logger.addHandler(log_file_handler)
 
     return new_logger
