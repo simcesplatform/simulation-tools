@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Common tools for the use of Omega and Simulation Manager."""
+"""Module containing utility functions related to datetime values."""
 
 import datetime
 from typing import Union
@@ -17,7 +17,7 @@ def get_utcnow_in_milliseconds() -> str:
 def to_iso_format_datetime_string(datetime_value: Union[str, datetime.datetime]) -> Union[str, None]:
     """Returns the given datetime value as ISO 8601 formatted string in UTC timezone.
        Accepts either datetime objects or strings.
-       Return None if the given values was invalidate."""
+       Return None if the given values was invalid."""
     if isinstance(datetime_value, datetime.datetime):
         return isoformat_to_milliseconds(
             datetime_value.astimezone(datetime.timezone.utc).isoformat()) + UTC_TIMEZONE_MARK

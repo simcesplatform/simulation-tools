@@ -4,20 +4,20 @@
 
 import datetime
 import operator
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import motor.motor_asyncio
 import pymongo
 import pymongo.results
 
 from tools.datetime_tools import to_utc_datetime_object
-from tools.tools import FullLogger, load_environmental_variables
+from tools.tools import EnvironmentVariableType, EnvironmentVariableValue, FullLogger, load_environmental_variables
 
 LOGGER = FullLogger(__name__)
 
 
-def default_env_variable_definitions():
-    """Returns the default environment variable definitions."""
+def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]:
+    """Returns the default environment variable definitions for MongodbClient."""
     def env_variable_name(simple_variable_name):
         return "{:s}{:s}".format(MongodbClient.DEFAULT_ENV_VARIABLE_PREFIX, simple_variable_name.upper())
 
@@ -35,7 +35,7 @@ def default_env_variable_definitions():
     ]
 
 
-def load_config_from_env_variables():
+def load_config_from_env_variables() -> Dict[str, EnvironmentVariableValue]:
     """Returns configuration dictionary from which values are fetched from environmental variables."""
     def simple_name(env_variable_name):
         return env_variable_name[len(MongodbClient.DEFAULT_ENV_VARIABLE_PREFIX):].lower()
@@ -54,10 +54,11 @@ class MongodbClient:
     CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware"]
     TOPIC_ATTRIBUTE = "Topic"
 
-    # These attributes will be converted to datetime objects before writing to database.
     TIMESTAMP_ATTRIBUTE = "Timestamp"
     STARTTIME_ATTRIBUTE = "StartTime"
     ENDTIME_ATTRIBUTE = "EndTime"
+
+    # These attributes will be converted to datetime objects before writing to database.
     DATETIME_ATTRIBUTES = [
         TIMESTAMP_ATTRIBUTE,
         STARTTIME_ATTRIBUTE,
@@ -67,6 +68,9 @@ class MongodbClient:
     # Additional attributes that are used in the collection indexes.
     EPOCH_ATTRIBUTE = "EpochNumber"
     PROCESS_ATTRIBUTE = "SourceProcessId"
+
+    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + \
+        ["database", "metadata_collection", "messages_collection_prefix", "collection_identifier"]
 
     # List of possible metadata attributes in addition to the simulation id.
     # Each element is a tuple (attribute_name, attribute_types, comparison_operator)
@@ -84,7 +88,7 @@ class MongodbClient:
     ]
 
     def __init__(self, **kwargs):
-        """Required attributes:
+        """Available attributes, all other attributes are ignored:
            - host                        : the host name for the MongoDB
            - port                        : the port number for the MongoDB
            - username                    : username for access to the MongoDB
@@ -96,20 +100,25 @@ class MongodbClient:
            - messages_collection_prefix  : the prefix for the collection names for the simulation messages
            - collection_identifier       : the attribute name in the messages that tells the simulation id
 
-           If called without any parameters, the values for the attributes are read from the environmental variables
+           If a value for attribute is missing from kwargs, the value is read from
+           the corresponding environmental variable with the given default value as a backup.
            - MONGODB_HOST (default value: "localhost")
            - MONGODB_PORT (default value: 27017)
            - MONGODB_USERNAME (default value: "")
            - MONGODB_PASSWORD (default value: "")
            - MONGODB_DATABASE (default value: "db")
-           - MONGODB_APPNAME (default value: "log_writert")
+           - MONGODB_APPNAME (default value: "log_writer")
            - MONGODB_TZ_AWARE (default value: True)
            - MONGODB_METADATA_COLLECTION (default value: "simulations")
            - MONGODB_MESSAGES_COLLECTION_PREFIX (default value: "simulation_")
            - MONGODB_COLLECTION_IDENTIFIER (default value: "SimulationId")
         """
-        if not kwargs:
-            kwargs = load_config_from_env_variables()
+        kwargs_env = load_config_from_env_variables()
+        kwargs = {
+            attribute_name: kwargs.get(attribute_name, kwargs_env[attribute_name])
+            for attribute_name in MongodbClient.FULL_ATTRIBUTE_NAME_LIST
+        }
+
         self.__connection_parameters = MongodbClient.__get_connection_parameters_only(kwargs)
         self.__database_name = kwargs["database"]
         self.__metadata_collection_name = kwargs["metadata_collection"]
@@ -117,7 +126,6 @@ class MongodbClient:
         self.__collection_identifier = kwargs["collection_identifier"]
 
         # Set up the Mongo database connection and the metadata collection
-        # self.__mongo_client = pymongo.MongoClient(**self.__connection_parameters)
         self.__mongo_client = motor.motor_asyncio.AsyncIOMotorClient(**self.__connection_parameters)
         self.__mongo_database = self.__mongo_client[self.__database_name]
         self.__metadata_collection = self.__mongo_database[self.__metadata_collection_name]
@@ -132,7 +140,7 @@ class MongodbClient:
         """The port number of the MongoDB."""
         return int(str(self.__connection_parameters["port"]))
 
-    async def store_message(self, json_document: dict, document_topic=None) -> bool:
+    async def store_message(self, json_document: dict, document_topic: str = None) -> bool:
         """Stores a new JSON message to the database. The used collection is determined by
            the 'simulation_id' attribute in the message.
            Returns True, if writing to the database was successful.
@@ -152,7 +160,7 @@ class MongodbClient:
         write_result = await mongodb_collection.insert_one(json_document)
         return write_result.acknowledged
 
-    async def store_messages(self, documents: List[Tuple[dict, str]]):
+    async def store_messages(self, documents: List[Tuple[dict, str]]) -> List[str]:
         """Stores several messages to the database. All documents are expected to belong to the same simulation.
            The simulation is identified based on the first message on the list.
 
@@ -184,7 +192,7 @@ class MongodbClient:
             return write_result.inserted_ids
         return []
 
-    async def update_metadata(self, simulation_id: str, **attribute_updates):
+    async def update_metadata(self, simulation_id: str, **attribute_updates) -> bool:
         """Creates or updates the metadata information for a simulation."""
         if not isinstance(simulation_id, str):
             LOGGER.warning("Given simulation id was not of type str: '{:s}'".format(str(type(simulation_id))))
@@ -196,6 +204,10 @@ class MongodbClient:
         # Add a new metadata document.
         if metadata_document is None:
             metadata_document = await self.get_metadata_json(simple_document, attribute_updates)
+            if metadata_document is None:
+                LOGGER.warning("Problem creating the metadata document for simulation {:s}".format(simulation_id))
+                return False
+
             write_result = await self.__metadata_collection.insert_one(metadata_document)
             return (
                 isinstance(write_result, pymongo.results.InsertOneResult) and
@@ -204,6 +216,10 @@ class MongodbClient:
 
         # Update previous document.
         metadata_document = await self.get_metadata_json(metadata_document, attribute_updates)
+        if metadata_document is None:
+            LOGGER.warning("Problem creating the metadata document for simulation {:s}".format(simulation_id))
+            return False
+
         write_result = await self.__metadata_collection.replace_one(simple_document, metadata_document)
         return (
             isinstance(write_result, pymongo.results.UpdateResult) and
@@ -241,7 +257,7 @@ class MongodbClient:
             LOGGER.debug("Updated the metadata collection indexes successfully.")
 
     async def add_simulation_indexes(self, simulation_id: str):
-        """Adds indexes to the collection containing the messages from the specified simulation."""
+        """Adds or updates indexes to the collection containing the messages from the specified simulation."""
         simulation_indexes = [
             pymongo.IndexModel(
                 [
@@ -283,13 +299,14 @@ class MongodbClient:
         return self.__messages_collection_prefix + json_document[self.__collection_identifier]
 
     @classmethod
-    async def datetime_attributes_to_objects(cls, json_documents: Union[dict, list]):
-        """Convert the datetime attributes from type str to datetime.datetime."""
+    async def datetime_attributes_to_objects(cls, json_documents: Union[dict, List[dict]]):
+        """Convert the datetime attributes from type str to datetime.datetime
+           in the given json object or list of json objects."""
         if not isinstance(json_documents, list):
             json_documents = [json_documents]
 
         for json_document in json_documents:
-            for datetime_attribute in MongodbClient.DATETIME_ATTRIBUTES:
+            for datetime_attribute in cls.DATETIME_ATTRIBUTES:
                 if datetime_attribute in json_document and isinstance(json_document[datetime_attribute], str):
                     json_document[datetime_attribute] = to_utc_datetime_object(json_document[datetime_attribute])
 
@@ -306,6 +323,7 @@ class MongodbClient:
         if ((simulation_id_old is None and simulation_id_new is None) or
                 (simulation_id_old is not None and simulation_id_new is not None and
                  simulation_id_old != simulation_id_new)):
+            # The simulation ids from the new and old values did not match.
             return None
 
         metadata_values = {self.__collection_identifier: simulation_id_old}
@@ -332,7 +350,7 @@ class MongodbClient:
         return metadata_values
 
     @classmethod
-    def __check_value_types(cls, value, types: list):
+    def __check_value_types(cls, value: Any, types: list):
         """Checks that value is of proper type. Used for the metadata attributes."""
         if value is None:
             return False
@@ -340,6 +358,8 @@ class MongodbClient:
             return True
         if len(types) == 1:
             return isinstance(value, types[0])
+        if not isinstance(value, types[0]):
+            return False
 
         try:
             for value_element in value:
@@ -352,7 +372,7 @@ class MongodbClient:
         return True
 
     @classmethod
-    def __get_connection_parameters_only(cls, connection_config_dict):
+    def __get_connection_parameters_only(cls, connection_config_dict: Dict[str, Any]) -> Dict[str, Any]:
         """Returns only the parameters needed for creating a connection."""
         stripped_connection_config = {
             config_parameter: parameter_value

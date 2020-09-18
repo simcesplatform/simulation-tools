@@ -2,9 +2,9 @@
 
 """This module contains classes for the callbacks for the RabbitMQ message bus listeners."""
 
+import asyncio
 import inspect
 import json
-import threading
 from typing import Awaitable, Callable, Union
 
 import aio_pika.message
@@ -13,16 +13,34 @@ from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage,
                            SimulationStateMessage, StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
 from tools.tools import FullLogger
 
+CallbackFunctionType = Callable[[Union[AbstractMessage, dict, str], str], Awaitable[None]]
+
 LOGGER = FullLogger(__name__)
 
 
 class MessageCallback():
-    """The callback class for handling received messages that are instances of AbstractMessage."""
+    """The callback class for handling received messages that are instances of AbstractMessage.
+       Stores the latest received message and the corresponding topic name.
+    """
     MESSAGE_CODING = "UTF-8"
 
-    def __init__(self, callback_function: Callable[[Union[AbstractMessage, dict, str], str], Awaitable[None]],
-                 message_type: Union[str, None] = None):
-        self.__lock = threading.Lock()
+    def __init__(self, callback_function: CallbackFunctionType, message_type: Union[str, None] = None):
+        """Sets up a callback that receives incoming messages from the message bus, transforms the received object
+           to an instance of AbstractMessage and sends the transformed object to the given callback_function.
+
+           Requirement for the callback_function is that it is awaitable and can be called by two parameters:
+           the message object and the topic name.
+
+           In case the message received from the message bus did not conform to the predefined message definitions,
+           a dictionary containing the received message is send to the callback_function instead of
+           AbstractMessage object. In case the received message was not in JSON format, a string containing the message
+           is used as the first parameter for the callback_function instead.
+
+           If message_type is None, the actual type for the transformed message is determined by the "Type" attribute.
+           Otherwise, the given message type is used for as transformed message type.
+           The legal string for the parameter message_type are defined in tools.messages.MESSAGE_TYPES
+        """
+        self.__lock = asyncio.Lock()
         self.__callback_function = callback_function
 
         if message_type is not None and message_type not in MESSAGE_TYPES:
@@ -79,8 +97,11 @@ class MessageCallback():
             LOGGER.warning("The last message in unknown format: '{:s}'".format(str(self.last_message)))
 
     async def callback(self, message: aio_pika.message.IncomingMessage) -> None:
-        """Callback function for the received messages from the message bus."""
-        with self.__lock:
+        """Callback function for the received messages from the message bus.
+           Transforms the message to an instance of AbstractMessage and sends it to the callback_function.
+        """
+        # Use a lock to be able to handle each incoming message one at a time.
+        async with self.__lock:
             message_str = ""
             message_json = {}
             try:
