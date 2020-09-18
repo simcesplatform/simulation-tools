@@ -66,7 +66,7 @@ class AbstractMessage():
     MESSAGE_ENCODING = "UTF-8"
     CLASS_MESSAGE_TYPE = ""
 
-    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General"]
+    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceStates" ]
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
         "Type": "message_type",
@@ -779,6 +779,97 @@ class GeneralMessage(AbstractMessage):
             return cls(**json_message)
         return None
 
+class ResourceStatesMessage(AbstractResultMessage):
+    """Class containing all the attributes for a ResourceStates message."""
+    CLASS_MESSAGE_TYPE = "ResourceStates"
+
+    MESSAGE_ATTRIBUTES = {
+        "Bus1": "bus1",
+        "RealPower": "real_power",
+        "ReactivePower": "reactive_power"
+    }
+    OPTIONAL_ATTRIBUTES = []
+
+    MESSAGE_ATTRIBUTES_FULL = {
+        **AbstractResultMessage.MESSAGE_ATTRIBUTES_FULL,
+        **MESSAGE_ATTRIBUTES
+    }
+    OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
+
+    def __init__(self, **kwargs):
+        """Only attributes in class ResourceStatesMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        super().__init__(**kwargs)
+        for json_attribute_name in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
+            setattr(self, ResourceStatesMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
+                    kwargs.get(json_attribute_name, None))
+
+    @property
+    def bus1(self) -> str:
+        """The attribute for the name of bus to which the resource is connected."""
+        return self.__bus1
+
+    @property
+    def real_power(self) -> float:
+        """The attribute for real power of the resource."""
+        return self.__real_power
+    
+    @property
+    def reactive_power(self) -> float:
+        return self.__reactive_power
+
+    @bus1.setter
+    def bus1(self, bus1: str ):
+        if self._check_bus1( bus1 ):
+            self.__bus1 = bus1
+            return
+        
+        raise MessageValueError(f"'{bus1}' is an invalid value for bus1 since it is not a string.") 
+
+    @real_power.setter
+    def real_power(self, real_power: Union[str, float]):
+        if self._check_power(real_power):
+            self.__real_power = real_power
+            return
+
+        raise MessageValueError("'{:s}' is an invalid float value for real power.".format(str(real_power)))
+    
+    @reactive_power.setter
+    def reactive_power(self, reactive_power: Union[str, float]):
+        if self._check_power(reactive_power):
+            self.__reactive_power = reactive_power
+            return
+
+        raise MessageValueError("'{:s}' is an invalid float value for reactive power.".format(str(reactive_power)))
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            super().__eq__(other) and
+            isinstance(other, ResourceStatesMessage) and
+            self.bus1 == other.bus1 and
+            self.real_power == other.real_power and
+            self.reactive_power == other.reactive_power
+        )
+
+    @classmethod
+    def _check_bus1(cls, bus1 ) -> bool:
+        return isinstance( bus1, str )
+
+    @classmethod
+    def _check_power(cls, power ):
+        try:
+            float( power )
+            return True
+        
+        except (ValueError, TypeError):
+            return False
+
+    @classmethod
+    def from_json(cls, json_message: Dict[str, Any]):
+        """Returns a class object created based on the given JSON attributes.
+           If the given JSON is not validated returns None."""
+        if cls.validate_json(json_message):
+            return cls(**json_message)
+        return None
 
 MESSAGE_TYPES = {
     "SimState": SimulationStateMessage,
@@ -786,6 +877,7 @@ MESSAGE_TYPES = {
     "Error": ErrorMessage,
     "Status": StatusMessage,
     "Result": ResultMessage,
-    "General": GeneralMessage
+    "General": GeneralMessage,
+    "ResourceStates": ResourceStatesMessage
 }
 DEFAULT_MESSAGE_TYPE = "General"
