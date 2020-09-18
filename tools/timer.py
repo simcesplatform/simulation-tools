@@ -16,6 +16,8 @@ class Timer:
     """Timer class that sets up either a single timed task or a periodic task that can be cancelled."""
     def __init__(self, is_repeating: bool, timeout: Union[int, float],
                  callback: Callable[..., Awaitable[None]], *args, **kwargs):
+        """Starts a timer. The given callback function is called with the given parameters after timeout seconds.
+           If is_repeating is True, The given timed task is repeated until cancel() is called for the Timer."""
         self.__is_repeating = is_repeating
         self.__timeout = timeout
         self.__callback = callback
@@ -24,11 +26,11 @@ class Timer:
         self.__task = asyncio.create_task(self.__timed_task())
 
     def is_running(self) -> bool:
-        """Returns True if the timer is running."""
+        """Returns True, if the timer is running."""
         return self.__task is not None and not self.__task.done()
 
     async def cancel(self) -> None:
-        """Cancels the sleep job."""
+        """Cancels the timed task."""
         if self.is_running():
             self.__task.cancel()
 
@@ -46,7 +48,7 @@ class Timer:
         }))
 
     async def __timed_task(self) -> None:
-        """Sleeps and calls the callback function after the sleep."""
+        """Sleeps for timeout seconds and calls the callback function after the sleep."""
         while True:
             LOGGER.debug("Timer started: {:s}".format(str(self)))
             await asyncio.sleep(self.__timeout)

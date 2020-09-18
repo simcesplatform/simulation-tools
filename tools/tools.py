@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Common tools for the use of Omega and Simulation Manager."""
+"""Module containing common tools for the use of simulation platform components."""
 
 import datetime
 import logging
@@ -16,10 +16,11 @@ EnvironmentVariableType = Union[Type[bool], Type[int], Type[float], Type[str]]
 
 
 class EnvironmentVariable:
-    """Class for accessing and holding environment information."""
+    """Class for accessing and holding environment variable information."""
 
     def __init__(self, variable_name: str, variable_type: EnvironmentVariableType,
                  default_value: EnvironmentVariableValue = None):
+        """Creates a new EnvironmentVariable object that can be used to access the environment variable information."""
         self.__variable_name = variable_name
         self.__variable_type = variable_type
         if default_value is None:
@@ -78,6 +79,9 @@ class EnvironmentVariables:
     """A class for accessing several environment variables."""
 
     def __init__(self, *variables: EnvironmentVariableSetupType):
+        """Creates a collection of EnvironmentVariable objects. The arguments can be either
+           instances of EnvironmentVariables, 2-tuples containing the variable name and type,
+           or 3-tuples containing the variable name, type, and default value."""
         self.__variables = dict()
         for variable in variables:
             self.add_variable(variable)
@@ -143,6 +147,11 @@ class FullLogger:
     }
 
     def __init__(self, logger_name: str, logger_level: Union[int, None] = None, stdout_output: bool = True):
+        """Creates a logger object with the given name and log level and that writes the logs to a file.
+           The log filename is determined by the environment variable SIMULATION_LOG_FILE. If argument
+           logger_level is None, the logging level is determined by the environment variable SIMULATION_LOG_LEVEL.
+           If stdout_output is True, then the log messages are also printed on the stdout device.
+        """
         self.__logger = get_logger(logger_name, log_level=logger_level)
         self.__log_level = self.__logger.level
         self.__stdout_output = stdout_output
@@ -205,8 +214,10 @@ class FullLogger:
                 flush=True)
 
 
-def get_logger(logger_name: str, log_level: Union[int, None] = None):
-    """Returns a logger object."""
+def get_logger(logger_name: str, log_level: Union[int, None] = None) -> logging.Logger:
+    """Returns a Logger object that logs the messages both to a file.
+       The logging level and the log filename are determined by the environment variables
+       SIMULATION_LOG_LEVEL and SIMULATION_LOG_FILE."""
     new_logger = logging.getLogger(logger_name)
     if log_level is None:
         new_logger_level = COMMON_ENV_VARIABLES[SIMULATION_LOG_LEVEL]
