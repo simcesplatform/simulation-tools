@@ -2,9 +2,10 @@
 
 """This module contains a class for creating and holding messages for the RabbitMQ message bus."""
 
+from __future__ import annotations
 import datetime
 import json
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple, Type, Union
 
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
                                       MessageValueError, MessageEpochValueError, MessageStateValueError
@@ -13,12 +14,13 @@ from tools.tools import FullLogger
 
 LOGGER = FullLogger(__name__)
 
+# These attributes will be generated if they are not given when creating message objects.
 OPTIONALLY_GENERATED_ATTRIBUTES = [
     "Timestamp"
 ]
 
 
-def get_next_message_id(source_process_id: str, start_number: int = 1):
+def get_next_message_id(source_process_id: str, start_number: int = 1) -> Iterator[str]:
     """Generator for getting unique message ids."""
     message_number = start_number
     while True:
@@ -26,7 +28,7 @@ def get_next_message_id(source_process_id: str, start_number: int = 1):
         message_number += 1
 
 
-def get_json(message_object):
+def get_json(message_object: AbstractMessage) -> Dict[str, Any]:
     """Returns a JSON based on the values of the given message_object and the attribute parameters."""
     return {
         json_attribute_name: getattr(message_object, object_attribute_name)
@@ -36,8 +38,8 @@ def get_json(message_object):
     }
 
 
-def validate_json(message_class, json_message: dict):
-    """Validates the given the given json object for the attributes covered in AbstractMessage class.
+def validate_json(message_class: Type[AbstractMessage], json_message: Dict[str, Any]) -> bool:
+    """Validates the given the given json object for the attributes covered in the given message class.
         Returns True if the message is ok. Otherwise, return False."""
     for json_attribute_name, object_attribute_name in message_class.MESSAGE_ATTRIBUTES_FULL.items():
         if json_attribute_name not in json_message and json_attribute_name in OPTIONALLY_GENERATED_ATTRIBUTES:
@@ -45,16 +47,15 @@ def validate_json(message_class, json_message: dict):
 
         if (json_attribute_name not in json_message and
                 json_attribute_name not in message_class.OPTIONAL_ATTRIBUTES_FULL):
-            LOGGER.warning("%s attribute is missing from the message", json_attribute_name)
+            LOGGER.warning("{:s} attribute is missing from the message".format(json_attribute_name))
             return False
 
         if not getattr(
                 message_class,
                 "_".join(["_check", object_attribute_name]))(json_message.get(json_attribute_name, None)):
             # TODO: handle checking for missing timezone information
-            LOGGER.warning(
-                "'%s' is not valid message value for %s",
-                str(json_message[json_attribute_name]), json_attribute_name)
+            LOGGER.warning("'{:s}' is not valid message value for {:s}".format(
+                str(json_message[json_attribute_name]), json_attribute_name))
             return False
 
     return True
@@ -62,10 +63,10 @@ def validate_json(message_class, json_message: dict):
 
 class AbstractMessage():
     """The abstract message class that contains the attributes that all messages have."""
-    # The allowed message types
     MESSAGE_ENCODING = "UTF-8"
     CLASS_MESSAGE_TYPE = ""
 
+    # The allowed message types
     MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General"]
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
@@ -75,15 +76,19 @@ class AbstractMessage():
         "MessageId": "message_id",
         "Timestamp": "timestamp"
     }
+    # Attributes that can be missing from the message. Missing attributes are set to value None.
     OPTIONAL_ATTRIBUTES = []
 
+    # Full list af all attribute names, any subclass should update these with additional names.
     MESSAGE_ATTRIBUTES_FULL = MESSAGE_ATTRIBUTES
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
 
     DEFAULT_SIMULATION_ID = "simulation_id"
 
     def __init__(self, **kwargs):
-        """Only attributes "Type", "SimulationId", SourceProcessId", MessageId", and "Timestamp" are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", and "Timestamp" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         for json_attribute_name in AbstractMessage.MESSAGE_ATTRIBUTES:
             setattr(self, AbstractMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
                     kwargs.get(json_attribute_name, None))
@@ -110,7 +115,7 @@ class AbstractMessage():
 
     @property
     def timestamp(self) -> str:
-        """The timestamp for the message."""
+        """The timestamp for the message in ISO 8601 format."""
         return self.__timestamp
 
     @message_type.setter
@@ -166,7 +171,7 @@ class AbstractMessage():
     def __str__(self) -> str:
         return json.dumps(self.json())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
     @classmethod
@@ -196,10 +201,10 @@ class AbstractMessage():
         return len(source_process_id) > 0 and len(message_identifier) > 0
 
     @classmethod
-    def _check_timestamp(cls, timestamp: Union[str, datetime.datetime]):
+    def _check_timestamp(cls, timestamp: Union[str, datetime.datetime]) -> bool:
         return cls._check_datetime(timestamp)
 
-    def json(self):
+    def json(self) -> Dict[str, Any]:
         """Returns the message as a JSON object."""
         return get_json(self)
 
@@ -208,15 +213,15 @@ class AbstractMessage():
         return bytes(json.dumps(self.json()), encoding=AbstractMessage.MESSAGE_ENCODING)
 
     @classmethod
-    def validate_json(cls, json_message: Dict[str, Any]):
+    def validate_json(cls, json_message: Dict[str, Any]) -> bool:
         """Validates the given the given json object for the attributes covered in AbstractMessage class.
            Returns True if the message is ok. Otherwise, return False."""
         return validate_json(cls, json_message)
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[AbstractMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -250,7 +255,10 @@ class AbstractResultMessage(AbstractMessage):
     ]
 
     def __init__(self, **kwargs):
-        """Only attributes in AbstractResultMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", "Timestamp",
+           "EpochNumber", "LastUpdatedInEpoch", "TriggeringMessageIds", and "Warnings" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in AbstractResultMessage.MESSAGE_ATTRIBUTES:
             setattr(self, AbstractResultMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -303,7 +311,7 @@ class AbstractResultMessage(AbstractMessage):
         else:
             self.__warnings = list(warnings)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, AbstractResultMessage) and
@@ -314,16 +322,16 @@ class AbstractResultMessage(AbstractMessage):
         )
 
     @classmethod
-    def _check_epoch_number(cls, epoch_number):
+    def _check_epoch_number(cls, epoch_number) -> bool:
         # epoch number 0 is reserved for the initialization phase
         return isinstance(epoch_number, int) and epoch_number >= 0
 
     @classmethod
-    def _check_last_updated_in_epoch(cls, last_updated_in_epoch):
+    def _check_last_updated_in_epoch(cls, last_updated_in_epoch: Union[int, None]) -> bool:
         return last_updated_in_epoch is None or cls._check_epoch_number(last_updated_in_epoch)
 
     @classmethod
-    def _check_triggering_message_ids(cls, triggering_message_ids):
+    def _check_triggering_message_ids(cls, triggering_message_ids: Union[List[str], Tuple[str]]) -> bool:
         if (triggering_message_ids is None or
                 not isinstance(triggering_message_ids, (list, tuple)) or
                 len(triggering_message_ids) == 0):
@@ -334,7 +342,7 @@ class AbstractResultMessage(AbstractMessage):
         return True
 
     @classmethod
-    def _check_warnings(cls, warnings):
+    def _check_warnings(cls, warnings: Union[List[str], Tuple[str], None]) -> bool:
         if warnings is None:
             return True
         if not isinstance(warnings, (list, tuple)):
@@ -345,9 +353,9 @@ class AbstractResultMessage(AbstractMessage):
         return True
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[AbstractResultMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -376,7 +384,10 @@ class SimulationStateMessage(AbstractMessage):
     ]
 
     def __init__(self, **kwargs):
-        """Only attributes in class SimulationStateMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", "Timestamp",
+           "SimulationState", "Name", and "Description" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in SimulationStateMessage.MESSAGE_ATTRIBUTES:
             setattr(self, SimulationStateMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -416,7 +427,7 @@ class SimulationStateMessage(AbstractMessage):
             raise MessageValueError("The simulation description must be either None or a string.")
         self.__description = description
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, SimulationStateMessage) and
@@ -426,21 +437,21 @@ class SimulationStateMessage(AbstractMessage):
         )
 
     @classmethod
-    def _check_simulation_state(cls, simulation_state):
+    def _check_simulation_state(cls, simulation_state: str) -> bool:
         return simulation_state in cls.SIMULATION_STATES
 
     @classmethod
-    def _check_name(cls, name):
+    def _check_name(cls, name: Union[str, None]) -> bool:
         return name is None or isinstance(name, str)
 
     @classmethod
-    def _check_description(cls, description):
+    def _check_description(cls, description: Union[str, None]) -> bool:
         return description is None or isinstance(description, str)
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[SimulationStateMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -463,7 +474,11 @@ class EpochMessage(AbstractResultMessage):
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
     def __init__(self, **kwargs):
-        """Only attributes in class EpochMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", "Timestamp",
+           "EpochNumber", "LastUpdatedInEpoch", "TriggeringMessageIds", "Warnings",
+           "StartTime", and "EndTime" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in EpochMessage.MESSAGE_ATTRIBUTES:
             setattr(self, EpochMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -483,6 +498,8 @@ class EpochMessage(AbstractResultMessage):
     def start_time(self, start_time: Union[str, datetime.datetime]):
         if self._check_start_time(start_time):
             new_start_time = to_iso_format_datetime_string(start_time)
+
+            # Check that the start time is not after the end time.
             if isinstance(new_start_time, str):
                 if getattr(self, "end_time", None) is not None and new_start_time >= self.end_time:
                     raise MessageValueError("Epoch start time ({:s}) should be before the end time ({:s})".format(
@@ -496,6 +513,8 @@ class EpochMessage(AbstractResultMessage):
     def end_time(self, end_time: Union[str, datetime.datetime]):
         if self._check_end_time(end_time):
             new_end_time = to_iso_format_datetime_string(end_time)
+
+            # Check that the end time is not before the start time.
             if isinstance(new_end_time, str):
                 if getattr(self, "start_time", None) is not None and new_end_time <= self.start_time:
                     raise MessageValueError("Epoch end time ({:s}) should be after the start time ({:s})".format(
@@ -514,17 +533,17 @@ class EpochMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_start_time(cls, start_time):
+    def _check_start_time(cls, start_time: Union[str, datetime.datetime]) -> bool:
         return cls._check_datetime(start_time)
 
     @classmethod
-    def _check_end_time(cls, end_time):
+    def _check_end_time(cls, end_time: Union[str, datetime.datetime]) -> bool:
         return cls._check_datetime(end_time)
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[EpochMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -548,7 +567,10 @@ class StatusMessage(AbstractResultMessage):
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
     def __init__(self, **kwargs):
-        """Only attributes in class StatusMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", "Timestamp",
+           "EpochNumber", "LastUpdatedInEpoch", "TriggeringMessageIds", "Warnings", and "Value" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in StatusMessage.MESSAGE_ATTRIBUTES:
             setattr(self, StatusMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -566,7 +588,7 @@ class StatusMessage(AbstractResultMessage):
 
         self.__value = value
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, StatusMessage) and
@@ -574,13 +596,13 @@ class StatusMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_value(cls, value):
+    def _check_value(cls, value: str) -> bool:
         return isinstance(value, str) and value in cls.STATUS_VALUES
 
     @classmethod
-    def from_json(cls, json_message: dict):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[StatusMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -602,7 +624,10 @@ class ErrorMessage(AbstractResultMessage):
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
     def __init__(self, **kwargs):
-        """Only attributes in class ErrorMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only arguments "Type", "SimulationId", SourceProcessId", MessageId", "Timestamp",
+           "EpochNumber", "LastUpdatedInEpoch", "TriggeringMessageIds", "Warnings", and "Description" are considered.
+           If one the arguments is not valid, throws an instance of MessageError.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in ErrorMessage.MESSAGE_ATTRIBUTES:
             setattr(self, ErrorMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -620,7 +645,7 @@ class ErrorMessage(AbstractResultMessage):
 
         self.__description = description
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, ErrorMessage) and
@@ -628,20 +653,20 @@ class ErrorMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_description(cls, description):
+    def _check_description(cls, description: str) -> bool:
         return isinstance(description, str) and len(description) > 0
 
     @classmethod
-    def from_json(cls, json_message: dict):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[ErrorMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
 
 
 class ResultMessage(AbstractResultMessage):
-    """Class for a generic result message containing at least all the required attributes."""
+    """Class for a generic result message containing at least all the required attributes for AbstractResultMessage."""
     CLASS_MESSAGE_TYPE = "Result"
 
     MESSAGE_ATTRIBUTES = {}
@@ -654,7 +679,10 @@ class ResultMessage(AbstractResultMessage):
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
     def __init__(self, **kwargs):
-        """All the given attributes are considered."""
+        """All the given arguments are considered. The required arguments for AbstractResultMessage
+           are checked and if they contain invalid values, an instance of MessageError is thrown.
+           All other arguments are used as result values.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in ResultMessage.MESSAGE_ATTRIBUTES:
             setattr(self, ResultMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -667,12 +695,12 @@ class ResultMessage(AbstractResultMessage):
         }
 
     @property
-    def result_values(self):
+    def result_values(self) -> Dict[str, Any]:
         """A dictionary containing all the result value attributes."""
         return self.__result_values
 
     @result_values.setter
-    def result_values(self, result_values: dict):
+    def result_values(self, result_values: Dict[str, Any]):
         if not self._check_result_values(result_values):
             raise MessageValueError("'{:s}' is an invalid result value dictionary".format(str(result_values)))
 
@@ -686,7 +714,7 @@ class ResultMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_result_values(cls, result_values):
+    def _check_result_values(cls, result_values: Dict[str, Any]) -> bool:
         return isinstance(result_values, dict)
 
     def json(self) -> Dict[str, Any]:
@@ -701,9 +729,9 @@ class ResultMessage(AbstractResultMessage):
         return {**get_json(self), **result_values_json}
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[ResultMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
@@ -724,7 +752,10 @@ class GeneralMessage(AbstractMessage):
     OPTIONAL_ATTRIBUTES_FULL = AbstractMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
     def __init__(self, **kwargs):
-        """All the given attributes are considered."""
+        """All the given arguments are considered. The required arguments for AbstractMessage are checked
+           and if they contain invalid values, an instance of MessageError is thrown.
+           All other arguments are used as general attributes.
+        """
         super().__init__(**kwargs)
         for json_attribute_name in GeneralMessage.MESSAGE_ATTRIBUTES:
             setattr(self, GeneralMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
@@ -737,7 +768,7 @@ class GeneralMessage(AbstractMessage):
         }
 
     @property
-    def general_attributes(self):
+    def general_attributes(self) -> Dict[str, Any]:
         """A dictionary containing all the optional attributes."""
         return self.__general_attributes
 
@@ -757,7 +788,7 @@ class GeneralMessage(AbstractMessage):
         )
 
     @classmethod
-    def _check_general_attributes(cls, general_attributes):
+    def _check_general_attributes(cls, general_attributes: Dict[str, Any]) -> bool:
         return isinstance(general_attributes, dict)
 
     def json(self) -> Dict[str, Any]:
@@ -772,9 +803,9 @@ class GeneralMessage(AbstractMessage):
         return {**get_json(self), **general_attributes_json}
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[GeneralMessage, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON does not contain valid values, returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
