@@ -2,6 +2,7 @@
 
 """This module contains a classes for handling time series data for the messages in the simulation platform."""
 
+from __future__ import annotations
 import collections
 import csv
 import datetime
@@ -19,11 +20,15 @@ LOGGER = FullLogger(__name__)
 
 class UnitCode:
     """Class for verifying a string as a valid UCUM (The Unified Code for Units of Measure) code."""
+
+    # Parameters related to the premade unit code files.
     UNIT_CODE_FILE_PATH = "resources"
     UNIT_CODE_FILE_NAMES = ["unit_codes.csv", "unit_codes_addition.csv"]
     UNIT_CODE_FILE_COLUMN_SEPARATOR = ";"
     UNIT_CODE_FILE_CODE_COLUMN = "Code"
     UNIT_CODE_FILE_DESCRIPTION_COLUMN = "Description"
+
+    # Name of the Javascript UCUM unit code validator.
     JAVASCRIPT_VALIDATOR = "validator.js"
 
     UNIT_CODE_LIST = {}
@@ -46,6 +51,8 @@ class UnitCode:
             validator_result = subprocess.run(["nodejs", javascript_validator, unit_code], check=True,
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             validator_output = validator_result.stdout.decode("UTF-8").strip()
+
+            # The output from the Javascript validator should be <validator_text>;<unit_description>
             output_parts = validator_output.split(";")
             LOGGER.debug("Result UCUM unit validator: {:s} -> {:s}".format(unit_code, output_parts[0]))
             if output_parts[0] != "valid":
@@ -85,6 +92,7 @@ class UnitCode:
 
         current_path = pathlib.Path(".")
         for unit_code_file_name in cls.UNIT_CODE_FILE_NAMES:
+            # Use glob to find the resource file paths to allow code usage in a submodule.
             for unit_code_file in current_path.glob("/".join(["**", cls.UNIT_CODE_FILE_PATH, unit_code_file_name])):
                 try:
                     with open(unit_code_file, mode="r") as csv_file:
@@ -136,7 +144,9 @@ class TimeSeriesAttribute:
     }
 
     def __init__(self, **kwargs):
-        """Only attributes "UnitOfMeasure" and "Values" are considered."""
+        """Only attributes "UnitOfMeasure" and "Values" are considered.
+           If either attribute contains invalid values, throws an instance of TimeSeriesError.
+        """
         for json_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES:
             setattr(self, TimeSeriesAttribute.TIMESERIES_ATTRIBUTES[json_attribute_name],
                     kwargs.get(json_attribute_name, None))
@@ -164,11 +174,11 @@ class TimeSeriesAttribute:
         self.__values = values
 
     @classmethod
-    def _check_unit_of_measurement(cls, unit_of_measurement):
+    def _check_unit_of_measurement(cls, unit_of_measurement: str) -> bool:
         return isinstance(unit_of_measurement, str) and UnitCode.is_valid(unit_of_measurement)
 
     @classmethod
-    def _check_values(cls, values):
+    def _check_values(cls, values: Union[List[bool], List[int], List[float], List[str]]) -> bool:
         if not isinstance(values, list):
             return False
         if not values:  # accept empty list
@@ -176,12 +186,13 @@ class TimeSeriesAttribute:
 
         value_type = type(values[0])
         for value in values:
+            # Check that all the values in the list are of the same type.
             if not isinstance(value, (bool, int, float, str)) or not isinstance(value, value_type):
                 return False
         return True
 
     def json(self) -> Dict[str, Any]:
-        """Returns the time series attribute as JSON object"""
+        """Returns the time series attribute as JSON object."""
         return {
             json_attribute_name: getattr(self, object_attribute_name)
             for json_attribute_name, object_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES.items()
@@ -219,9 +230,9 @@ class TimeSeriesAttribute:
         return True
 
     @classmethod
-    def from_json(cls, json_timeseries: Dict[str, Any]):
+    def from_json(cls, json_timeseries: Dict[str, Any]) -> Union[TimeSeriesAttribute, None]:
         """Returns a class object created based on the given JSON attributes.
-           If the given JSON is not validated returns None."""
+           If the given JSON is contains invalid values, returns None."""
         if cls.validate_json(json_timeseries):
             return cls(**json_timeseries)
         return None
@@ -235,7 +246,9 @@ class TimeSeriesBlock():
     })
 
     def __init__(self, **kwargs):
-        """Only attributes "TimeIndex" and "Series" are considered."""
+        """Only attributes "TimeIndex" and "Series" are considered.
+           If either attribute contains invalid values, throws an instance of TimeSeriesError.
+        """
         for json_attribute_name in TimeSeriesBlock.TIMESERIES_BLOCK_ATTRIBUTES:
             setattr(self, TimeSeriesBlock.TIMESERIES_BLOCK_ATTRIBUTES[json_attribute_name],
                     kwargs.get(json_attribute_name, None))
@@ -261,6 +274,7 @@ class TimeSeriesBlock():
         if getattr(self, "series", None) is None:
             expected_list_length = None
         else:
+            # Check that the time series list is the same length as the first value series list.
             expected_list_length = len(self.get_single_series(next(iter(self.series))).values)
 
         if self._check_time_index(time_index, expected_list_length):
@@ -281,6 +295,7 @@ class TimeSeriesBlock():
         if getattr(self, "time_index", None) is None:
             expected_list_length = None
         else:
+            # Check that all the values series lists are the same length as the time series list.
             expected_list_length = len(self.time_index)
 
         if not self._check_series(series, expected_list_length):
@@ -296,7 +311,7 @@ class TimeSeriesBlock():
                     self.__series[series_name] = attribute_series
 
     def add_series(self, series_name: str, series_values: TimeSeriesAttribute):
-        """Adds a new or replaces an old time series for the TimeSeriesBlock."""
+        """Adds a new or replaces an old value series for the TimeSeriesBlock."""
         if self._check_series({series_name: series_values}, len(self.__time_index)):
             self.series[series_name] = series_values
         else:
@@ -304,8 +319,8 @@ class TimeSeriesBlock():
                 str(series_name), str(series_values)))
 
     @classmethod
-    def _check_time_index(cls, time_index, list_length: int = None):
-        if not isinstance(time_index, (list, tuple)):
+    def _check_time_index(cls, time_index: List[Union[str, datetime.datetime]], list_length: int = None) -> bool:
+        if not isinstance(time_index, list):
             return False
         if list_length is not None and len(time_index) != list_length:
             return False
@@ -320,7 +335,7 @@ class TimeSeriesBlock():
         return True
 
     @classmethod
-    def _check_series(cls, series, list_length: int = None):
+    def _check_series(cls, series: Dict[str, Union[TimeSeriesAttribute, dict]], list_length: int = None) -> bool:
         if not isinstance(series, dict) or len(series) == 0:
             return False
 
@@ -360,7 +375,7 @@ class TimeSeriesBlock():
         return json.dumps(self.json())
 
     @classmethod
-    def validate_json(cls, json_timeseries_block: Dict[str, Any]):
+    def validate_json(cls, json_timeseries_block: Dict[str, Any]) -> bool:
         """Validates the given the given json object for the attributes covered in TimeSeriesBlock class.
            Returns True if the time series block is ok. Otherwise, return False."""
         try:
@@ -373,7 +388,7 @@ class TimeSeriesBlock():
             return False
 
     @classmethod
-    def from_json(cls, json_timeseries_block: Dict[str, Any]):
+    def from_json(cls, json_timeseries_block: Dict[str, Any]) -> Union[TimeSeriesBlock, None]:
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is not validated returns None."""
         if cls.validate_json(json_timeseries_block):
