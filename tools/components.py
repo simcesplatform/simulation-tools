@@ -113,8 +113,8 @@ class AbstractSimulationComponent:
                 await asyncio.sleep(TIMEOUT_INTERVAL)
                 sys.exit()
 
-    async def start_epoch(self, send_status: bool = False) -> bool:
-        """Starts a new epoch for the component. If send_status is True, sends a status message when finished.
+    async def start_epoch(self) -> bool:
+        """Starts a new epoch for the component.
            Returns True if the epoch calculations were completed for the current epoch.
         """
         if self._simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED:
@@ -132,19 +132,13 @@ class AbstractSimulationComponent:
 
         self._latest_epoch = self._latest_epoch_message.epoch_number
 
-        # If the epoch is already completed, a new status message can be send immediately.
+        # If the epoch is already completed, no need for any new calculations.
         if self._completed_epoch == self._latest_epoch:
-            if send_status:
-                LOGGER.debug("Resending status message for epoch {:d}".format(self._latest_epoch))
-                await self.send_status_message()
             return True
 
         # Any calculations done within the epoch would be included here.
         # Also, any possible checks for additional information that is required would be done here.
         # After all the calculations are done, set self._completed_epoch to self._latest_epoch
-
-        if send_status:
-            await self.send_status_message()
         return True
 
     async def general_message_handler(self, message_object: Union[AbstractMessage, Any],
@@ -196,7 +190,7 @@ class AbstractSimulationComponent:
             self._triggering_message_ids = [message_object.message_id]
             self._latest_epoch_message = message_object
 
-            await self.start_epoch(send_status=False)
+            await self.start_epoch()
 
     async def send_status_message(self) -> None:
         """Sends a new status message to the message bus."""
@@ -204,7 +198,7 @@ class AbstractSimulationComponent:
         if status_message is None:
             await self.send_error_message("Internal error when creating status message.")
         else:
-            await self._rabbitmq_client.send_message(self._status_topic, status_message)
+            await self._rabbitmq_client.send_message(self._status_topic, status_message.bytes())
             self._completed_epoch = self._latest_epoch
 
     async def send_error_message(self, description: str) -> None:
@@ -214,10 +208,10 @@ class AbstractSimulationComponent:
             # So serious error that even the error message could not be created => stop the component.
             await self.stop()
         else:
-            await self._rabbitmq_client.send_message(self._error_topic, error_message)
+            await self._rabbitmq_client.send_message(self._error_topic, error_message.bytes())
 
-    def _get_status_message(self) -> Union[bytes, None]:
-        """Creates a new status message and returns it in bytes format.
+    def _get_status_message(self) -> Union[StatusMessage, None]:
+        """Creates a new status message and returns the created message object.
            Returns None, if there was a problem creating the message."""
         status_message = StatusMessage.from_json({
             "Type": StatusMessage.CLASS_MESSAGE_TYPE,
@@ -233,10 +227,10 @@ class AbstractSimulationComponent:
             return None
 
         self._latest_status_message_id = status_message.message_id
-        return status_message.bytes()
+        return status_message
 
-    def _get_error_message(self, description: str) -> Union[bytes, None]:
-        """Creates a new error message and returns it in bytes format.
+    def _get_error_message(self, description: str) -> Union[ErrorMessage, None]:
+        """Creates a new error message and returns the created message object.
            Returns None, if there was a problem creating the message."""
         error_message = ErrorMessage.from_json({
             "Type": ErrorMessage.CLASS_MESSAGE_TYPE,
@@ -251,4 +245,4 @@ class AbstractSimulationComponent:
             LOGGER.error("Problem with creating an error message")
             return None
 
-        return error_message.bytes()
+        return error_message
