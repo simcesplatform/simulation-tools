@@ -894,6 +894,14 @@ class ResourceStatesMessage(AbstractResultMessage):
         
         except (ValueError, TypeError):
             return False
+        
+    @classmethod
+    def _check_real_power(cls, real_power ):
+        return cls._check_power( real_power )
+    
+    @classmethod
+    def _check_reactive_power(cls, reactive_power ):
+        return cls._check_power( reactive_power )
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]):
