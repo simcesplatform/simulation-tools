@@ -132,7 +132,7 @@ class MessageCallback():
             self.log_last_message()
 
             if inspect.iscoroutinefunction(self.__callback_function):
-                await self.__callback_function(message_object, message.routing_key)
+                asyncio.create_task(self.__callback_function(message_object, message.routing_key))
             else:
                 LOGGER.error("Callback function '{:s}' is not awaitable.".format(
                     str(getattr(self.__callback_function, "__name__", None))))

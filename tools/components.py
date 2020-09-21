@@ -2,8 +2,6 @@
 
 """This module contains a base simulation component that can communicate with the RabbitMQ message bus."""
 
-import asyncio
-import sys
 from typing import cast, Any, Union
 
 from tools.clients import RabbitmqClient
@@ -12,9 +10,6 @@ from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, StatusMe
 from tools.tools import FullLogger, load_environmental_variables
 
 LOGGER = FullLogger(__name__)
-
-# The time interval in seconds that is waited before closing after receiving simulation state message "stopped".
-TIMEOUT_INTERVAL = 10
 
 # The names of the environmental variables used by the component.
 SIMULATION_ID = "SIMULATION_ID"
@@ -40,11 +35,11 @@ class AbstractSimulationComponent:
         # Load the component specific environmental variables.
         env_variables = load_environmental_variables(
             (SIMULATION_ID, str),
-            (SIMULATION_COMPONENT_NAME, str, "dummy"),
-            (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "epoch"),
-            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "status"),
-            (SIMULATION_STATE_MESSAGE_TOPIC, str, "state"),
-            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "error")
+            (SIMULATION_COMPONENT_NAME, str, "component"),
+            (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch"),
+            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status"),
+            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState"),
+            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Error")
         )
 
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
@@ -52,6 +47,7 @@ class AbstractSimulationComponent:
 
         self._simulation_id = cast(str, env_variables[SIMULATION_ID])
         self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
+        self._is_stopped = True
 
         self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
         self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
@@ -77,8 +73,21 @@ class AbstractSimulationComponent:
         """The component name in the simulation."""
         return self._component_name
 
+    @property
+    def is_stopped(self) -> bool:
+        """Returns True, if the component is stopped."""
+        return self._is_stopped
+
+    @property
+    def is_client_closed(self) -> bool:
+        """Returns True if the RabbitMQ client has been stopped."""
+        return self._rabbitmq_client is None or self._rabbitmq_client.is_closed
+
     async def start(self) -> None:
         """Starts the component."""
+        if self.is_client_closed:
+            self._rabbitmq_client = RabbitmqClient()
+
         LOGGER.info("Starting the component: '{:s}'".format(self.component_name))
         self._rabbitmq_client.add_listener(
             [
@@ -86,11 +95,14 @@ class AbstractSimulationComponent:
                 self._epoch_topic
             ],
             self.general_message_handler)
+        self._is_stopped = False
 
     async def stop(self) -> None:
         """Stops the component."""
         LOGGER.info("Stopping the component: '{:s}'".format(self.component_name))
-        await self.set_simulation_state(AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED)
+        self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
+        await self._rabbitmq_client.close()
+        self._is_stopped = True
 
     def get_simulation_state(self) -> str:
         """Returns the simulation state attribute."""
@@ -108,10 +120,7 @@ class AbstractSimulationComponent:
                     await self.send_status_message()
 
             elif new_simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED:
-                LOGGER.info("Component {:s} stopping in {:d} seconds.".format(
-                    self._component_name, TIMEOUT_INTERVAL))
-                await asyncio.sleep(TIMEOUT_INTERVAL)
-                sys.exit()
+                await self.stop()
 
     async def start_epoch(self) -> bool:
         """Starts a new epoch for the component.
