@@ -132,13 +132,8 @@ class AbstractSimulationComponent:
 
         self._latest_epoch = self._latest_epoch_message.epoch_number
 
-        # If the epoch is already completed, no need for any new calculations.
-        if self._completed_epoch == self._latest_epoch:
-            return True
-
         # Any calculations done within the epoch would be included here.
         # Also, any possible checks for additional information that is required would be done here.
-        # After all the calculations are done, set self._completed_epoch to self._latest_epoch
         return True
 
     async def general_message_handler(self, message_object: Union[AbstractMessage, Any],
@@ -190,7 +185,10 @@ class AbstractSimulationComponent:
             self._triggering_message_ids = [message_object.message_id]
             self._latest_epoch_message = message_object
 
-            await self.start_epoch()
+            # If all the epoch calculations were completed, send a new status message.
+            if await self.start_epoch():
+                self._completed_epoch = self._latest_epoch
+                await self.send_status_message()
 
     async def send_status_message(self) -> None:
         """Sends a new status message to the message bus."""
