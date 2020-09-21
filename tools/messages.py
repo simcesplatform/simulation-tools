@@ -813,8 +813,11 @@ class GeneralMessage(AbstractMessage):
 
 class ResourceStatesMessage(AbstractResultMessage):
     """Class containing all the attributes for a ResourceStates message."""
+    
+    # message type for these messages
     CLASS_MESSAGE_TYPE = "ResourceStates"
 
+    # Mapping from message JSON attributes to class attributes
     MESSAGE_ATTRIBUTES = {
         "Bus1": "bus1",
         "RealPower": "real_power",
@@ -847,10 +850,12 @@ class ResourceStatesMessage(AbstractResultMessage):
     
     @property
     def reactive_power(self) -> float:
+        """The attribute for reactive power of the resource."""
         return self.__reactive_power
 
     @bus1.setter
     def bus1(self, bus1: str ):
+        """Set value for bus1."""
         if self._check_bus1( bus1 ):
             self.__bus1 = bus1
             return
@@ -859,6 +864,7 @@ class ResourceStatesMessage(AbstractResultMessage):
 
     @real_power.setter
     def real_power(self, real_power: Union[str, float]):
+        """Set value for real power."""
         if self._check_power(real_power):
             self.__real_power = real_power
             return
@@ -867,6 +873,7 @@ class ResourceStatesMessage(AbstractResultMessage):
     
     @reactive_power.setter
     def reactive_power(self, reactive_power: Union[str, float]):
+        """Set value for reactive power."""
         if self._check_power(reactive_power):
             self.__reactive_power = reactive_power
             return
@@ -874,6 +881,7 @@ class ResourceStatesMessage(AbstractResultMessage):
         raise MessageValueError("'{:s}' is an invalid float value for reactive power.".format(str(reactive_power)))
 
     def __eq__(self, other: Any) -> bool:
+        """Check that two ResourceStateMessages represent the same message."""
         return (
             super().__eq__(other) and
             isinstance(other, ResourceStatesMessage) and
@@ -884,10 +892,12 @@ class ResourceStatesMessage(AbstractResultMessage):
 
     @classmethod
     def _check_bus1(cls, bus1 ) -> bool:
+        """Check that value for bus1 is valid i.e. a string."""
         return isinstance( bus1, str )
 
     @classmethod
     def _check_power(cls, power ):
+        """Check that value for real or reactive power is valid i.e. something that can be converted to float."""
         try:
             float( power )
             return True
@@ -897,10 +907,12 @@ class ResourceStatesMessage(AbstractResultMessage):
         
     @classmethod
     def _check_real_power(cls, real_power ):
+        """Check that value for real power is valid i.e. something that can be converted to float."""
         return cls._check_power( real_power )
     
     @classmethod
     def _check_reactive_power(cls, reactive_power ):
+        """Check that value for reactive power is valid i.e. something that can be converted to float."""
         return cls._check_power( reactive_power )
 
     @classmethod
