@@ -2,6 +2,7 @@
 
 """Unit test for the MessageCallback class."""
 
+import asyncio
 import json
 
 import aiounittest
@@ -52,9 +53,13 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
     ALTERNATE_MESSAGE = GeneralMessage(**ALTERNATE_JSON)
     TEST_TOPIC1 = "unit_test"
     TEST_TOPIC2 = "alternate"
+    WAIT_TIME = 0.1  # should be enough to allow the messages to be received by the handler
 
-    def helper_equality_tester(self, callback_object, expected_message, expected_topic):
+    async def helper_equality_tester(self, callback_object, expected_message, expected_topic):
         """Helper function to test that the last recorded messages are equal to the expected ones."""
+        # Wait a short time to allow the message to be received by the handler object.
+        await asyncio.sleep(TestMessageCallback.WAIT_TIME)
+
         self.assertEqual(callback_object.last_message, expected_message)
         self.assertEqual(HANDLER.last_message, expected_message)
 
@@ -75,16 +80,16 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the simulation state callback with proper simulation state messages
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the simulation state callback with an epoch message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(epoch_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, epoch_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, epoch_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_epoch_callback(self):
         """Unit test for the callback handling epoch messages."""
@@ -100,16 +105,16 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the epoch callback with proper epoch messages
         await callback_object.callback(
             get_incoming_message(epoch_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, epoch_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, epoch_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the epoch callback with a simulation state message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_error_message(self):
         """Unit test for the callback handling error messages."""
@@ -125,16 +130,16 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the error callback with proper error messages
         await callback_object.callback(
             get_incoming_message(error_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, error_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, error_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the error callback with a simulation state message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_status_message(self):
         """Unit test for the callback handling status messages."""
@@ -150,19 +155,19 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the status callback with proper status messages
         await callback_object.callback(
             get_incoming_message(status_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, status_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, status_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the status callback with a simulation state message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_result_message(self):
-        """Unit test for the callback handling status messages."""
+        """Unit test for the callback handling general result messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Result")
 
         result_message = ResultMessage.from_json(
@@ -175,16 +180,16 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the status callback with proper status messages
         await callback_object.callback(
             get_incoming_message(result_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, result_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, result_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the status callback with a simulation state message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_general_message(self):
         """Unit test for the handling of a general simulation platform message."""
@@ -208,50 +213,50 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # DEFAULT_MESSAGE_TYPE == "SimState" as is defined in messages_common.py.
         await callback_object.callback(
             get_incoming_message(TestMessageCallback.GENERAL_MESSAGE.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(
+        await self.helper_equality_tester(
             callback_object, state_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object_general.callback(
             get_incoming_message(TestMessageCallback.GENERAL_MESSAGE.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(
+        await self.helper_equality_tester(
             callback_object_general, TestMessageCallback.GENERAL_MESSAGE, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(TestMessageCallback.ALTERNATE_MESSAGE.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(
+        await self.helper_equality_tester(
             callback_object, TestMessageCallback.ALTERNATE_MESSAGE, TestMessageCallback.TEST_TOPIC2)
 
         # Tests for the different message types.
         await callback_object.callback(
             get_incoming_message(epoch_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, epoch_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, epoch_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, state_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, state_message, TestMessageCallback.TEST_TOPIC2)
 
         await callback_object.callback(
             get_incoming_message(status_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, status_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, status_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(error_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, error_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, error_message, TestMessageCallback.TEST_TOPIC2)
 
         await callback_object.callback(
             get_incoming_message(result_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, result_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, result_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(general_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, general_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, general_message, TestMessageCallback.TEST_TOPIC1)
 
         # Test for a JSON not conforming to the simulation platform message schema.
         await callback_object.callback(
             get_incoming_message(bytes(json.dumps(FAIL_TEST_JSON), encoding="UTF-8"), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, FAIL_TEST_JSON, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, FAIL_TEST_JSON, TestMessageCallback.TEST_TOPIC2)
 
         # Test for a non-JSON message.
         await callback_object.callback(
             get_incoming_message(bytes(FAIL_TEST_STR, encoding="UTF-8"), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, FAIL_TEST_STR, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, FAIL_TEST_STR, TestMessageCallback.TEST_TOPIC1)
