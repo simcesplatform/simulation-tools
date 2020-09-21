@@ -143,3 +143,7 @@ class TestMongodbClient(aiounittest.AsyncTestCase):
     async def test_adding_simulation_indexes(self):
         """Unit test for adding or updating simulation specific collection indexes."""
         # TODO: implement test_adding_simulation_indexes
+
+    async def test_connection_failures(self):
+        """Unit tests for failed connections to the database."""
+        # TODO: implement test_connection_failures

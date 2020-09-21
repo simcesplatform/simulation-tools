@@ -122,3 +122,7 @@ class TestRabbitmqClient(aiounittest.AsyncTestCase):
 
         # 5 second wait to allow the clients to properly close.
         await asyncio.sleep(5)
+
+    async def test_connection_failures(self):
+        """Unit tests for failed connections to the message bus."""
+        # TODO: implement test_connection_failures
