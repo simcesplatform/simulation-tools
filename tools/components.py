@@ -17,12 +17,12 @@ LOGGER = FullLogger(__name__)
 TIMEOUT_INTERVAL = 10
 
 # The names of the environmental variables used by the component.
-__SIMULATION_ID = "SIMULATION_ID"
-__SIMULATION_COMPONENT_NAME = "SIMULATION_COMPONENT_NAME"
-__SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
-__SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
-__SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
-__SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
+SIMULATION_ID = "SIMULATION_ID"
+SIMULATION_COMPONENT_NAME = "SIMULATION_COMPONENT_NAME"
+SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
+SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
+SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
+SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
 
 
 class AbstractSimulationComponent:
@@ -39,24 +39,24 @@ class AbstractSimulationComponent:
         """
         # Load the component specific environmental variables.
         env_variables = load_environmental_variables(
-            (__SIMULATION_ID, str),
-            (__SIMULATION_COMPONENT_NAME, str, "dummy"),
-            (__SIMULATION_EPOCH_MESSAGE_TOPIC, str, "epoch"),
-            (__SIMULATION_STATUS_MESSAGE_TOPIC, str, "status"),
-            (__SIMULATION_STATE_MESSAGE_TOPIC, str, "state"),
-            (__SIMULATION_ERROR_MESSAGE_TOPIC, str, "error")
+            (SIMULATION_ID, str),
+            (SIMULATION_COMPONENT_NAME, str, "dummy"),
+            (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "epoch"),
+            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "status"),
+            (SIMULATION_STATE_MESSAGE_TOPIC, str, "state"),
+            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "error")
         )
 
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
         self._rabbitmq_client = RabbitmqClient()
 
-        self._simulation_id = cast(str, env_variables[__SIMULATION_ID])
-        self._component_name = cast(str, env_variables[__SIMULATION_COMPONENT_NAME])
+        self._simulation_id = cast(str, env_variables[SIMULATION_ID])
+        self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
 
-        self._simulation_state_topic = cast(str, env_variables[__SIMULATION_STATE_MESSAGE_TOPIC])
-        self._epoch_topic = cast(str, env_variables[__SIMULATION_EPOCH_MESSAGE_TOPIC])
-        self._status_topic = cast(str, env_variables[__SIMULATION_STATUS_MESSAGE_TOPIC])
-        self._error_topic = cast(str, env_variables[__SIMULATION_ERROR_MESSAGE_TOPIC])
+        self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
+        self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
+        self._status_topic = cast(str, env_variables[SIMULATION_STATUS_MESSAGE_TOPIC])
+        self._error_topic = cast(str, env_variables[SIMULATION_ERROR_MESSAGE_TOPIC])
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
