@@ -26,6 +26,8 @@ services:
       - ENV_TEST_VALUE_INT=12
       - ENV_TEST_VALUE_FLOAT=2.34
       - ENV_TEST_VALUE_STRING=hello
+      - SIMULATION_ID=2000-01-01T00:00:00.000Z
+      - SIMULATION_COMPONENT_NAME=test_component
     networks:
       - tools_test_network
 

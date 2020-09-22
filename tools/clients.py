@@ -261,6 +261,11 @@ class RabbitmqClient:
         """Removes all topic listeners from the client."""
         for listener_connection, listener_task in zip(self.__listener_connections, self.__listener_tasks):
             listener_task.cancel()
+            try:
+                await listener_task
+            except asyncio.CancelledError:
+                pass
+
             await listener_connection.close()
 
         self.__listener_connections = []
@@ -324,7 +329,7 @@ class RabbitmqClient:
                         async with message.process():
                             LOGGER.debug("Message '{:s}' received from topic: '{:s}'".format(
                                 message.body.decode(RabbitmqClient.MESSAGE_ENCODING), message.routing_key))
-                            await callback_class.callback(message)
+                            asyncio.create_task(callback_class.callback(message))
 
         except SystemExit:
             LOGGER.debug("SystemExit received when trying to listen to the message bus.")
