@@ -12,16 +12,16 @@ from tools.exceptions.messages import MessageValueError
 from tools.tests.messages_common import FULL_JSON, DEFAULT_TIMESTAMP
 
 # define some test data
-BUS1_ATTRIBUTE = "Bus1"
+BUS_ATTRIBUTE = "Bus"
 REAL_POWER_ATTRIBUTE = "RealPower"
 REACTIVE_POWER_ATTRIBUTE = "ReactivePower"
 
-DEFAULT_BUS1 = "bus"
+DEFAULT_BUS = "bus"
 DEFAULT_REACTIVE_POWER = 5.0
 DEFAULT_REAL_POWER = 100.0
 
 SUBCLASS_JSON = {
-    BUS1_ATTRIBUTE: DEFAULT_BUS1,
+    BUS_ATTRIBUTE: DEFAULT_BUS,
     REAL_POWER_ATTRIBUTE: DEFAULT_REAL_POWER,
     REACTIVE_POWER_ATTRIBUTE: DEFAULT_REACTIVE_POWER
 }
@@ -62,7 +62,7 @@ class TestResourceStateMessages(unittest.TestCase):
         self.assertEqual(message_copy.last_updated_in_epoch, message_full.last_updated_in_epoch)
         self.assertEqual(message_copy.triggering_message_ids, message_full.triggering_message_ids)
         self.assertEqual(message_copy.warnings, message_full.warnings)
-        self.assertEqual(message_copy.bus1, message_full.bus1)
+        self.assertEqual(message_copy.bus, message_full.bus)
         self.assertEqual(message_copy.real_power, message_full.real_power)
         self.assertEqual(message_copy.reactive_power, message_full.reactive_power)
 
@@ -75,7 +75,7 @@ class TestResourceStateMessages(unittest.TestCase):
         # check that when subclass specific attributes have different values
         # objects will not be equal
         different_values = {
-            "bus1": "foo",
+            "bus": "foo",
             "real_power": 200,
             "reactive_power": 10
         }
@@ -90,7 +90,7 @@ class TestResourceStateMessages(unittest.TestCase):
     def test_invalid_values(self):
         """Test that invalid attribute values are not accepted."""
         invalid_values = {
-            "Bus1": 1,
+            "Bus": 1,
             "ReactivePower": 'foo',
             "RealPower": None
         }

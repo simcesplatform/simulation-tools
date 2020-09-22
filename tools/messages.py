@@ -820,7 +820,7 @@ class ResourceStatesMessage(AbstractResultMessage):
 
     # Mapping from message JSON attributes to class attributes
     MESSAGE_ATTRIBUTES = {
-        "Bus1": "bus1",
+        "Bus": "bus",
         "RealPower": "real_power",
         "ReactivePower": "reactive_power"
     }
@@ -840,9 +840,9 @@ class ResourceStatesMessage(AbstractResultMessage):
                     kwargs.get(json_attribute_name, None))
 
     @property
-    def bus1(self) -> str:
+    def bus(self) -> str:
         """The attribute for the name of bus to which the resource is connected."""
-        return self.__bus1
+        return self.__bus
 
     @property
     def real_power(self) -> float:
@@ -854,14 +854,14 @@ class ResourceStatesMessage(AbstractResultMessage):
         """The attribute for reactive power of the resource."""
         return self.__reactive_power
 
-    @bus1.setter
-    def bus1(self, bus1: str):
-        """Set value for bus1."""
-        if self._check_bus1(bus1):
-            self.__bus1 = bus1
+    @bus.setter
+    def bus(self, bus: str):
+        """Set value for bus."""
+        if self._check_bus(bus):
+            self.__bus = bus
             return
 
-        raise MessageValueError(f"'{bus1}' is an invalid value for bus1 since it is not a string.")
+        raise MessageValueError(f"'{bus}' is an invalid value for bus since it is not a string.")
 
     @real_power.setter
     def real_power(self, real_power: Union[str, float]):
@@ -886,15 +886,15 @@ class ResourceStatesMessage(AbstractResultMessage):
         return (
             super().__eq__(other) and
             isinstance(other, ResourceStatesMessage) and
-            self.bus1 == other.bus1 and
+            self.bus == other.bus and
             self.real_power == other.real_power and
             self.reactive_power == other.reactive_power
         )
 
     @classmethod
-    def _check_bus1(cls, bus1: str) -> bool:
-        """Check that value for bus1 is valid i.e. a string."""
-        return isinstance(bus1, str)
+    def _check_bus(cls, bus: str) -> bool:
+        """Check that value for bus is valid i.e. a string."""
+        return isinstance(bus, str)
 
     @classmethod
     def _check_power(cls, power: Union[str, float]) -> bool:
