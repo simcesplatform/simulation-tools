@@ -822,15 +822,19 @@ class ResourceStatesMessage(AbstractResultMessage):
     MESSAGE_ATTRIBUTES = {
         "Bus": "bus",
         "RealPower": "real_power",
-        "ReactivePower": "reactive_power"
+        "ReactivePower": "reactive_power",
+        "Node": "node" 
     }
-    OPTIONAL_ATTRIBUTES = []
+    OPTIONAL_ATTRIBUTES = [ "Node" ]
 
     MESSAGE_ATTRIBUTES_FULL = {
         **AbstractResultMessage.MESSAGE_ATTRIBUTES_FULL,
         **MESSAGE_ATTRIBUTES
     }
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
+    
+    # allowed values for the node attribute
+    ACCEPTED_NODE_VALUES = [ 1, 2, 3 ]
 
     def __init__(self, **kwargs):
         """Only attributes in class ResourceStatesMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
@@ -853,6 +857,12 @@ class ResourceStatesMessage(AbstractResultMessage):
     def reactive_power(self) -> float:
         """The attribute for reactive power of the resource."""
         return self.__reactive_power
+    
+    @property
+    def node(self) -> int:
+        """Node that 1-phase resource is connected to.
+        If this is not specified then it is assumed that the resource is 3-phase resource."""
+        return self.__node 
 
     @bus.setter
     def bus(self, bus: str):
@@ -880,6 +890,20 @@ class ResourceStatesMessage(AbstractResultMessage):
             return
 
         raise MessageValueError("'{:s}' is an invalid float value for reactive power.".format(str(reactive_power)))
+    
+    @node.setter
+    def node(self, node: int ):
+        """Set value for node."""
+        if self._check_node( node ):
+            if node != None:
+                self.__node = int( node )
+                
+            else:
+                self.__node = node
+                
+            return 
+        
+        raise MessageValueError(f"'{node}' is an invalid value for node: not an integer 1, 2 or 3." )
 
     def __eq__(self, other: Any) -> bool:
         """Check that two ResourceStateMessages represent the same message."""
@@ -888,7 +912,8 @@ class ResourceStatesMessage(AbstractResultMessage):
             isinstance(other, ResourceStatesMessage) and
             self.bus == other.bus and
             self.real_power == other.real_power and
-            self.reactive_power == other.reactive_power
+            self.reactive_power == other.reactive_power and 
+            self.node == other.node
         )
 
     @classmethod
@@ -915,6 +940,19 @@ class ResourceStatesMessage(AbstractResultMessage):
     def _check_reactive_power(cls, reactive_power: Union[str, float]) -> bool:
         """Check that value for reactive power is valid i.e. something that can be converted to float."""
         return cls._check_power(reactive_power)
+    
+    @classmethod
+    def _check_node(cls, node) -> bool:
+        """Check that node is None or something that can be converted to integer and its value is 1, 2 or 3."""
+        if node == None:
+            return True
+        
+        try:
+            node = int( node )
+            return node in cls.ACCEPTED_NODE_VALUES
+        
+        except ValueError:
+            return False
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Union[ResourceStatesMessage, None]:

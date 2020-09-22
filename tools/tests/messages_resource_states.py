@@ -45,6 +45,9 @@ class TestResourceStateMessages(unittest.TestCase):
         message_json = ResourceStatesMessage.from_json(MESSAGE_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
         for attr in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
+            if attr in ResourceStatesMessage.OPTIONAL_ATTRIBUTES:
+                continue
+            
             self.assertIn(attr, message_json)
             self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
 
