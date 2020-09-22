@@ -67,8 +67,8 @@ class AbstractMessage():
     CLASS_MESSAGE_TYPE = ""
 
     # The allowed message types
-    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceStates" ]
-    
+    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceStates"]
+
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
         "Type": "message_type",
@@ -811,9 +811,10 @@ class GeneralMessage(AbstractMessage):
             return cls(**json_message)
         return None
 
+
 class ResourceStatesMessage(AbstractResultMessage):
     """Class containing all the attributes for a ResourceStates message."""
-    
+
     # message type for these messages
     CLASS_MESSAGE_TYPE = "ResourceStates"
 
@@ -847,35 +848,35 @@ class ResourceStatesMessage(AbstractResultMessage):
     def real_power(self) -> float:
         """The attribute for real power of the resource."""
         return self.__real_power
-    
+
     @property
     def reactive_power(self) -> float:
         """The attribute for reactive power of the resource."""
         return self.__reactive_power
 
     @bus1.setter
-    def bus1(self, bus1: str ):
+    def bus1(self, bus1: str):
         """Set value for bus1."""
-        if self._check_bus1( bus1 ):
+        if self._check_bus1(bus1):
             self.__bus1 = bus1
             return
-        
-        raise MessageValueError(f"'{bus1}' is an invalid value for bus1 since it is not a string.") 
+
+        raise MessageValueError(f"'{bus1}' is an invalid value for bus1 since it is not a string.")
 
     @real_power.setter
     def real_power(self, real_power: Union[str, float]):
         """Set value for real power."""
         if self._check_power(real_power):
-            self.__real_power = real_power
+            self.__real_power = float(real_power)
             return
 
         raise MessageValueError("'{:s}' is an invalid float value for real power.".format(str(real_power)))
-    
+
     @reactive_power.setter
     def reactive_power(self, reactive_power: Union[str, float]):
         """Set value for reactive power."""
         if self._check_power(reactive_power):
-            self.__reactive_power = reactive_power
+            self.__reactive_power = float(reactive_power)
             return
 
         raise MessageValueError("'{:s}' is an invalid float value for reactive power.".format(str(reactive_power)))
@@ -891,37 +892,38 @@ class ResourceStatesMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_bus1(cls, bus1 ) -> bool:
+    def _check_bus1(cls, bus1: str) -> bool:
         """Check that value for bus1 is valid i.e. a string."""
-        return isinstance( bus1, str )
+        return isinstance(bus1, str)
 
     @classmethod
-    def _check_power(cls, power ):
+    def _check_power(cls, power: Union[str, float]) -> bool:
         """Check that value for real or reactive power is valid i.e. something that can be converted to float."""
         try:
-            float( power )
+            float(power)
             return True
-        
+
         except (ValueError, TypeError):
             return False
-        
-    @classmethod
-    def _check_real_power(cls, real_power ):
-        """Check that value for real power is valid i.e. something that can be converted to float."""
-        return cls._check_power( real_power )
-    
-    @classmethod
-    def _check_reactive_power(cls, reactive_power ):
-        """Check that value for reactive power is valid i.e. something that can be converted to float."""
-        return cls._check_power( reactive_power )
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]):
+    def _check_real_power(cls, real_power: Union[str, float]) -> bool:
+        """Check that value for real power is valid i.e. something that can be converted to float."""
+        return cls._check_power(real_power)
+
+    @classmethod
+    def _check_reactive_power(cls, reactive_power: Union[str, float]) -> bool:
+        """Check that value for reactive power is valid i.e. something that can be converted to float."""
+        return cls._check_power(reactive_power)
+
+    @classmethod
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[ResourceStatesMessage, None]:
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is not validated returns None."""
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
+
 
 MESSAGE_TYPES = {
     "SimState": SimulationStateMessage,
