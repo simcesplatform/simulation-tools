@@ -4,15 +4,15 @@
 
 import asyncio
 import datetime
-from typing import List, Union, cast
+from typing import List, Tuple, Union, cast
 
 import aiounittest
 
 from tools.clients import RabbitmqClient
 from tools.components import AbstractSimulationComponent
 from tools.datetime_tools import to_iso_format_datetime_string
-from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, SimulationStateMessage, StatusMessage, \
-                           get_next_message_id
+from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, ErrorMessage, \
+                           SimulationStateMessage, StatusMessage, get_next_message_id
 from tools.tools import EnvironmentVariable
 
 
@@ -25,7 +25,7 @@ async def send_message(message_client: RabbitmqClient, message_object: AbstractM
 class MessageStorage:
     """Helper class for storing received messages through callback function."""
     def __init__(self, ignore_source_process_id: str):
-        self.messages = []
+        self.messages_and_topics = []
         self.ignore_source_process_id = ignore_source_process_id
 
     async def callback(self, message_object: Union[AbstractMessage, dict, str], message_topic: str) -> None:
@@ -33,7 +33,7 @@ class MessageStorage:
         if not isinstance(message_object, AbstractMessage):
             raise ValueError(message_object)
         if message_object.source_process_id != self.ignore_source_process_id:
-            self.messages.append((message_object, message_topic))
+            self.messages_and_topics.append((message_object, message_topic))
 
 
 class MessageGenerator:
@@ -90,7 +90,7 @@ class MessageGenerator:
         """Returns an error message."""
         self.latest_message_id = next(self.id_generator)
         return ErrorMessage(**{
-            "Type": "Status",
+            "Type": "Error",
             "SimulationId": self.simulation_id,
             "SourceProcessId": self.process_id,
             "MessageId": self.latest_message_id,
@@ -107,74 +107,161 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     short_wait = 0.5
     long_wait = 5.0
 
-    async def epoch_tester(self, epoch_number: int, message_client: RabbitmqClient, message_storage: MessageStorage,
-                           manager_message_generator: MessageGenerator, component_message_generator: MessageGenerator):
-        """Test the behaviour of the test_component in one epoch."""
-        number_of_previous_messages = len(message_storage.messages)
-        if epoch_number == 0:
-            manager_message = manager_message_generator.get_simulation_state_message(True)
-        else:
-            manager_message = manager_message_generator.get_epoch_message(
-                epoch_number, [component_message_generator.latest_message_id])
-        expected_respond = component_message_generator.get_status_message(epoch_number, [manager_message.message_id])
+    test_manager_name = "test_manager"
+    manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
 
-        await send_message(message_client, manager_message)
-        # Wait a short time to allow the message storage to store the respond.
-        await asyncio.sleep(TestAbstractSimulationComponent.short_wait)
+    def get_expected_messages(self, component_message_generator: MessageGenerator, epoch_number: int,
+                              triggering_message_ids: List[str]) -> List[Tuple[AbstractMessage, str]]:
+        """Returns the expected messages and topic names that the test component is expected to
+           generate at epoch epoch_number, epoch 0 corresponds to the start of the simulation."""
+        return [
+            (component_message_generator.get_status_message(epoch_number, triggering_message_ids), "Status")
+        ]
 
-        received_messages = message_storage.messages
-        self.assertEqual(len(received_messages), number_of_previous_messages + 1)
-
-        received_message, received_topic = received_messages[-1]
-        self.assertEqual(received_topic, "Status")
-        self.assertIsInstance(received_message, StatusMessage)
-        self.assertEqual(received_message.message_type, expected_respond.message_type)
-        self.assertEqual(received_message.simulation_id, expected_respond.simulation_id)
-        self.assertEqual(received_message.source_process_id, expected_respond.source_process_id)
-        self.assertEqual(received_message.epoch_number, expected_respond.epoch_number)
-        self.assertEqual(received_message.triggering_message_ids, expected_respond.triggering_message_ids)
-        self.assertEqual(received_message.value, expected_respond.value)
+    def compare_abstract_message(self, first_message: AbstractMessage, second_message: AbstractMessage):
+        """Asserts that the two given abstract result messages correspond to each other."""
+        self.assertEqual(first_message.message_type, second_message.message_type)
+        self.assertEqual(first_message.simulation_id, second_message.simulation_id)
+        self.assertEqual(first_message.source_process_id, second_message.source_process_id)
         # The id number in the message id does not have to be exactly the exprected but check the starting string.
-        self.assertEqual("-".join(received_message.message_id.split("-")[:-1]),
-                         "-".join(expected_respond.message_id.split("-")[:-1]))
+        self.assertEqual("-".join(first_message.message_id.split("-")[:-1]),
+                         "-".join(second_message.message_id.split("-")[:-1]))
 
-    async def test_normal_simulation(self):
-        """A test with a normal input in a simulation containing only manager and test component."""
-        test_manager_name = "test_manager"
-        manager_message_generator = MessageGenerator(TestAbstractSimulationComponent.simulation_id, test_manager_name)
+    def compare_abstract_result_message(self, first_message: AbstractResultMessage,
+                                        second_message: AbstractResultMessage):
+        """Asserts that the two given abstract result messages correspond to each other."""
+        self.compare_abstract_message(first_message, second_message)
+        self.assertEqual(first_message.epoch_number, second_message.epoch_number)
+        self.assertEqual(first_message.triggering_message_ids, second_message.triggering_message_ids)
+
+    def compare_error_message(self, first_message: ErrorMessage, second_message: ErrorMessage):
+        """Asserts that the two given error messages correspond to each other."""
+        self.compare_abstract_result_message(first_message, second_message)
+        self.assertEqual(first_message.description, second_message.description)
+
+    def compare_status_message(self, first_message: StatusMessage, second_message: StatusMessage):
+        """Asserts that two given status messages correspond to each other."""
+        self.compare_abstract_result_message(first_message, second_message)
+        self.assertEqual(first_message.value, second_message.value)
+
+    def compare_message(self, first_message: AbstractMessage, second_message: AbstractMessage) -> bool:
+        """Asserts that the two given messages correspond to each other.
+           The function checks only the relevant parts of the message, not for example the timestamps.
+           Returns True, if the given messages where of a support type. Otherwise, returns False.
+        """
+        self.assertEqual(type(first_message), type(second_message))
+
+        if isinstance(second_message, StatusMessage):
+            self.compare_status_message(cast(StatusMessage, first_message), second_message)
+            return True
+
+        if isinstance(second_message, ErrorMessage):
+            self.compare_error_message(cast(ErrorMessage, first_message), second_message)
+            return True
+
+        return False
+
+    async def start_tester(self) -> Tuple[RabbitmqClient, MessageStorage,
+                                          MessageGenerator, AbstractSimulationComponent]:
+        """Tests the creation of the test component at the start of the simulation and returns a 4-tuple containing
+           the message bus client, message storage object, test component message generator object and
+           the test component object for the use of further tests."""
+        message_storage = MessageStorage(TestAbstractSimulationComponent.test_manager_name)
+        message_client = RabbitmqClient()
+        message_client.add_listener("#", message_storage.callback)
+
         component_message_generator = MessageGenerator(TestAbstractSimulationComponent.simulation_id,
                                                        TestAbstractSimulationComponent.component_name)
-        message_storage = MessageStorage(test_manager_name)
-
-        test_client = RabbitmqClient()
-        test_client.add_listener("#", message_storage.callback)
         test_component = AbstractSimulationComponent()
         await test_component.start()
 
         # Wait for a few seconds to allow the component to setup.
         await asyncio.sleep(TestAbstractSimulationComponent.long_wait)
+        self.assertFalse(message_client.is_closed)
         self.assertFalse(test_component.is_stopped)
         self.assertFalse(test_component.is_client_closed)
-        self.assertFalse(test_client.is_closed)
 
-        for epoch_number in range(0, 11):
-            await self.epoch_tester(epoch_number, test_client, message_storage,
-                                    manager_message_generator, component_message_generator)
+        self.assertEqual(test_component.simulation_id, TestAbstractSimulationComponent.simulation_id)
+        self.assertEqual(test_component.component_name, TestAbstractSimulationComponent.component_name)
 
-        end_message = manager_message_generator.get_simulation_state_message(False)
-        await send_message(test_client, end_message)
-        await test_client.close()
+        return (message_client, message_storage, component_message_generator, test_component)
+
+    async def epoch_tester(self, epoch_number: int, message_client: RabbitmqClient,
+                           message_storage: MessageStorage, component_message_generator: MessageGenerator):
+        """Test the behaviour of the test_component in one epoch."""
+        number_of_previous_messages = len(message_storage.messages_and_topics)
+        if epoch_number == 0:
+            manager_message = TestAbstractSimulationComponent.manager_message_generator.\
+                get_simulation_state_message(True)
+        else:
+            manager_message = TestAbstractSimulationComponent.manager_message_generator.get_epoch_message(
+                epoch_number, [component_message_generator.latest_message_id])
+        expected_responds = self.get_expected_messages(
+            component_message_generator, epoch_number, [manager_message.message_id])
+
+        await send_message(message_client, manager_message)
+        # Wait a short time to allow the message storage to store the respond.
+        await asyncio.sleep(TestAbstractSimulationComponent.short_wait)
+
+        received_messages = message_storage.messages_and_topics
+        self.assertEqual(len(received_messages), number_of_previous_messages + len(expected_responds))
+
+        # Compare the received messages to the expected messages.
+        for received_responce, expected_responce in zip(received_messages[-len(expected_responds):], expected_responds):
+            received_message, received_topic = received_responce
+            expected_message, expected_topic = expected_responce
+            self.assertEqual(received_topic, expected_topic)
+            self.assertTrue(self.compare_message(received_message, expected_message))
+
+    async def end_tester(self, message_client: RabbitmqClient, test_component: AbstractSimulationComponent):
+        """Tests the behaviour of the test component at the end of the simulation."""
+        end_message = TestAbstractSimulationComponent.manager_message_generator.get_simulation_state_message(False)
+        await send_message(message_client, end_message)
+        await message_client.close()
 
         # Wait a few seconds to allow the test component and the message clients to close.
         await asyncio.sleep(TestAbstractSimulationComponent.long_wait)
 
         self.assertTrue(test_component.is_stopped)
         self.assertTrue(test_component.is_client_closed)
-        self.assertTrue(test_client.is_closed)
+        self.assertTrue(message_client.is_closed)
+
+    async def test_normal_simulation(self):
+        """A test with a normal input in a simulation containing only manager and test component."""
+        # Test the creation of the test component.
+        message_client, message_storage, component_message_generator, test_component = \
+            await self.start_tester()
+
+        # Test the component with the starting simulation state message (epoch 0) and 10 normal epochs.
+        for epoch_number in range(0, 11):
+            await self.epoch_tester(epoch_number, message_client, message_storage, component_message_generator)
+
+        # Test the closing down of the test component after simulation state message "stopped".
+        await self.end_tester(message_client, test_component)
 
     async def test_error_message(self):
         """Unit test for simulation component sending an error message."""
-        # TODO: implement test_error_message
+        # Setup the component and start the simulation.
+        message_client, message_storage, component_message_generator, test_component = \
+            await self.start_tester()
+        await self.epoch_tester(0, message_client, message_storage, component_message_generator)
+
+        # Generate the expected error message and check if it matches to the one the test component sends.
+        error_description = "Testing error message"
+        expected_message = component_message_generator.get_error_message(
+            0, [TestAbstractSimulationComponent.manager_message_generator.latest_message_id], error_description)
+        number_of_previous_messages = len(message_storage.messages_and_topics)
+        await test_component.send_error_message(error_description)
+
+        # Wait a short time to ensure that the message receiver has received the error message.
+        await asyncio.sleep(TestAbstractSimulationComponent.short_wait)
+
+        self.assertEqual(len(message_storage.messages_and_topics), number_of_previous_messages + 1)
+        received_message, received_topic = message_storage.messages_and_topics[-1]
+        self.assertEqual(received_topic, "Error")
+        self.assertTrue(self.compare_message(received_message, expected_message))
+
+        await self.end_tester(message_client, test_component)
 
     async def test_component_robustness(self):
         """Unit test for testing simulation component behaviour when simulation does not go smoothly."""
