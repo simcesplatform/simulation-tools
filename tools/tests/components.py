@@ -46,6 +46,16 @@ class MessageGenerator:
         self.epoch_interval = 3600
         self.latest_message_id = "-".join([process_id, "0"])
 
+    def get_epoch_start(self, epoch_number: int) -> str:
+        """Returns the start time for the given epoch in ISO 8601 format."""
+        return cast(str, to_iso_format_datetime_string(
+            self.initial_time + (epoch_number - 1) * datetime.timedelta(seconds=self.epoch_interval)))
+
+    def get_epoch_end(self, epoch_number: int) -> str:
+        """Returns the start time for the given epoch in ISO 8601 format."""
+        return cast(str, to_iso_format_datetime_string(
+            self.initial_time + epoch_number * datetime.timedelta(seconds=self.epoch_interval)))
+
     def get_simulation_state_message(self, is_running: bool) -> SimulationStateMessage:
         """Returns a simulation state message."""
         self.latest_message_id = next(self.id_generator)
@@ -67,10 +77,8 @@ class MessageGenerator:
             "MessageId": self.latest_message_id,
             "EpochNumber": epoch_number,
             "TriggeringMessageIds": triggering_message_ids,
-            "StartTime": to_iso_format_datetime_string(
-                self.initial_time + (epoch_number - 1) * datetime.timedelta(seconds=self.epoch_interval)),
-            "EndTime": to_iso_format_datetime_string(
-                self.initial_time + epoch_number * datetime.timedelta(seconds=self.epoch_interval))
+            "StartTime": self.get_epoch_start(epoch_number),
+            "EndTime": self.get_epoch_end(epoch_number)
         })
 
     def get_status_message(self, epoch_number: int, triggering_message_ids: List[str]) -> StatusMessage:
@@ -106,6 +114,11 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     component_name = cast(str, EnvironmentVariable("SIMULATION_COMPONENT_NAME", str).value)
     short_wait = 0.5
     long_wait = 5.0
+
+    # The simulation component type that is used in the unit tests.
+    component_type = AbstractSimulationComponent
+    # The generator class that can produce messages comparable to the ones produced by the test component.
+    message_generator_type = MessageGenerator
 
     test_manager_name = "test_manager"
     manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
@@ -166,23 +179,23 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         """Tests the creation of the test component at the start of the simulation and returns a 4-tuple containing
            the message bus client, message storage object, test component message generator object and
            the test component object for the use of further tests."""
-        message_storage = MessageStorage(TestAbstractSimulationComponent.test_manager_name)
+        message_storage = MessageStorage(self.__class__.test_manager_name)
         message_client = RabbitmqClient()
         message_client.add_listener("#", message_storage.callback)
 
-        component_message_generator = MessageGenerator(TestAbstractSimulationComponent.simulation_id,
-                                                       TestAbstractSimulationComponent.component_name)
-        test_component = AbstractSimulationComponent()
+        component_message_generator = self.__class__.message_generator_type(
+            self.__class__.simulation_id, self.__class__.component_name)
+        test_component = self.__class__.component_type()
         await test_component.start()
 
         # Wait for a few seconds to allow the component to setup.
-        await asyncio.sleep(TestAbstractSimulationComponent.long_wait)
+        await asyncio.sleep(self.__class__.long_wait)
         self.assertFalse(message_client.is_closed)
         self.assertFalse(test_component.is_stopped)
         self.assertFalse(test_component.is_client_closed)
 
-        self.assertEqual(test_component.simulation_id, TestAbstractSimulationComponent.simulation_id)
-        self.assertEqual(test_component.component_name, TestAbstractSimulationComponent.component_name)
+        self.assertEqual(test_component.simulation_id, self.__class__.simulation_id)
+        self.assertEqual(test_component.component_name, self.__class__.component_name)
 
         return (message_client, message_storage, component_message_generator, test_component)
 
@@ -191,17 +204,17 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         """Test the behaviour of the test_component in one epoch."""
         number_of_previous_messages = len(message_storage.messages_and_topics)
         if epoch_number == 0:
-            manager_message = TestAbstractSimulationComponent.manager_message_generator.\
+            manager_message = self.__class__.manager_message_generator.\
                 get_simulation_state_message(True)
         else:
-            manager_message = TestAbstractSimulationComponent.manager_message_generator.get_epoch_message(
+            manager_message = self.__class__.manager_message_generator.get_epoch_message(
                 epoch_number, [component_message_generator.latest_message_id])
         expected_responds = self.get_expected_messages(
             component_message_generator, epoch_number, [manager_message.message_id])
 
         await send_message(message_client, manager_message)
         # Wait a short time to allow the message storage to store the respond.
-        await asyncio.sleep(TestAbstractSimulationComponent.short_wait)
+        await asyncio.sleep(self.__class__.short_wait)
 
         received_messages = message_storage.messages_and_topics
         self.assertEqual(len(received_messages), number_of_previous_messages + len(expected_responds))
@@ -215,12 +228,12 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
     async def end_tester(self, message_client: RabbitmqClient, test_component: AbstractSimulationComponent):
         """Tests the behaviour of the test component at the end of the simulation."""
-        end_message = TestAbstractSimulationComponent.manager_message_generator.get_simulation_state_message(False)
+        end_message = self.__class__.manager_message_generator.get_simulation_state_message(False)
         await send_message(message_client, end_message)
         await message_client.close()
 
         # Wait a few seconds to allow the test component and the message clients to close.
-        await asyncio.sleep(TestAbstractSimulationComponent.long_wait)
+        await asyncio.sleep(self.__class__.long_wait)
 
         self.assertTrue(test_component.is_stopped)
         self.assertTrue(test_component.is_client_closed)
@@ -249,12 +262,12 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         # Generate the expected error message and check if it matches to the one the test component sends.
         error_description = "Testing error message"
         expected_message = component_message_generator.get_error_message(
-            0, [TestAbstractSimulationComponent.manager_message_generator.latest_message_id], error_description)
+            0, [self.__class__.manager_message_generator.latest_message_id], error_description)
         number_of_previous_messages = len(message_storage.messages_and_topics)
         await test_component.send_error_message(error_description)
 
         # Wait a short time to ensure that the message receiver has received the error message.
-        await asyncio.sleep(TestAbstractSimulationComponent.short_wait)
+        await asyncio.sleep(self.__class__.short_wait)
 
         self.assertEqual(len(message_storage.messages_and_topics), number_of_previous_messages + 1)
         received_message, received_topic = message_storage.messages_and_topics[-1]
