@@ -32,8 +32,9 @@ SUBCLASS_JSON = {
 # combine class specific test data with common test data
 MESSAGE_JSON = {**FULL_JSON, **SUBCLASS_JSON}
 # without optional attributes
-MESSAGE_STRIPPED_JSON = copy.deepcopy( MESSAGE_JSON )
-del MESSAGE_STRIPPED_JSON[ NODE_ATTRIBUTE ]
+MESSAGE_STRIPPED_JSON = copy.deepcopy(MESSAGE_JSON)
+del MESSAGE_STRIPPED_JSON[NODE_ATTRIBUTE]
+
 
 class TestResourceStateMessages(unittest.TestCase):
     """
@@ -57,8 +58,8 @@ class TestResourceStateMessages(unittest.TestCase):
         for attr in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
             self.assertIn(attr, message_json)
             self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
-        
-        # test without optional attributes    
+
+        # test without optional attributes
         message_json = ResourceStatesMessage.from_json(MESSAGE_STRIPPED_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
         for attr in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
