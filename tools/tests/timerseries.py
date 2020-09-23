@@ -6,7 +6,7 @@ import datetime
 import json
 import random
 import string
-from typing import Dict, List, Union
+from typing import Dict, Generator, List, Union
 import unittest
 
 from tools.datetime_tools import to_iso_format_datetime_string
@@ -14,14 +14,14 @@ from tools.exceptions.timeseries import TimeSeriesDateError, TimeSeriesUnitError
 from tools.timeseries import UnitCode, TimeSeriesAttribute, TimeSeriesBlock
 
 
-def get_unit_code():
+def get_unit_code() -> Generator[str, None, None]:
     """Returns a unit code."""
     unit_codes = ["m", "V", "A", "W", "kg"]
     while True:
         yield unit_codes[random.randint(0, len(unit_codes) - 1)]
 
 
-def get_attribute_name():
+def get_attribute_name() -> Generator[str, None, None]:
     """Returns an attribute name."""
     letters = string.ascii_lowercase
     while True:

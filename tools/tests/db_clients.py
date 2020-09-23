@@ -51,7 +51,7 @@ def run_mongo_query(mongo_query: str) \
         return process_error
 
 
-def get_collection_name(message_object: messages.AbstractMessage):
+def get_collection_name(message_object: messages.AbstractMessage) -> str:
     """Returns the expected simulation-specific collection name for the message."""
     return "{collection_prefix:s}{simulation_id:s}".format(
         collection_prefix=ENV_VARIABLES["MONGODB_MESSAGES_COLLECTION_PREFIX"],

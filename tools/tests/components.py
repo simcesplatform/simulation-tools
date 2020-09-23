@@ -204,6 +204,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         """Test the behaviour of the test_component in one epoch."""
         number_of_previous_messages = len(message_storage.messages_and_topics)
         if epoch_number == 0:
+            # Epoch number 0 corresponds to the start of the simulation.
             manager_message = self.__class__.manager_message_generator.\
                 get_simulation_state_message(True)
         else:
@@ -235,6 +236,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         # Wait a few seconds to allow the test component and the message clients to close.
         await asyncio.sleep(self.__class__.long_wait)
 
+        # Check that the component is stopped and the message clients are closed.
         self.assertTrue(test_component.is_stopped)
         self.assertTrue(test_component.is_client_closed)
         self.assertTrue(message_client.is_closed)
@@ -262,13 +264,16 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         # Generate the expected error message and check if it matches to the one the test component sends.
         error_description = "Testing error message"
         expected_message = component_message_generator.get_error_message(
-            0, [self.__class__.manager_message_generator.latest_message_id], error_description)
+            epoch_number=0,
+            triggering_message_ids=[self.__class__.manager_message_generator.latest_message_id],
+            description=error_description)
         number_of_previous_messages = len(message_storage.messages_and_topics)
         await test_component.send_error_message(error_description)
 
         # Wait a short time to ensure that the message receiver has received the error message.
         await asyncio.sleep(self.__class__.short_wait)
 
+        # Check that the correct error message was received.
         self.assertEqual(len(message_storage.messages_and_topics), number_of_previous_messages + 1)
         received_message, received_topic = message_storage.messages_and_topics[-1]
         self.assertEqual(received_topic, "Error")

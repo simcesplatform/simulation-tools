@@ -4,6 +4,7 @@
 
 import asyncio
 import json
+from typing import Union
 
 import aiounittest
 import aio_pika.message
@@ -11,7 +12,7 @@ import pamqp
 import pamqp.specification
 
 from tools.callbacks import MessageCallback
-from tools.messages import EpochMessage, ErrorMessage, GeneralMessage, \
+from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, GeneralMessage, \
                            ResultMessage, SimulationStateMessage, StatusMessage, ResourceStatesMessage
 from tools.tests.messages_abstract import ALTERNATE_JSON, DEFAULT_TIMESTAMP, FULL_JSON, MESSAGE_TYPE_ATTRIBUTE
 from tools.tests.messages_resource_states import MESSAGE_JSON as RESOURCE_STATES_MESSAGE_JSON
@@ -60,7 +61,8 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
     TEST_TOPIC2 = "alternate"
     WAIT_TIME = 0.1  # should be enough to allow the messages to be received by the handler
 
-    async def helper_equality_tester(self, callback_object, expected_message, expected_topic):
+    async def helper_equality_tester(self, callback_object: MessageCallback,
+                                     expected_message: Union[AbstractMessage, dict, str], expected_topic: str):
         """Helper function to test that the last recorded messages are equal to the expected ones."""
         # Wait a short time to allow the message to be received by the handler object.
         await asyncio.sleep(TestMessageCallback.WAIT_TIME)
@@ -75,12 +77,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling simulation state messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "SimState")
 
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
-        alternate_message = SimulationStateMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
-        epoch_message = EpochMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Epoch"}})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
+        alternate_message = SimulationStateMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
+        epoch_message = EpochMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Epoch"})
 
         # test the simulation state callback with proper simulation state messages
         await callback_object.callback(
@@ -100,12 +100,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling epoch messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Epoch")
 
-        epoch_message = EpochMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Epoch"}})
-        alternate_message = EpochMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Epoch"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+        epoch_message = EpochMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Epoch"})
+        alternate_message = EpochMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "Epoch"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
         # test the epoch callback with proper epoch messages
         await callback_object.callback(
@@ -125,12 +123,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling error messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Error")
 
-        error_message = ErrorMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Error"}})
-        alternate_message = ErrorMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Error"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+        error_message = ErrorMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Error"})
+        alternate_message = ErrorMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "Error"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
         # test the error callback with proper error messages
         await callback_object.callback(
@@ -150,12 +146,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling status messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Status")
 
-        status_message = StatusMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Status"}})
-        alternate_message = StatusMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Status"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+        status_message = StatusMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Status"})
+        alternate_message = StatusMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "Status"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
         # test the status callback with proper status messages
         await callback_object.callback(
@@ -175,12 +169,11 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling status messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "ResourceStates")
 
-        resource_states_message = ResourceStatesMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
-        alternate_message = ResourceStatesMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+        resource_states_message = ResourceStatesMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
+        alternate_message = ResourceStatesMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
         # test the status callback with proper resource states messages
         await callback_object.callback(
@@ -200,12 +193,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         """Unit test for the callback handling general result messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Result")
 
-        result_message = ResultMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Result"}})
-        alternate_message = ResultMessage.from_json(
-            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Result"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+        result_message = ResultMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Result"})
+        alternate_message = ResultMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "Result"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
         # test the status callback with proper status messages
         await callback_object.callback(
@@ -226,20 +217,15 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         callback_object = MessageCallback(HANDLER.message_handler)
         callback_object_general = MessageCallback(HANDLER.message_handler, "General")
 
-        epoch_message = EpochMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Epoch"}})
-        state_message = SimulationStateMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
-        status_message = StatusMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Status"}})
-        error_message = ErrorMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Error"}})
-        resource_states_message = ResourceStatesMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
-        result_message = ResultMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Result"}})
-        general_message = GeneralMessage.from_json(
-            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "General"}})
+        epoch_message = EpochMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Epoch"})
+        state_message = SimulationStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
+        status_message = StatusMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Status"})
+        error_message = ErrorMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Error"})
+        resource_states_message = ResourceStatesMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
+        result_message = ResultMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Result"})
+        general_message = GeneralMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "General"})
 
         # By default the test message should be a simulation state message because
         # DEFAULT_MESSAGE_TYPE == "SimState" as is defined in messages_common.py.
