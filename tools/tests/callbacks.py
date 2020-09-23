@@ -12,8 +12,13 @@ import pamqp.specification
 
 from tools.callbacks import MessageCallback
 from tools.messages import EpochMessage, ErrorMessage, GeneralMessage, \
-                           ResultMessage, SimulationStateMessage, StatusMessage
+                           ResultMessage, SimulationStateMessage, StatusMessage, ResourceStatesMessage
 from tools.tests.messages_abstract import ALTERNATE_JSON, DEFAULT_TIMESTAMP, FULL_JSON, MESSAGE_TYPE_ATTRIBUTE
+from tools.tests.messages_resource_states import MESSAGE_JSON as RESOURCE_STATES_MESSAGE_JSON
+
+# Add the attributes from ResourceStates message to the full test messages
+FULL_JSON = {**RESOURCE_STATES_MESSAGE_JSON, **FULL_JSON}
+ALTERNATE_JSON = {**RESOURCE_STATES_MESSAGE_JSON, **ALTERNATE_JSON}
 
 FAIL_TEST_JSON = {
     "test": "fail"
@@ -166,6 +171,31 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
         await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
+    async def test_resource_states_message(self):
+        """Unit test for the callback handling status messages."""
+        callback_object = MessageCallback(HANDLER.message_handler, "ResourceStates")
+
+        resource_states_message = ResourceStatesMessage.from_json(
+            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
+        alternate_message = ResourceStatesMessage.from_json(
+            {**ALTERNATE_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
+        state_message = SimulationStateMessage.from_json(
+            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "SimState"}})
+
+        # test the status callback with proper resource states messages
+        await callback_object.callback(
+            get_incoming_message(resource_states_message.bytes(), TestMessageCallback.TEST_TOPIC1))
+        await self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC1)
+
+        await callback_object.callback(
+            get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+
+        # test the status callback with a simulation state message => should be given as JSON object
+        await callback_object.callback(
+            get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+
     async def test_result_message(self):
         """Unit test for the callback handling general result messages."""
         callback_object = MessageCallback(HANDLER.message_handler, "Result")
@@ -204,6 +234,8 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
             {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Status"}})
         error_message = ErrorMessage.from_json(
             {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Error"}})
+        resource_states_message = ResourceStatesMessage.from_json(
+            {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"}})
         result_message = ResultMessage.from_json(
             {**TestMessageCallback.GENERAL_JSON, **{MESSAGE_TYPE_ATTRIBUTE: "Result"}})
         general_message = GeneralMessage.from_json(
@@ -242,6 +274,10 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         await callback_object.callback(
             get_incoming_message(error_message.bytes(), TestMessageCallback.TEST_TOPIC2))
         await self.helper_equality_tester(callback_object, error_message, TestMessageCallback.TEST_TOPIC2)
+
+        await callback_object.callback(
+            get_incoming_message(resource_states_message.bytes(), TestMessageCallback.TEST_TOPIC2))
+        await self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC2)
 
         await callback_object.callback(
             get_incoming_message(result_message.bytes(), TestMessageCallback.TEST_TOPIC1))
