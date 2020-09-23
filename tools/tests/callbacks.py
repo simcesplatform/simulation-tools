@@ -185,16 +185,16 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
         # test the status callback with proper resource states messages
         await callback_object.callback(
             get_incoming_message(resource_states_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC1)
 
         await callback_object.callback(
             get_incoming_message(alternate_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, alternate_message, TestMessageCallback.TEST_TOPIC2)
 
         # test the status callback with a simulation state message => should be given as JSON object
         await callback_object.callback(
             get_incoming_message(state_message.bytes(), TestMessageCallback.TEST_TOPIC1))
-        self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
+        await self.helper_equality_tester(callback_object, state_message.json(), TestMessageCallback.TEST_TOPIC1)
 
     async def test_result_message(self):
         """Unit test for the callback handling general result messages."""
@@ -277,7 +277,7 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
 
         await callback_object.callback(
             get_incoming_message(resource_states_message.bytes(), TestMessageCallback.TEST_TOPIC2))
-        self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC2)
+        await self.helper_equality_tester(callback_object, resource_states_message, TestMessageCallback.TEST_TOPIC2)
 
         await callback_object.callback(
             get_incoming_message(result_message.bytes(), TestMessageCallback.TEST_TOPIC1))
