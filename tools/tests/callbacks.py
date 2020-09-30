@@ -13,11 +13,11 @@ import pamqp.specification
 
 from tools.callbacks import MessageCallback
 from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, GeneralMessage, \
-                           ResultMessage, SimulationStateMessage, StatusMessage, ResourceStatesMessage
+                           ResultMessage, SimulationStateMessage, StatusMessage, ResourceStateMessage
 from tools.tests.messages_abstract import ALTERNATE_JSON, DEFAULT_TIMESTAMP, FULL_JSON, MESSAGE_TYPE_ATTRIBUTE
-from tools.tests.messages_resource_states import MESSAGE_JSON as RESOURCE_STATES_MESSAGE_JSON
+from tools.tests.messages_resource_state import MESSAGE_JSON as RESOURCE_STATES_MESSAGE_JSON
 
-# Add the attributes from ResourceStates message to the full test messages
+# Add the attributes from ResourceState message to the full test messages
 FULL_JSON = {**RESOURCE_STATES_MESSAGE_JSON, **FULL_JSON}
 ALTERNATE_JSON = {**RESOURCE_STATES_MESSAGE_JSON, **ALTERNATE_JSON}
 
@@ -167,11 +167,11 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
 
     async def test_resource_states_message(self):
         """Unit test for the callback handling status messages."""
-        callback_object = MessageCallback(HANDLER.message_handler, "ResourceStates")
+        callback_object = MessageCallback(HANDLER.message_handler, "ResourceState")
 
-        resource_states_message = ResourceStatesMessage(**{
-            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
-        alternate_message = ResourceStatesMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
+        resource_states_message = ResourceStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceState"})
+        alternate_message = ResourceStateMessage(**{**ALTERNATE_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceState"})
         state_message = SimulationStateMessage(**{
             **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
 
@@ -222,8 +222,8 @@ class TestMessageCallback(aiounittest.AsyncTestCase):
             **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "SimState"})
         status_message = StatusMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Status"})
         error_message = ErrorMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Error"})
-        resource_states_message = ResourceStatesMessage(**{
-            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceStates"})
+        resource_states_message = ResourceStateMessage(**{
+            **TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "ResourceState"})
         result_message = ResultMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "Result"})
         general_message = GeneralMessage(**{**TestMessageCallback.GENERAL_JSON, MESSAGE_TYPE_ATTRIBUTE: "General"})
 

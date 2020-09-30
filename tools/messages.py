@@ -67,7 +67,7 @@ class AbstractMessage():
     CLASS_MESSAGE_TYPE = ""
 
     # The allowed message types
-    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceStates"]
+    MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceState"]
 
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
@@ -812,11 +812,11 @@ class GeneralMessage(AbstractMessage):
         return None
 
 
-class ResourceStatesMessage(AbstractResultMessage):
-    """Class containing all the attributes for a ResourceStates message."""
+class ResourceStateMessage(AbstractResultMessage):
+    """Class containing all the attributes for a ResourceState message."""
 
     # message type for these messages
-    CLASS_MESSAGE_TYPE = "ResourceStates"
+    CLASS_MESSAGE_TYPE = "ResourceState"
 
     # Mapping from message JSON attributes to class attributes
     MESSAGE_ATTRIBUTES = {
@@ -837,10 +837,10 @@ class ResourceStatesMessage(AbstractResultMessage):
     ACCEPTED_NODE_VALUES = [1, 2, 3]
 
     def __init__(self, **kwargs):
-        """Only attributes in class ResourceStatesMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
+        """Only attributes in class ResourceStateMessage.MESSAGE_ATTRIBUTES_FULL are considered."""
         super().__init__(**kwargs)
-        for json_attribute_name in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
-            setattr(self, ResourceStatesMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
+        for json_attribute_name in ResourceStateMessage.MESSAGE_ATTRIBUTES:
+            setattr(self, ResourceStateMessage.MESSAGE_ATTRIBUTES[json_attribute_name],
                     kwargs.get(json_attribute_name, None))
 
     @property
@@ -909,7 +909,7 @@ class ResourceStatesMessage(AbstractResultMessage):
         """Check that two ResourceStateMessages represent the same message."""
         return (
             super().__eq__(other) and
-            isinstance(other, ResourceStatesMessage) and
+            isinstance(other, ResourceStateMessage) and
             self.bus == other.bus and
             self.real_power == other.real_power and
             self.reactive_power == other.reactive_power and
@@ -955,7 +955,7 @@ class ResourceStatesMessage(AbstractResultMessage):
             return False
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]) -> Union[ResourceStatesMessage, None]:
+    def from_json(cls, json_message: Dict[str, Any]) -> Union[ResourceStateMessage, None]:
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is not validated returns None."""
         if cls.validate_json(json_message):
@@ -970,6 +970,6 @@ MESSAGE_TYPES = {
     "Status": StatusMessage,
     "Result": ResultMessage,
     "General": GeneralMessage,
-    "ResourceStates": ResourceStatesMessage
+    "ResourceState": ResourceStateMessage
 }
 DEFAULT_MESSAGE_TYPE = "General"

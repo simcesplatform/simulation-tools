@@ -6,7 +6,7 @@ import unittest
 import json
 import copy
 
-from tools.messages import ResourceStatesMessage
+from tools.messages import ResourceStateMessage
 from tools.exceptions.messages import MessageValueError
 
 from tools.tests.messages_common import FULL_JSON, DEFAULT_TIMESTAMP
@@ -36,34 +36,34 @@ MESSAGE_STRIPPED_JSON = copy.deepcopy(MESSAGE_JSON)
 del MESSAGE_STRIPPED_JSON[NODE_ATTRIBUTE]
 
 
-class TestResourceStateMessages(unittest.TestCase):
+class TestResourceStateMessage(unittest.TestCase):
     """
-    Tests for ResourceStatesMessages.
+    Tests for ResourceStateMessage.
     """
 
     def test_message_creation(self):
         """Test basic object creation does not produce any errors."""
         # with optional parameter
-        message = ResourceStatesMessage(**MESSAGE_JSON)
-        self.assertIsInstance(message, ResourceStatesMessage)
+        message = ResourceStateMessage(**MESSAGE_JSON)
+        self.assertIsInstance(message, ResourceStateMessage)
         # without optional parameter
-        message = ResourceStatesMessage(**MESSAGE_STRIPPED_JSON)
-        self.assertIsInstance(message, ResourceStatesMessage)
+        message = ResourceStateMessage(**MESSAGE_STRIPPED_JSON)
+        self.assertIsInstance(message, ResourceStateMessage)
 
     def test_message_json(self):
         """Test that object can be created from JSON."""
         # test with all attributes
-        message_json = ResourceStatesMessage.from_json(MESSAGE_JSON).json()
+        message_json = ResourceStateMessage.from_json(MESSAGE_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
-        for attr in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
+        for attr in ResourceStateMessage.MESSAGE_ATTRIBUTES:
             self.assertIn(attr, message_json)
             self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
 
         # test without optional attributes
-        message_json = ResourceStatesMessage.from_json(MESSAGE_STRIPPED_JSON).json()
+        message_json = ResourceStateMessage.from_json(MESSAGE_STRIPPED_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
-        for attr in ResourceStatesMessage.MESSAGE_ATTRIBUTES:
-            if attr in ResourceStatesMessage.OPTIONAL_ATTRIBUTES:
+        for attr in ResourceStateMessage.MESSAGE_ATTRIBUTES:
+            if attr in ResourceStateMessage.OPTIONAL_ATTRIBUTES:
                 continue
 
             self.assertIn(attr, message_json)
@@ -71,8 +71,8 @@ class TestResourceStateMessages(unittest.TestCase):
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
-        message_full = ResourceStatesMessage.from_json(MESSAGE_JSON)
-        message_copy = ResourceStatesMessage.from_json(json.loads(message_full.bytes().decode("UTF-8")))
+        message_full = ResourceStateMessage.from_json(MESSAGE_JSON)
+        message_copy = ResourceStateMessage.from_json(json.loads(message_full.bytes().decode("UTF-8")))
 
         self.assertEqual(message_copy.timestamp, message_full.timestamp)
         self.assertEqual(message_copy.message_type, message_full.message_type)
@@ -90,8 +90,8 @@ class TestResourceStateMessages(unittest.TestCase):
 
     def test_message_equals(self):
         """Test that equals method works correctly."""
-        message_full = ResourceStatesMessage(Timestamp=DEFAULT_TIMESTAMP, **MESSAGE_JSON)
-        message_copy = ResourceStatesMessage(Timestamp=DEFAULT_TIMESTAMP, **MESSAGE_JSON)
+        message_full = ResourceStateMessage(Timestamp=DEFAULT_TIMESTAMP, **MESSAGE_JSON)
+        message_copy = ResourceStateMessage(Timestamp=DEFAULT_TIMESTAMP, **MESSAGE_JSON)
         self.assertEqual(message_full, message_copy)
 
         # check that when subclass specific attributes have different values
@@ -126,7 +126,7 @@ class TestResourceStateMessages(unittest.TestCase):
                 invalid_json[attr] = value
                 with self.subTest(attribute=attr, value=value):
                     with self.assertRaises(MessageValueError):
-                        ResourceStatesMessage(**invalid_json)
+                        ResourceStateMessage(**invalid_json)
 
 
 if __name__ == "__main__":
