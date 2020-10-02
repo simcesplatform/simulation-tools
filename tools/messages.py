@@ -66,7 +66,7 @@ class AbstractMessage():
     MESSAGE_ENCODING = "UTF-8"
     CLASS_MESSAGE_TYPE = ""
 
-    # The allowed message types
+    # The supported message types
     MESSAGE_TYPES = ["SimState", "Epoch", "Error", "Status", "Result", "General", "ResourceState"]
 
     # The relationships between the JSON attributes and the object properties
@@ -787,6 +787,11 @@ class GeneralMessage(AbstractMessage):
             isinstance(other, GeneralMessage) and
             self.general_attributes == other.general_attributes
         )
+
+    @classmethod
+    def _check_message_type(cls, message_type: str) -> bool:
+        # only check the existence of the type here, not the actual contents
+        return isinstance(message_type, str) and len(message_type) > 0
 
     @classmethod
     def _check_general_attributes(cls, general_attributes: Dict[str, Any]) -> bool:

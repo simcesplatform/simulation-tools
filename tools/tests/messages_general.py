@@ -215,7 +215,7 @@ class TestGeneralMessage(unittest.TestCase):
             MESSAGE_ID_ATTRIBUTE: tools.exceptions.messages.MessageIdError
         }
         invalid_attribute_values = {
-            MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, ""],
+            MESSAGE_TYPE_ATTRIBUTE: [12, ""],
             SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
             MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""]
