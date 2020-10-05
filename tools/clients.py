@@ -202,6 +202,10 @@ class RabbitmqClient:
         self.__lock = asyncio.Lock()
         self.__is_closed = False
 
+        # Add a custom exception handler for exceptions in asynchronous tasks because connection problems
+        # or closing RabbitMQ connection can throw them.
+        asyncio.get_event_loop().set_exception_handler(handle_async_exception)
+
     async def close(self) -> None:
         """Closes the sender connection and all the listener connections."""
         async with self.__lock:
@@ -245,7 +249,6 @@ class RabbitmqClient:
             topic_names = [topic_names]
 
         new_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_parameters)
-        asyncio.get_event_loop().set_exception_handler(handle_async_exception)
         listener_task = asyncio.create_task(self.__listen_to_topics(
             connection_class=new_connection,
             topic_names=topic_names,
