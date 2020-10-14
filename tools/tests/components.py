@@ -114,7 +114,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     simulation_id = cast(str, EnvironmentVariable("SIMULATION_ID", str).value)
     component_name = cast(str, EnvironmentVariable("SIMULATION_COMPONENT_NAME", str).value)
     short_wait = 0.5
-    long_wait = 5.0
+    long_wait = 2.5
 
     # A callable function that returns an instance of the simulation component used for the unit tests.
     # NOTE: this can also be the component type if the constructor can be used to create the component.
