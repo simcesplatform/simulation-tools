@@ -17,6 +17,7 @@ SIMULATION_COMPONENT_NAME = "SIMULATION_COMPONENT_NAME"
 SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
 SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
 SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
+SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
 
 
 class AbstractSimulationComponent:
@@ -39,8 +40,10 @@ class AbstractSimulationComponent:
             (SIMULATION_ID, str),
             (SIMULATION_COMPONENT_NAME, str, "component"),
             (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch"),
-            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status"),
-            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState")
+            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status.Ready"),
+            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState"),
+            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Status.Error")
+
         )
 
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
@@ -53,6 +56,7 @@ class AbstractSimulationComponent:
         self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
         self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
         self._status_topic = cast(str, env_variables[SIMULATION_STATUS_MESSAGE_TOPIC])
+        self._error_topic = cast(str, env_variables[SIMULATION_ERROR_MESSAGE_TOPIC])
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
@@ -215,7 +219,7 @@ class AbstractSimulationComponent:
             # So serious error that even the error message could not be created => stop the component.
             await self.stop()
         else:
-            await self._rabbitmq_client.send_message(self._status_topic, error_message.bytes())
+            await self._rabbitmq_client.send_message(self._error_topic, error_message.bytes())
 
     def _get_status_message(self) -> Union[StatusMessage, None]:
         """Creates a new status message and returns the created message object.

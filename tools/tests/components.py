@@ -135,7 +135,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         """Returns the expected messages and topic names that the test component is expected to
            generate at epoch epoch_number, epoch 0 corresponds to the start of the simulation."""
         return [
-            (component_message_generator.get_status_message(epoch_number, triggering_message_ids), "Status")
+            (component_message_generator.get_status_message(epoch_number, triggering_message_ids), "Status.Ready")
         ]
 
     def compare_abstract_message(self, first_message: AbstractMessage, second_message: AbstractMessage):
@@ -212,7 +212,9 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         expected_responds = self.get_expected_messages(
             component_message_generator, epoch_number, [manager_message.message_id])
 
+        # TODO: the following needs to modified if the test component requires more than just the epoch message
         await send_message(message_client, manager_message, manager_message.message_type)
+
         # Wait a short time to allow the message storage to store the respond.
         # TODO: figure out how to tie connect the message checking to the message receiver => remove this sleep
         await asyncio.sleep(self.__class__.short_wait)
@@ -281,7 +283,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         # Check that the correct error message was received.
         self.assertEqual(len(message_storage.messages_and_topics), number_of_previous_messages + 1)
         received_message, received_topic = message_storage.messages_and_topics[-1]
-        self.assertEqual(received_topic, "Status")
+        self.assertEqual(received_topic, "Status.Error")
         self.assertTrue(self.compare_message(received_message, expected_message))
 
         await self.end_tester(message_client, test_component)
