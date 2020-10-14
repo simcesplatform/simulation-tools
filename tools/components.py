@@ -5,7 +5,7 @@
 from typing import cast, Any, Union
 
 from tools.clients import RabbitmqClient
-from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, StatusMessage, SimulationStateMessage, \
+from tools.messages import BaseMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
                            get_next_message_id
 from tools.tools import FullLogger, load_environmental_variables
 
@@ -17,7 +17,6 @@ SIMULATION_COMPONENT_NAME = "SIMULATION_COMPONENT_NAME"
 SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
 SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
 SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
-SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
 
 
 class AbstractSimulationComponent:
@@ -25,6 +24,9 @@ class AbstractSimulationComponent:
        The actual simulation components should be derived from this."""
     SIMULATION_STATE_VALUE_RUNNING = SimulationStateMessage.SIMULATION_STATES[0]   # "running"
     SIMULATION_STATE_VALUE_STOPPED = SimulationStateMessage.SIMULATION_STATES[-1]  # "stopped"
+
+    READY_STATUS = StatusMessage.STATUS_VALUES[0]  # "ready"
+    ERROR_STATUS = StatusMessage.STATUS_VALUES[-1]  # "error"
 
     def __init__(self):
         """Loads the simulation is and the component name as wells as the required topic names from environmental
@@ -38,8 +40,7 @@ class AbstractSimulationComponent:
             (SIMULATION_COMPONENT_NAME, str, "component"),
             (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch"),
             (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status"),
-            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState"),
-            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Error")
+            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState")
         )
 
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
@@ -52,7 +53,6 @@ class AbstractSimulationComponent:
         self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
         self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
         self._status_topic = cast(str, env_variables[SIMULATION_STATUS_MESSAGE_TOPIC])
-        self._error_topic = cast(str, env_variables[SIMULATION_ERROR_MESSAGE_TOPIC])
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
@@ -145,7 +145,7 @@ class AbstractSimulationComponent:
         # Also, any possible checks for additional information that is required would be done here.
         return True
 
-    async def general_message_handler(self, message_object: Union[AbstractMessage, Any],
+    async def general_message_handler(self, message_object: Union[BaseMessage, Any],
                                       message_routing_key: str) -> None:
         """Forwards the message handling to the appropriate function depending on the message type."""
         if isinstance(message_object, SimulationStateMessage):
@@ -215,7 +215,7 @@ class AbstractSimulationComponent:
             # So serious error that even the error message could not be created => stop the component.
             await self.stop()
         else:
-            await self._rabbitmq_client.send_message(self._error_topic, error_message.bytes())
+            await self._rabbitmq_client.send_message(self._status_topic, error_message.bytes())
 
     def _get_status_message(self) -> Union[StatusMessage, None]:
         """Creates a new status message and returns the created message object.
@@ -227,7 +227,7 @@ class AbstractSimulationComponent:
             "MessageId": next(self._message_id_generator),
             "EpochNumber": self._latest_epoch,
             "TriggeringMessageIds": self._triggering_message_ids,
-            "Value": StatusMessage.STATUS_VALUES[0]
+            "Value": self.__class__.READY_STATUS
         })
         if status_message is None:
             LOGGER.error("Problem with creating a status message")
@@ -236,16 +236,17 @@ class AbstractSimulationComponent:
         self._latest_status_message_id = status_message.message_id
         return status_message
 
-    def _get_error_message(self, description: str) -> Union[ErrorMessage, None]:
+    def _get_error_message(self, description: str) -> Union[StatusMessage, None]:
         """Creates a new error message and returns the created message object.
            Returns None, if there was a problem creating the message."""
-        error_message = ErrorMessage.from_json({
-            "Type": ErrorMessage.CLASS_MESSAGE_TYPE,
+        error_message = StatusMessage.from_json({
+            "Type": StatusMessage.CLASS_MESSAGE_TYPE,
             "SimulationId": self.simulation_id,
             "SourceProcessId": self.component_name,
             "MessageId": next(self._message_id_generator),
             "EpochNumber": self._latest_epoch,
             "TriggeringMessageIds": self._triggering_message_ids,
+            "Value": self.__class__.ERROR_STATUS,
             "Description": description
         })
         if error_message is None:

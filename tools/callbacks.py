@@ -9,11 +9,11 @@ from typing import Awaitable, Callable, Union
 
 import aio_pika.message
 
-from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, ErrorMessage, \
+from tools.messages import BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage, \
                            SimulationStateMessage, StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
 from tools.tools import FullLogger
 
-CallbackFunctionType = Callable[[Union[AbstractMessage, dict, str], str], Awaitable[None]]
+CallbackFunctionType = Callable[[Union[BaseMessage, dict, str], str], Awaitable[None]]
 
 LOGGER = FullLogger(__name__)
 
@@ -23,6 +23,7 @@ class MessageCallback():
        Stores the latest received message and the corresponding topic name.
     """
     MESSAGE_CODING = "UTF-8"
+    MESSAGE_TYPE_ATTRIBUTE = next(iter(AbstractMessage.MESSAGE_ATTRIBUTES))  # should be "Type"
 
     def __init__(self, callback_function: CallbackFunctionType, message_type: Union[str, None] = None):
         """Sets up a callback that receives incoming messages from the message bus, transforms the received object
@@ -52,7 +53,7 @@ class MessageCallback():
         self.__last_topic = None
 
     @property
-    def last_message(self) -> Union[AbstractMessage, dict, str, None]:
+    def last_message(self) -> Union[BaseMessage, dict, str, None]:
         """Returns the last message that was received."""
         return self.__last_message
 
@@ -73,12 +74,10 @@ class MessageCallback():
                 self.last_message.start_time,
                 self.last_message.end_time))
         elif isinstance(self.last_message, StatusMessage):
-            LOGGER.info("Status message received from '{:s}' for epoch number {:d}".format(
+            LOGGER.info("Status message received from '{:s}' for epoch number {:d} with value: {:s}".format(
                 self.last_message.source_process_id,
-                self.last_message.epoch_number))
-        elif isinstance(self.last_message, ErrorMessage):
-            LOGGER.info("Error message received from '{:s}'".format(
-                self.last_message.source_process_id))
+                self.last_message.epoch_number,
+                self.last_message.value))
         elif isinstance(self.last_message, AbstractResultMessage):
             LOGGER.info("Received '{:s}' message from '{:s}' for epoch {:d}".format(
                 self.last_message.message_type,
@@ -89,6 +88,8 @@ class MessageCallback():
                 self.last_message.message_type,
                 self.last_message.source_process_id,
                 self.last_topic))
+        elif isinstance(self.last_message, BaseMessage):
+            LOGGER.info("Received message from topic '{:s}'".format(self.last_topic))
         elif isinstance(self.last_message, dict):
             LOGGER.info("Received a JSON message with errors: '{:s}'".format(json.dumps(self.last_message)))
         elif self.last_message is None:
@@ -111,7 +112,7 @@ class MessageCallback():
                 if self.__message_type is None:
                     # Convert the message to the specified special cases if possible.
                     expected_message_type = message_json.get(
-                        next(iter(AbstractMessage.MESSAGE_ATTRIBUTES)),  # the first defined attribute, should be "Type"
+                        self.__class__.MESSAGE_TYPE_ATTRIBUTE,
                         DEFAULT_MESSAGE_TYPE)
                     if expected_message_type not in MESSAGE_TYPES:
                         expected_message_type = DEFAULT_MESSAGE_TYPE

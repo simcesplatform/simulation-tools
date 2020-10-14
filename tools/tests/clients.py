@@ -8,12 +8,12 @@ from typing import Iterator, Union
 import aiounittest
 
 from tools.clients import RabbitmqClient
-from tools.messages import AbstractMessage, EpochMessage, ErrorMessage, GeneralMessage, StatusMessage, \
+from tools.messages import BaseMessage, EpochMessage, GeneralMessage, StatusMessage, \
                            get_next_message_id
 from tools.tests.messages_common import EPOCH_TEST_JSON, ERROR_TEST_JSON, GENERAL_TEST_JSON, STATUS_TEST_JSON
 
 
-def get_new_message(old_message: AbstractMessage, id_generator: Iterator[str]) -> AbstractMessage:
+def get_new_message(old_message: BaseMessage, id_generator: Iterator[str]) -> BaseMessage:
     """Returns a new message object with a new Timestamp and MessageId and
        other attributes equal to the old message"""
     json_message = old_message.json()
@@ -22,8 +22,6 @@ def get_new_message(old_message: AbstractMessage, id_generator: Iterator[str]) -
 
     if isinstance(old_message, EpochMessage):
         return EpochMessage(**json_message)
-    if isinstance(old_message, ErrorMessage):
-        return ErrorMessage(**json_message)
     if isinstance(old_message, StatusMessage):
         return StatusMessage(**json_message)
     return GeneralMessage(**json_message)
@@ -34,7 +32,7 @@ class MessageStorage:
     def __init__(self):
         self.messages = []
 
-    async def callback(self, message_object: Union[AbstractMessage, dict, str], message_topic: str):
+    async def callback(self, message_object: Union[BaseMessage, dict, str], message_topic: str):
         """Adds the given message and topic to the messages list."""
         # print("here", self.messages, message_object.message_id)
         self.messages.append((message_object, message_topic))
@@ -47,7 +45,7 @@ class TestRabbitmqClient(aiounittest.AsyncTestCase):
            Checks that the correct messages are received and in the correct order."""
         # Load the base message objects.
         epoch_message = EpochMessage(**EPOCH_TEST_JSON)
-        error_message = ErrorMessage(**ERROR_TEST_JSON)
+        error_message = StatusMessage(**ERROR_TEST_JSON)
         general_message = GeneralMessage(**GENERAL_TEST_JSON)
         status_message = StatusMessage(**STATUS_TEST_JSON)
 

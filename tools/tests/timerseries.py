@@ -32,7 +32,7 @@ def get_attribute_name() -> Generator[str, None, None]:
 
 
 def generate_timeseries_values(unit_code: str, n_values: int) \
-        -> Dict[str, Union[str, List[Union[int, float, bool, str]]]]:
+        -> Dict[str, Union[str, List[int], List[float], List[bool], List[str]]]:
     """Generates a new timeseries dictionary."""
     value_types = [int, float, bool, str]
     value_type = value_types[random.randint(0, len(value_types) - 1)]

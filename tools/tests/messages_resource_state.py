@@ -9,7 +9,7 @@ import copy
 from tools.messages import ResourceStateMessage
 from tools.exceptions.messages import MessageValueError
 
-from tools.tests.messages_common import FULL_JSON, DEFAULT_TIMESTAMP
+from tools.tests.messages_common import DEFAULT_TYPE, FULL_JSON, DEFAULT_TIMESTAMP
 
 # define some test data
 BUS_ATTRIBUTE = "Bus"
@@ -29,6 +29,9 @@ SUBCLASS_JSON = {
     NODE_ATTRIBUTE: DEFAULT_NODE
 }
 
+DEFAULT_TYPE = "ResourceState"
+FULL_JSON = {**FULL_JSON, "Type": DEFAULT_TYPE}
+
 # combine class specific test data with common test data
 MESSAGE_JSON = {**FULL_JSON, **SUBCLASS_JSON}
 # without optional attributes
@@ -40,6 +43,11 @@ class TestResourceStateMessage(unittest.TestCase):
     """
     Tests for ResourceStateMessage.
     """
+
+    def test_message_type(self):
+        """Unit test for the ResourceStateMessage type."""
+        self.assertEqual(ResourceStateMessage.CLASS_MESSAGE_TYPE, "ResourceState")
+        self.assertEqual(ResourceStateMessage.MESSAGE_TYPE_CHECK, True)
 
     def test_message_creation(self):
         """Test basic object creation does not produce any errors."""
@@ -56,18 +64,20 @@ class TestResourceStateMessage(unittest.TestCase):
         message_json = ResourceStateMessage.from_json(MESSAGE_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
         for attr in ResourceStateMessage.MESSAGE_ATTRIBUTES:
-            self.assertIn(attr, message_json)
-            self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
+            with self.subTest(attribute=attr):
+                self.assertIn(attr, message_json)
+                self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
 
         # test without optional attributes
         message_json = ResourceStateMessage.from_json(MESSAGE_STRIPPED_JSON).json()
         # check that new object has all subclass specific attributes with correct values.
         for attr in ResourceStateMessage.MESSAGE_ATTRIBUTES:
-            if attr in ResourceStateMessage.OPTIONAL_ATTRIBUTES:
-                continue
+            with self.subTest(attribute=attr):
+                if attr in ResourceStateMessage.OPTIONAL_ATTRIBUTES:
+                    continue
 
-            self.assertIn(attr, message_json)
-            self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
+                self.assertIn(attr, message_json)
+                self.assertEqual(message_json[attr], MESSAGE_JSON[attr])
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
@@ -104,11 +114,12 @@ class TestResourceStateMessage(unittest.TestCase):
         }
 
         for attr, value in different_values.items():
-            old_value = getattr(message_copy, attr)
-            setattr(message_copy, attr, value)
-            self.assertNotEqual(message_full, message_copy)
-            setattr(message_copy, attr, old_value)
-            self.assertEqual(message_full, message_copy)
+            with self.subTest(attribute=attr, value=value):
+                old_value = getattr(message_copy, attr)
+                setattr(message_copy, attr, value)
+                self.assertNotEqual(message_full, message_copy)
+                setattr(message_copy, attr, old_value)
+                self.assertEqual(message_full, message_copy)
 
     def test_invalid_values(self):
         """Test that invalid attribute values are not accepted."""

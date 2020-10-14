@@ -36,9 +36,18 @@ from tools.tests.messages_common import DEFAULT_END_TIME
 from tools.tests.messages_common import FULL_JSON
 from tools.tests.messages_common import ALTERNATE_JSON
 
+DEFAULT_TYPE = "Epoch"
+FULL_JSON = {**FULL_JSON, "Type": DEFAULT_TYPE}
+ALTERNATE_JSON = {**ALTERNATE_JSON, "Type": DEFAULT_TYPE}
+
 
 class TestEpochMessage(unittest.TestCase):
     """Unit tests for the EpochMessage class."""
+
+    def test_message_type(self):
+        """Unit test for the EpochMessage type."""
+        self.assertEqual(tools.messages.EpochMessage.CLASS_MESSAGE_TYPE, "Epoch")
+        self.assertEqual(tools.messages.EpochMessage.MESSAGE_TYPE_CHECK, True)
 
     def test_message_creation(self):
         """Unit test for creating instances of EpochMessage class."""
@@ -143,7 +152,6 @@ class TestEpochMessage(unittest.TestCase):
         self.assertNotEqual(message_copy, message_alternate)
 
         attributes = [
-            "message_type",
             "simulation_id",
             "source_process_id",
             "message_id",
@@ -156,27 +164,16 @@ class TestEpochMessage(unittest.TestCase):
             "end_time"
         ]
         for attribute_name in attributes:
-            setattr(message_copy, attribute_name, getattr(message_alternate, attribute_name))
-            self.assertNotEqual(message_copy, message_full)
-            setattr(message_copy, attribute_name, getattr(message_full, attribute_name))
-            self.assertEqual(message_copy, message_full)
+            with self.subTest(attribute=attribute_name):
+                setattr(message_copy, attribute_name, getattr(message_alternate, attribute_name))
+                self.assertNotEqual(message_copy, message_full)
+                setattr(message_copy, attribute_name, getattr(message_full, attribute_name))
+                self.assertEqual(message_copy, message_full)
 
     def test_invalid_values(self):
         """Unit tests for testing that invalid attribute values are recognized."""
         message_full = tools.messages.EpochMessage.from_json(FULL_JSON)
         message_full_json = message_full.json()
-
-        allowed_message_types = [
-            "Epoch",
-            "Error",
-            "General",
-            "Result",
-            "SimState",
-            "Status"
-        ]
-        for message_type_str in allowed_message_types:
-            message_full.message_type = message_type_str
-            self.assertEqual(message_full.message_type, message_type_str)
 
         allowed_warning_types = [
             "warning.convergence",
@@ -213,7 +210,7 @@ class TestEpochMessage(unittest.TestCase):
             END_TIME_ATTRIBUTE: tools.exceptions.messages.MessageDateError
         }
         invalid_attribute_values = {
-            MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, ""],
+            MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, "Status", "", []],
             SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
             MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""],
@@ -229,16 +226,16 @@ class TestEpochMessage(unittest.TestCase):
             if invalid_attribute != TIMESTAMP_ATTRIBUTE and invalid_attribute not in optional_attributes:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute.pop(invalid_attribute)
-                self.assertRaises(
-                    invalid_attribute_exceptions[invalid_attribute],
-                    tools.messages.EpochMessage, **json_invalid_attribute)
+                with self.subTest(attribute=invalid_attribute):
+                    with self.assertRaises(invalid_attribute_exceptions[invalid_attribute]):
+                        tools.messages.EpochMessage(**json_invalid_attribute)
 
             for invalid_value in invalid_attribute_values[invalid_attribute]:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute[invalid_attribute] = invalid_value
-                self.assertRaises(
-                    (ValueError, invalid_attribute_exceptions[invalid_attribute]),
-                    tools.messages.EpochMessage, **json_invalid_attribute)
+                with self.subTest(attribute=invalid_attribute, value=invalid_value):
+                    with self.assertRaises((ValueError, invalid_attribute_exceptions[invalid_attribute])):
+                        tools.messages.EpochMessage(**json_invalid_attribute)
 
 
 if __name__ == '__main__':

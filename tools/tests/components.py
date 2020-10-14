@@ -11,14 +11,13 @@ import aiounittest
 from tools.clients import RabbitmqClient
 from tools.components import AbstractSimulationComponent
 from tools.datetime_tools import to_iso_format_datetime_string
-from tools.messages import AbstractMessage, AbstractResultMessage, EpochMessage, ErrorMessage, \
+from tools.messages import BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage, \
                            SimulationStateMessage, StatusMessage, get_next_message_id
 from tools.tools import EnvironmentVariable
 
 
-async def send_message(message_client: RabbitmqClient, message_object: AbstractMessage) -> None:
+async def send_message(message_client: RabbitmqClient, message_object: AbstractMessage, topic_name: str) -> None:
     """Sends the given message to the message bus using the given message client."""
-    topic_name = message_object.message_type
     await message_client.send_message(topic_name, message_object.bytes())
 
 
@@ -28,7 +27,7 @@ class MessageStorage:
         self.messages_and_topics = []
         self.ignore_source_process_id = ignore_source_process_id
 
-    async def callback(self, message_object: Union[AbstractMessage, dict, str], message_topic: str) -> None:
+    async def callback(self, message_object: Union[BaseMessage, dict, str], message_topic: str) -> None:
         """Adds the given message and topic to the messages list."""
         if not isinstance(message_object, AbstractMessage):
             raise ValueError(message_object)
@@ -94,16 +93,18 @@ class MessageGenerator:
             "Value": "ready"
         })
 
-    def get_error_message(self, epoch_number: int, triggering_message_ids: List[str], description: str) -> ErrorMessage:
+    def get_error_message(self, epoch_number: int, triggering_message_ids: List[str],
+                          description: str) -> StatusMessage:
         """Returns an error message."""
         self.latest_message_id = next(self.id_generator)
-        return ErrorMessage(**{
-            "Type": "Error",
+        return StatusMessage(**{
+            "Type": "Status",
             "SimulationId": self.simulation_id,
             "SourceProcessId": self.process_id,
             "MessageId": self.latest_message_id,
             "EpochNumber": epoch_number,
             "TriggeringMessageIds": triggering_message_ids,
+            "Value": "error",
             "Description": description
         })
 
@@ -147,15 +148,11 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         self.assertEqual(first_message.epoch_number, second_message.epoch_number)
         self.assertEqual(first_message.triggering_message_ids, second_message.triggering_message_ids)
 
-    def compare_error_message(self, first_message: ErrorMessage, second_message: ErrorMessage):
-        """Asserts that the two given error messages correspond to each other."""
-        self.compare_abstract_result_message(first_message, second_message)
-        self.assertEqual(first_message.description, second_message.description)
-
     def compare_status_message(self, first_message: StatusMessage, second_message: StatusMessage):
         """Asserts that two given status messages correspond to each other."""
         self.compare_abstract_result_message(first_message, second_message)
         self.assertEqual(first_message.value, second_message.value)
+        self.assertEqual(first_message.description, second_message.description)
 
     def compare_message(self, first_message: AbstractMessage, second_message: AbstractMessage) -> bool:
         """Asserts that the two given messages correspond to each other.
@@ -166,10 +163,6 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
         if isinstance(second_message, StatusMessage):
             self.compare_status_message(cast(StatusMessage, first_message), second_message)
-            return True
-
-        if isinstance(second_message, ErrorMessage):
-            self.compare_error_message(cast(ErrorMessage, first_message), second_message)
             return True
 
         return False
@@ -213,7 +206,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         expected_responds = self.get_expected_messages(
             component_message_generator, epoch_number, [manager_message.message_id])
 
-        await send_message(message_client, manager_message)
+        await send_message(message_client, manager_message, manager_message.message_type)
         # Wait a short time to allow the message storage to store the respond.
         await asyncio.sleep(self.__class__.short_wait)
 
@@ -230,7 +223,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     async def end_tester(self, message_client: RabbitmqClient, test_component: AbstractSimulationComponent):
         """Tests the behaviour of the test component at the end of the simulation."""
         end_message = self.__class__.manager_message_generator.get_simulation_state_message(False)
-        await send_message(message_client, end_message)
+        await send_message(message_client, end_message, end_message.message_type)
         await message_client.close()
 
         # Wait a few seconds to allow the test component and the message clients to close.
@@ -276,7 +269,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         # Check that the correct error message was received.
         self.assertEqual(len(message_storage.messages_and_topics), number_of_previous_messages + 1)
         received_message, received_topic = message_storage.messages_and_topics[-1]
-        self.assertEqual(received_topic, "Error")
+        self.assertEqual(received_topic, "Status")
         self.assertTrue(self.compare_message(received_message, expected_message))
 
         await self.end_tester(message_client, test_component)

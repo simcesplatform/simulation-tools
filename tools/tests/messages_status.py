@@ -11,7 +11,7 @@ import tools.exceptions.messages
 import tools.messages
 from tools.datetime_tools import to_utc_datetime_object
 
-from tools.tests.messages_common import MESSAGE_TYPE_ATTRIBUTE
+from tools.tests.messages_common import DEFAULT_DESCRIPTION, DESCRIPTION_ATTRIBUTE, MESSAGE_TYPE_ATTRIBUTE
 from tools.tests.messages_common import TIMESTAMP_ATTRIBUTE
 from tools.tests.messages_common import SIMULATION_ID_ATTRIBUTE
 from tools.tests.messages_common import SOURCE_PROCESS_ID_ATTRIBUTE
@@ -34,9 +34,18 @@ from tools.tests.messages_common import DEFAULT_VALUE
 from tools.tests.messages_common import FULL_JSON
 from tools.tests.messages_common import ALTERNATE_JSON
 
+DEFAULT_TYPE = "Status"
+FULL_JSON = {**FULL_JSON, "Type": DEFAULT_TYPE}
+ALTERNATE_JSON = {**ALTERNATE_JSON, "Type": DEFAULT_TYPE}
+
 
 class TestStatusMessage(unittest.TestCase):
     """Unit tests for the StatusMessage class."""
+
+    def test_message_type(self):
+        """Unit test for the StatusMessage type."""
+        self.assertEqual(tools.messages.StatusMessage.CLASS_MESSAGE_TYPE, DEFAULT_TYPE)
+        self.assertEqual(tools.messages.StatusMessage.MESSAGE_TYPE_CHECK, True)
 
     def test_message_creation(self):
         """Unit test for creating instances of StatusMessage class."""
@@ -61,6 +70,7 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_full.triggering_message_ids, DEFAULT_TRIGGERING_MESSAGE_IDS)
         self.assertEqual(message_full.warnings, DEFAULT_WARNINGS)
         self.assertEqual(message_full.value, DEFAULT_VALUE)
+        self.assertEqual(message_full.description, DEFAULT_DESCRIPTION)
 
         # Test with explicitely set timestamp
         message_timestamped = tools.messages.StatusMessage(Timestamp=DEFAULT_TIMESTAMP, **FULL_JSON)
@@ -74,11 +84,13 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_timestamped.triggering_message_ids, DEFAULT_TRIGGERING_MESSAGE_IDS)
         self.assertEqual(message_timestamped.warnings, DEFAULT_WARNINGS)
         self.assertEqual(message_timestamped.value, DEFAULT_VALUE)
+        self.assertEqual(message_timestamped.description, DEFAULT_DESCRIPTION)
 
         # Test message creation without the optional attributes.
         stripped_json = copy.deepcopy(FULL_JSON)
         stripped_json.pop(LAST_UPDATED_IN_EPOCH_ATTRIBUTE)
         stripped_json.pop(WARNINGS_ATTRIBUTE)
+        stripped_json.pop(DESCRIPTION_ATTRIBUTE)
         message_stripped = tools.messages.StatusMessage(Timestamp=DEFAULT_TIMESTAMP, **stripped_json)
         self.assertEqual(message_stripped.timestamp, DEFAULT_TIMESTAMP)
         self.assertEqual(message_stripped.message_type, DEFAULT_TYPE)
@@ -90,6 +102,7 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_stripped.triggering_message_ids, DEFAULT_TRIGGERING_MESSAGE_IDS)
         self.assertEqual(message_stripped.warnings, None)
         self.assertEqual(message_stripped.value, DEFAULT_VALUE)
+        self.assertEqual(message_stripped.description, None)
 
     def test_message_json(self):
         """Unit test for testing that the json from a message has correct attributes."""
@@ -105,7 +118,8 @@ class TestStatusMessage(unittest.TestCase):
         self.assertIn(TRIGGERING_MESSAGE_IDS_ATTRIBUTE, message_full_json)
         self.assertIn(WARNINGS_ATTRIBUTE, message_full_json)
         self.assertIn(VALUE_ATTRIBUTE, message_full_json)
-        self.assertEqual(len(message_full_json), 10)
+        self.assertIn(DESCRIPTION_ATTRIBUTE, message_full_json)
+        self.assertEqual(len(message_full_json), 11)
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
@@ -125,6 +139,7 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_copy.triggering_message_ids, message_full.triggering_message_ids)
         self.assertEqual(message_copy.warnings, message_full.warnings)
         self.assertEqual(message_copy.value, message_full.value)
+        self.assertEqual(message_copy.description, message_full.description)
 
     def test_message_equals(self):
         """Unit test for testing if the __eq__ comparison works correctly."""
@@ -135,9 +150,7 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_copy, message_full)
         self.assertNotEqual(message_copy, message_alternate)
 
-        # "value" attribute skipped because it has only one allowed value.
         attributes = [
-            "message_type",
             "simulation_id",
             "source_process_id",
             "message_id",
@@ -145,30 +158,21 @@ class TestStatusMessage(unittest.TestCase):
             "epoch_number",
             "last_updated_in_epoch",
             "triggering_message_ids",
-            "warnings"
+            "warnings",
+            "value",
+            "description"
         ]
         for attribute_name in attributes:
-            setattr(message_copy, attribute_name, getattr(message_alternate, attribute_name))
-            self.assertNotEqual(message_copy, message_full)
-            setattr(message_copy, attribute_name, getattr(message_full, attribute_name))
-            self.assertEqual(message_copy, message_full)
+            with self.subTest(attribute=attribute_name):
+                setattr(message_copy, attribute_name, getattr(message_alternate, attribute_name))
+                self.assertNotEqual(message_copy, message_full)
+                setattr(message_copy, attribute_name, getattr(message_full, attribute_name))
+                self.assertEqual(message_copy, message_full)
 
     def test_invalid_values(self):
         """Unit tests for testing that invalid attribute values are recognized."""
         message_full = tools.messages.StatusMessage.from_json(FULL_JSON)
         message_full_json = message_full.json()
-
-        allowed_message_types = [
-            "Epoch",
-            "Error",
-            "General",
-            "Result",
-            "SimState",
-            "Status"
-        ]
-        for message_type_str in allowed_message_types:
-            message_full.message_type = message_type_str
-            self.assertEqual(message_full.message_type, message_type_str)
 
         allowed_warning_types = [
             "warning.convergence",
@@ -188,7 +192,8 @@ class TestStatusMessage(unittest.TestCase):
 
         optional_attributes = [
             LAST_UPDATED_IN_EPOCH_ATTRIBUTE,
-            WARNINGS_ATTRIBUTE
+            WARNINGS_ATTRIBUTE,
+            DESCRIPTION_ATTRIBUTE
         ]
 
         invalid_attribute_exceptions = {
@@ -202,9 +207,10 @@ class TestStatusMessage(unittest.TestCase):
             TRIGGERING_MESSAGE_IDS_ATTRIBUTE: tools.exceptions.messages.MessageIdError,
             WARNINGS_ATTRIBUTE: tools.exceptions.messages.MessageValueError,
             VALUE_ATTRIBUTE: tools.exceptions.messages.MessageValueError,
+            DESCRIPTION_ATTRIBUTE: tools.exceptions.messages.MessageValueError,
         }
         invalid_attribute_values = {
-            MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, ""],
+            MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, "", "Epoch"],
             SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
             MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""],
@@ -213,22 +219,23 @@ class TestStatusMessage(unittest.TestCase):
             LAST_UPDATED_IN_EPOCH_ATTRIBUTE: [-1, "epoch", "12", ""],
             TRIGGERING_MESSAGE_IDS_ATTRIBUTE: [["process-12", "process2-"], ["process-"], []],
             WARNINGS_ATTRIBUTE: [["warning.convergence", "warning"], ["warning."], ["warning.random"]],
-            VALUE_ATTRIBUTE: ["waiting", "-ready", 12, ""]
+            VALUE_ATTRIBUTE: ["waiting", "-ready", 12, ""],
+            DESCRIPTION_ATTRIBUTE: [12, True]
         }
         for invalid_attribute in invalid_attribute_exceptions:
             if invalid_attribute != TIMESTAMP_ATTRIBUTE and invalid_attribute not in optional_attributes:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute.pop(invalid_attribute)
-                self.assertRaises(
-                    invalid_attribute_exceptions[invalid_attribute],
-                    tools.messages.StatusMessage, **json_invalid_attribute)
+                with self.subTest(attribute=invalid_attribute):
+                    with self.assertRaises(invalid_attribute_exceptions[invalid_attribute]):
+                        tools.messages.StatusMessage(**json_invalid_attribute)
 
             for invalid_value in invalid_attribute_values[invalid_attribute]:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute[invalid_attribute] = invalid_value
-                self.assertRaises(
-                    (ValueError, invalid_attribute_exceptions[invalid_attribute]),
-                    tools.messages.StatusMessage, **json_invalid_attribute)
+                with self.subTest(attribute=invalid_attribute, value=invalid_value):
+                    with self.assertRaises((ValueError, invalid_attribute_exceptions[invalid_attribute])):
+                        tools.messages.StatusMessage(**json_invalid_attribute)
 
 
 if __name__ == '__main__':
