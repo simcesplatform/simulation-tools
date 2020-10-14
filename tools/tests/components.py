@@ -116,10 +116,16 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     short_wait = 0.5
     long_wait = 5.0
 
-    # The simulation component type that is used in the unit tests.
-    component_type = AbstractSimulationComponent
+    # A callable function that returns an instance of the simulation component used for the unit tests.
+    # NOTE: this can also be the component type if the constructor can be used to create the component.
+    component_creator = AbstractSimulationComponent
+    # The keyword arguments for the component creator.
+    component_creator_params = {}
     # The generator class that can produce messages comparable to the ones produced by the test component.
     message_generator_type = MessageGenerator
+
+    # The last epoch number for the normal simulation test scenario.
+    normal_simulation_epochs = 10
 
     test_manager_name = "test_manager"
     manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
@@ -178,7 +184,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
         component_message_generator = self.__class__.message_generator_type(
             self.__class__.simulation_id, self.__class__.component_name)
-        test_component = self.__class__.component_type()
+        test_component = self.__class__.component_creator(**self.__class__.component_creator_params)
         await test_component.start()
 
         # Wait for a few seconds to allow the component to setup.
@@ -241,7 +247,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
             await self.start_tester()
 
         # Test the component with the starting simulation state message (epoch 0) and 10 normal epochs.
-        for epoch_number in range(0, 11):
+        for epoch_number in range(0, self.__class__.normal_simulation_epochs + 1):
             await self.epoch_tester(epoch_number, message_client, message_storage, component_message_generator)
 
         # Test the closing down of the test component after simulation state message "stopped".
