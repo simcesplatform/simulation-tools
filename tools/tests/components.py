@@ -214,17 +214,22 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
         await send_message(message_client, manager_message, manager_message.message_type)
         # Wait a short time to allow the message storage to store the respond.
+        # TODO: figure out how to tie connect the message checking to the message receiver => remove this sleep
         await asyncio.sleep(self.__class__.short_wait)
 
         received_messages = message_storage.messages_and_topics
         self.assertEqual(len(received_messages), number_of_previous_messages + len(expected_responds))
 
         # Compare the received messages to the expected messages.
-        for received_responce, expected_responce in zip(received_messages[-len(expected_responds):], expected_responds):
-            received_message, received_topic = received_responce
-            expected_message, expected_topic = expected_responce
-            self.assertEqual(received_topic, expected_topic)
-            self.assertTrue(self.compare_message(received_message, expected_message))
+        # TODO: implement message checking that does not care about the order of the received messages
+        for index, (received_responce, expected_responce) in enumerate(
+                zip(received_messages[-len(expected_responds):], expected_responds),
+                start=1):
+            with self.subTest(message_index=index):
+                received_message, received_topic = received_responce
+                expected_message, expected_topic = expected_responce
+                self.assertEqual(received_topic, expected_topic)
+                self.assertTrue(self.compare_message(received_message, expected_message))
 
     async def end_tester(self, message_client: RabbitmqClient, test_component: AbstractSimulationComponent):
         """Tests the behaviour of the test component at the end of the simulation."""
@@ -248,7 +253,8 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
         # Test the component with the starting simulation state message (epoch 0) and 10 normal epochs.
         for epoch_number in range(0, self.__class__.normal_simulation_epochs + 1):
-            await self.epoch_tester(epoch_number, message_client, message_storage, component_message_generator)
+            with self.subTest(epoch_number=epoch_number):
+                await self.epoch_tester(epoch_number, message_client, message_storage, component_message_generator)
 
         # Test the closing down of the test component after simulation state message "stopped".
         await self.end_tester(message_client, test_component)
