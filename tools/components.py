@@ -52,6 +52,7 @@ class AbstractSimulationComponent:
         self._simulation_id = cast(str, env_variables[SIMULATION_ID])
         self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
         self._is_stopped = True
+        self.initialization_error = None
 
         self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
         self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
@@ -87,6 +88,17 @@ class AbstractSimulationComponent:
         """Returns True if the RabbitMQ client has been stopped."""
         return self._rabbitmq_client is None or self._rabbitmq_client.is_closed
 
+    @property
+    def initialization_error(self) -> Union[str, None]:
+        """If the component has encountered an error during initialization contains an errorr message.
+        If there was no error will be None."""
+        return self._initialization_error
+
+    @initialization_error.setter
+    def initialization_error(self, initialization_error: Union[str, None]):
+        """Set the initialization error message."""
+        self._initialization_error = initialization_error
+
     async def start(self) -> None:
         """Starts the component."""
         if self.is_client_closed:
@@ -114,14 +126,20 @@ class AbstractSimulationComponent:
 
     async def set_simulation_state(self, new_simulation_state: str) -> None:
         """Sets the simulation state. If the new simulation state is "running" and the current epoch is 0,
-           sends a status message to the message bus.
+           sends a status message to the message bus. If initialization_error is None sends a ready status message.
+           If it contains an error message sends an error status.
            If the new simulation state is "stopped", stops the dummy component."""
         if new_simulation_state in SimulationStateMessage.SIMULATION_STATES:
             self._simulation_state = new_simulation_state
 
             if new_simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_RUNNING:
                 if self._latest_epoch == 0:
-                    await self.send_status_message()
+                    if self.initialization_error is None:
+                        await self.send_status_message()
+
+                    else:
+                        # the component could not be initialized properly
+                        await self.send_error_message(self.initialization_error)
 
             elif new_simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED:
                 await self.stop()
