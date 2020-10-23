@@ -110,7 +110,7 @@ class AbstractSimulationComponent:
                 self._simulation_state_topic,
                 self._epoch_topic
             ],
-            self.general_message_handler)
+            self.general_message_handler_base)
         self._is_stopped = False
 
     async def stop(self) -> None:
@@ -163,12 +163,59 @@ class AbstractSimulationComponent:
 
         self._latest_epoch = self._latest_epoch_message.epoch_number
 
-        # Any calculations done within the epoch would be included here.
-        # Also, any possible checks for additional information that is required would be done here.
+        if self._completed_epoch == self._latest_epoch:
+            LOGGER.warning("The epoch {:d} has already been processed.".format(self._completed_epoch))
+            return True
+
+        if await self.ready_for_new_epoch():
+            if await self.process_epoch():
+                # The current epoch was successfully processed.
+                self._completed_epoch = self._latest_epoch
+                await self.send_status_message()
+                LOGGER.info("Finished processing epoch {:s}".format(self._completed_epoch))
+                return True
+
+        # Some information required for the epoch is still missing.
+        return False
+
+    async def process_epoch(self) -> bool:
+        """Process the epoch and do all the required calculations.
+           Assumes that all the required information for processing the epoch is available.
+
+           Returns False, if processing the current epoch was not yet possible.
+           Otherwise, returns True, which indicates that the epoch processing was fully completed.
+           This also indicated that the component is ready to send a Status Ready message to the Simulation Manager.
+
+           NOTE: this method should be overwritten in any child class.
+        """
+        # Any calculations done within the current epoch would be included here.
+        # Also sending of any result messages (other than Status message) would be included here.
         return True
 
-    async def general_message_handler(self, message_object: Union[BaseMessage, Any],
-                                      message_routing_key: str) -> None:
+    async def ready_for_new_epoch(self) -> bool:
+        """Returns True, if all the messages required to start the processing for the current epoch are available.
+        """
+        if (self._simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_RUNNING and
+                not self.is_stopped and
+                self._completed_epoch < self._latest_epoch):
+            return await self.all_messages_received_for_epoch()
+
+        # Some precondition for the epoch processing were not fulfilled.
+        return False
+
+    async def all_messages_received_for_epoch(self) -> bool:
+        """Returns True, if all the messages required to start the processing for the current epoch.
+           Checks only that all the required information is available.
+           Does not check any other conditions like the simulation state.
+
+           NOTE: this method should be overwritten in any child class that needs more information
+                 than just the Epoch message.
+        """
+        # The AbstractSimulationComponent needs no other information other than Epoch message for processing.
+        return True
+
+    async def general_message_handler_base(self, message_object: Union[BaseMessage, Any],
+                                           message_routing_key: str) -> None:
         """Forwards the message handling to the appropriate function depending on the message type."""
         if isinstance(message_object, SimulationStateMessage):
             await self.simulation_state_message_handler(message_object, message_routing_key)
@@ -177,8 +224,16 @@ class AbstractSimulationComponent:
             await self.epoch_message_handler(message_object, message_routing_key)
 
         else:
-            # Handling of any other message types would be added here.
-            pass
+            # Handling of any other message types would be added to a separate function.
+            await self.general_message_handler(message_object, message_routing_key)
+
+    async def general_message_handler(self, message_object: Union[BaseMessage, Any],
+                                      message_routing_key: str) -> None:
+        """Forwards the message handling to the appropriate function depending on the message type.
+           Assumes that the messages are not of type SimulationStateMessage or EpochMessage.
+
+           NOTE: this method should be overwritten in any child class that listens to other messages.
+        """
 
     async def simulation_state_message_handler(self, message_object: SimulationStateMessage,
                                                message_routing_key: str) -> None:
@@ -217,9 +272,9 @@ class AbstractSimulationComponent:
             self._latest_epoch_message = message_object
 
             # If all the epoch calculations were completed, send a new status message.
-            if await self.start_epoch():
-                self._completed_epoch = self._latest_epoch
-                await self.send_status_message()
+            if not await self.start_epoch():
+                LOGGER.debug("Waiting for other required messages before processing epoch {:d}".format(
+                    self._latest_epoch))
 
     async def send_status_message(self) -> None:
         """Sends a new status message to the message bus."""
