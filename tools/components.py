@@ -5,7 +5,7 @@
 from typing import cast, Any, Union
 
 from tools.clients import RabbitmqClient
-from tools.messages import BaseMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
+from tools.messages import BaseMessage, AbstractMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
                            get_next_message_id
 from tools.tools import FullLogger, load_environmental_variables
 
@@ -165,6 +165,7 @@ class AbstractSimulationComponent:
 
         if self._completed_epoch == self._latest_epoch:
             LOGGER.warning("The epoch {:d} has already been processed.".format(self._completed_epoch))
+            LOGGER.debug("Resending status message for epoch {:d}".format(self._latest_epoch))
             return True
 
         if await self.ready_for_new_epoch():
@@ -234,6 +235,11 @@ class AbstractSimulationComponent:
 
            NOTE: this method should be overwritten in any child class that listens to other messages.
         """
+        if isinstance(message_object, AbstractMessage):
+            LOGGER.debug("Received {:s} message from topic {:s}".format(
+                message_object.message_type, message_routing_key))
+        else:
+            LOGGER.debug("Received unknown message: {:s}".format(str(message_object)))
 
     async def simulation_state_message_handler(self, message_object: SimulationStateMessage,
                                                message_routing_key: str) -> None:
