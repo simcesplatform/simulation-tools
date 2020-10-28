@@ -23,9 +23,11 @@ OPTIONALLY_GENERATED_ATTRIBUTES = [
 def get_json(message_object: BaseMessage) -> Dict[str, Any]:
     """Returns a JSON based on the values of the given message_object and the attribute parameters."""
     return {
-        json_attribute_name: getattr(message_object, object_attribute_name) 
-                             if not hasattr( getattr(message_object, object_attribute_name), 'json' )
-                             else getattr(message_object, object_attribute_name).json()
+        json_attribute_name: (
+            getattr(message_object, object_attribute_name)
+            if not hasattr(getattr(message_object, object_attribute_name), 'json')
+            else getattr(message_object, object_attribute_name).json()
+        )
         for json_attribute_name, object_attribute_name in message_object.__class__.MESSAGE_ATTRIBUTES_FULL.items()
         if (json_attribute_name not in message_object.__class__.OPTIONAL_ATTRIBUTES_FULL or
             getattr(message_object, object_attribute_name) is not None)
