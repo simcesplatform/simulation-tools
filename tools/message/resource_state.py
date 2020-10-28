@@ -6,7 +6,8 @@ from __future__ import annotations
 from typing import Any, Dict, Union
 
 from tools.exceptions.messages import MessageValueError
-from tools.message.abstract import AbstractResultMessage
+from tools.message.abstract import AbstractResultMessage, AbstractMessage
+from tools.message.block import QuantityBlock
 from tools.tools import FullLogger
 
 LOGGER = FullLogger(__name__)
@@ -28,11 +29,21 @@ class ResourceStateMessage(AbstractResultMessage):
     }
     OPTIONAL_ATTRIBUTES = ["Node"]
 
+    # attributes whose value should be a QuantityBlock and the expected unit of measure.
+    QUANTITY_BLOCK_ATTRIBUTES = {
+        "RealPower": "kW",
+        "ReactivePower": "kV.A{r}"
+    }
+
     MESSAGE_ATTRIBUTES_FULL = {
         **AbstractResultMessage.MESSAGE_ATTRIBUTES_FULL,
         **MESSAGE_ATTRIBUTES
     }
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
+    QUANTITY_BLOCK_ATTRIBUTES_FULL = {
+        **AbstractMessage.QUANTITY_BLOCK_ATTRIBUTES_FULL,
+        **QUANTITY_BLOCK_ATTRIBUTES
+    }
 
     # allowed values for the node attribute
     ACCEPTED_NODE_VALUES = [1, 2, 3]
@@ -43,12 +54,12 @@ class ResourceStateMessage(AbstractResultMessage):
         return self.__bus
 
     @property
-    def real_power(self) -> float:
+    def real_power(self) -> QuantityBlock:
         """The attribute for real power of the resource."""
         return self.__real_power
 
     @property
-    def reactive_power(self) -> float:
+    def reactive_power(self) -> QuantityBlock:
         """The attribute for reactive power of the resource."""
         return self.__reactive_power
 
@@ -68,22 +79,45 @@ class ResourceStateMessage(AbstractResultMessage):
         raise MessageValueError(f"'{bus}' is an invalid value for bus since it is not a string.")
 
     @real_power.setter
-    def real_power(self, real_power: Union[str, float]):
-        """Set value for real power."""
-        if self._check_power(real_power):
-            self.__real_power = float(real_power)
+    def real_power(self, real_power: Union[str, float, QuantityBlock, Dict[str, Any]]):
+        """Set value for real power.
+        A string value is converted to a float. A float value is converted into a QuantityBlock with the default unit.
+        Raises MessageValueError if value is missing or invalid: a QuantityBlock has the wrong unit or
+        a string cannot be converted to float"""
+        unit = self.QUANTITY_BLOCK_ATTRIBUTES['RealPower']
+        if self._check_power(real_power, unit):
+            if isinstance(real_power, QuantityBlock):
+                self.__real_power = real_power
+
+            elif isinstance(real_power, dict):
+                self.__real_power = QuantityBlock(**real_power)
+
+            else:
+                self.__real_power = QuantityBlock(Value=float(real_power), UnitOfMeasure=unit)
+
             return
 
-        raise MessageValueError("'{:s}' is an invalid float value for real power.".format(str(real_power)))
+        raise MessageValueError("'{:s}' is an invalid value for real power.".format(str(real_power)))
 
     @reactive_power.setter
-    def reactive_power(self, reactive_power: Union[str, float]):
-        """Set value for reactive power."""
-        if self._check_power(reactive_power):
-            self.__reactive_power = float(reactive_power)
+    def reactive_power(self, reactive_power: Union[str, float, QuantityBlock, Dict[str, Any]]):
+        """Set value for reactive power.
+        A string value is converted to a float. A float value is converted into a QuantityBlock with the default unit.
+        Raises MessageValueError if value is missing or invalid: a QuantityBlock has the wrong unit or
+        a string cannot be converted to float"""
+        unit = self.QUANTITY_BLOCK_ATTRIBUTES['ReactivePower']
+        if self._check_power(reactive_power, unit):
+            if isinstance(reactive_power, QuantityBlock):
+                self.__reactive_power = reactive_power
+
+            elif isinstance(reactive_power, dict):
+                self.__reactive_power = QuantityBlock(**reactive_power)
+
+            else:
+                self.__reactive_power = QuantityBlock(Value=float(reactive_power), UnitOfMeasure=unit)
             return
 
-        raise MessageValueError("'{:s}' is an invalid float value for reactive power.".format(str(reactive_power)))
+        raise MessageValueError("'{:s}' is an invalid value for reactive power.".format(str(reactive_power)))
 
     @node.setter
     def node(self, node: Union[int, None]):
@@ -116,8 +150,17 @@ class ResourceStateMessage(AbstractResultMessage):
         return isinstance(bus, str)
 
     @classmethod
-    def _check_power(cls, power: Union[str, float]) -> bool:
-        """Check that value for real or reactive power is valid i.e. something that can be converted to float."""
+    def _check_power(cls, power: Union[str, float, QuantityBlock, dict], unit: str) -> bool:
+        """Check that value for real or reactive power is valid.
+        String can be converted to float or the given QuantityBlock has the given unit."""
+        if isinstance(power, (QuantityBlock, dict)):
+            if isinstance(power, dict):
+                if not QuantityBlock.validate_json(power):
+                    return False
+                power = QuantityBlock(**power)
+
+            return power.unit_of_measure == unit
+
         try:
             float(power)
             return True
@@ -126,14 +169,14 @@ class ResourceStateMessage(AbstractResultMessage):
             return False
 
     @classmethod
-    def _check_real_power(cls, real_power: Union[str, float]) -> bool:
-        """Check that value for real power is valid i.e. something that can be converted to float."""
-        return cls._check_power(real_power)
+    def _check_real_power(cls, real_power: Union[str, float, QuantityBlock]) -> bool:
+        """Check that value for real power is valid."""
+        return cls._check_power(real_power, cls.QUANTITY_BLOCK_ATTRIBUTES['RealPower'])
 
     @classmethod
-    def _check_reactive_power(cls, reactive_power: Union[str, float]) -> bool:
-        """Check that value for reactive power is valid i.e. something that can be converted to float."""
-        return cls._check_power(reactive_power)
+    def _check_reactive_power(cls, reactive_power: Union[str, float, QuantityBlock]) -> bool:
+        """Check that value for reactive power is valid."""
+        return cls._check_power(reactive_power, cls.QUANTITY_BLOCK_ATTRIBUTES['ReactivePower'])
 
     @classmethod
     def _check_node(cls, node: Union[int, None]) -> bool:
