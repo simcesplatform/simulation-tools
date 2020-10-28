@@ -19,13 +19,13 @@ REACTIVE_POWER_ATTRIBUTE = "ReactivePower"
 NODE_ATTRIBUTE = "Node"
 
 DEFAULT_BUS = "bus"
-DEFAULT_REACTIVE_POWER = { 
-    QuantityBlock.VALUE_ATTRIBUTE: 5.0, 
-    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[ REACTIVE_POWER_ATTRIBUTE ] 
+DEFAULT_REACTIVE_POWER = {
+    QuantityBlock.VALUE_ATTRIBUTE: 5.0,
+    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[REACTIVE_POWER_ATTRIBUTE]
 }
-DEFAULT_REAL_POWER = { 
-    QuantityBlock.VALUE_ATTRIBUTE: 100.0, 
-    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[ REAL_POWER_ATTRIBUTE ] 
+DEFAULT_REAL_POWER = {
+    QuantityBlock.VALUE_ATTRIBUTE: 100.0,
+    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[REAL_POWER_ATTRIBUTE]
 }
 DEFAULT_NODE = 2
 
@@ -58,14 +58,14 @@ class TestResourceStateMessage(unittest.TestCase):
 
     def test_message_creation(self):
         """Test basic object creation does not produce any errors."""
-        message_data = copy.deepcopy( MESSAGE_JSON )
-        message_data[ REAL_POWER_ATTRIBUTE ] = QuantityBlock.from_json( message_data[ REAL_POWER_ATTRIBUTE ] )
-        message_data[ REACTIVE_POWER_ATTRIBUTE ] = QuantityBlock.from_json( message_data[ REACTIVE_POWER_ATTRIBUTE ] )
+        message_data = copy.deepcopy(MESSAGE_JSON)
+        message_data[REAL_POWER_ATTRIBUTE] = QuantityBlock.from_json(message_data[REAL_POWER_ATTRIBUTE])
+        message_data[REACTIVE_POWER_ATTRIBUTE] = QuantityBlock.from_json(message_data[REACTIVE_POWER_ATTRIBUTE])
         # with optional parameter
         message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
         # without optional parameter
-        del message_data[ NODE_ATTRIBUTE ]
+        del message_data[NODE_ATTRIBUTE]
         message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
 
@@ -136,8 +136,8 @@ class TestResourceStateMessage(unittest.TestCase):
         """Test that invalid attribute values are not accepted."""
         invalid_values = {
             "Bus": [1],
-            "ReactivePower": ['foo', QuantityBlock( Value = 1.0, UnitOfMeasure = 'kW' )],
-            "RealPower": [None, { QuantityBlock.VALUE_ATTRIBUTE: 'foo', QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: 'kW' }],
+            "ReactivePower": ['foo', QuantityBlock(Value=1.0, UnitOfMeasure='kW')],
+            "RealPower": [None, {QuantityBlock.VALUE_ATTRIBUTE: 'foo', QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: 'kW'}],
             "Node": [4, "foo"]
         }
 
