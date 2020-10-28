@@ -244,11 +244,11 @@ class TestResultMessage(unittest.TestCase):
             MESSAGE_TYPE_ATTRIBUTE: [12, True, []],
             SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
-            MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""],
+            MESSAGE_ID_ATTRIBUTE: [12, True, ""],
             TIMESTAMP_ATTRIBUTE: ["timestamp", 12, "2020-07-31T24:11:11.123Z", ""],
             EPOCH_NUMBER_ATTRIBUTE: [-1, "epoch", "12", ""],
             LAST_UPDATED_IN_EPOCH_ATTRIBUTE: [-1, "epoch", "12", ""],
-            TRIGGERING_MESSAGE_IDS_ATTRIBUTE: [["process-12", "process2-"], ["process-"], []],
+            TRIGGERING_MESSAGE_IDS_ATTRIBUTE: [["process-12", ""], [""], []],
             WARNINGS_ATTRIBUTE: [["warning.convergence", "warning"], ["warning."], ["warning.random"]]
         }
         for invalid_attribute in invalid_attribute_exceptions:

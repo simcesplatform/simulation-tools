@@ -164,7 +164,7 @@ class SimulationStateMessage(unittest.TestCase):
             MESSAGE_TYPE_ATTRIBUTE: ["Test", 12, "", "Epoch"],
             SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
             SOURCE_PROCESS_ID_ATTRIBUTE: [12, ""],
-            MESSAGE_ID_ATTRIBUTE: ["process", 12, "process-", "-12", ""],
+            MESSAGE_ID_ATTRIBUTE: [12, True, ""],
             TIMESTAMP_ATTRIBUTE: ["timestamp", 12, "2020-07-31T24:11:11.123Z", ""],
             SIMULATION_STATE_ATTRIBUTE: ["waiting", 12, ""],
             NAME_ATTRIBUTE: [1, 15],

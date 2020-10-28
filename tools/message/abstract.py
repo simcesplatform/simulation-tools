@@ -250,13 +250,7 @@ class AbstractMessage(BaseMessage):
 
     @classmethod
     def _check_message_id(cls, message_id: str) -> bool:
-        if not isinstance(message_id, str):
-            return False
-        split_message_id = message_id.split("-")
-        if len(split_message_id) != 2:
-            return False
-        source_process_id, message_identifier = split_message_id
-        return len(source_process_id) > 0 and len(message_identifier) > 0
+        return isinstance(message_id, str) and len(message_id) > 0
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Union[AbstractMessage, None]:
