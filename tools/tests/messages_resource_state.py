@@ -7,6 +7,7 @@ import json
 import copy
 
 from tools.messages import ResourceStateMessage
+from tools.message.block import QuantityBlock
 from tools.exceptions.messages import MessageValueError
 
 from tools.tests.messages_common import DEFAULT_TYPE, FULL_JSON, DEFAULT_TIMESTAMP
@@ -18,8 +19,14 @@ REACTIVE_POWER_ATTRIBUTE = "ReactivePower"
 NODE_ATTRIBUTE = "Node"
 
 DEFAULT_BUS = "bus"
-DEFAULT_REACTIVE_POWER = 5.0
-DEFAULT_REAL_POWER = 100.0
+DEFAULT_REACTIVE_POWER = { 
+    QuantityBlock.VALUE_ATTRIBUTE: 5.0, 
+    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[ REACTIVE_POWER_ATTRIBUTE ] 
+}
+DEFAULT_REAL_POWER = { 
+    QuantityBlock.VALUE_ATTRIBUTE: 100.0, 
+    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[ REAL_POWER_ATTRIBUTE ] 
+}
 DEFAULT_NODE = 2
 
 SUBCLASS_JSON = {
@@ -51,11 +58,15 @@ class TestResourceStateMessage(unittest.TestCase):
 
     def test_message_creation(self):
         """Test basic object creation does not produce any errors."""
+        message_data = copy.deepcopy( MESSAGE_JSON )
+        message_data[ REAL_POWER_ATTRIBUTE ] = QuantityBlock.from_json( message_data[ REAL_POWER_ATTRIBUTE ] )
+        message_data[ REACTIVE_POWER_ATTRIBUTE ] = QuantityBlock.from_json( message_data[ REACTIVE_POWER_ATTRIBUTE ] )
         # with optional parameter
-        message = ResourceStateMessage(**MESSAGE_JSON)
+        message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
         # without optional parameter
-        message = ResourceStateMessage(**MESSAGE_STRIPPED_JSON)
+        del message_data[ NODE_ATTRIBUTE ]
+        message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
 
     def test_message_json(self):
@@ -125,8 +136,8 @@ class TestResourceStateMessage(unittest.TestCase):
         """Test that invalid attribute values are not accepted."""
         invalid_values = {
             "Bus": [1],
-            "ReactivePower": ['foo'],
-            "RealPower": [None],
+            "ReactivePower": ['foo', QuantityBlock( Value = 1.0, UnitOfMeasure = 'kW' )],
+            "RealPower": [None, { QuantityBlock.VALUE_ATTRIBUTE: 'foo', QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: 'kW' }],
             "Node": [4, "foo"]
         }
 

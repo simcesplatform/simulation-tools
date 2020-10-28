@@ -23,7 +23,9 @@ OPTIONALLY_GENERATED_ATTRIBUTES = [
 def get_json(message_object: BaseMessage) -> Dict[str, Any]:
     """Returns a JSON based on the values of the given message_object and the attribute parameters."""
     return {
-        json_attribute_name: getattr(message_object, object_attribute_name)
+        json_attribute_name: getattr(message_object, object_attribute_name) 
+                             if not hasattr( getattr(message_object, object_attribute_name), 'json' )
+                             else getattr(message_object, object_attribute_name).json()
         for json_attribute_name, object_attribute_name in message_object.__class__.MESSAGE_ATTRIBUTES_FULL.items()
         if (json_attribute_name not in message_object.__class__.OPTIONAL_ATTRIBUTES_FULL or
             getattr(message_object, object_attribute_name) is not None)
@@ -66,10 +68,13 @@ class BaseMessage():
     }
     # Attributes that can be missing from the message. Missing attributes are set to value None.
     OPTIONAL_ATTRIBUTES = []
+    # attributes whose value is a QuantityBlock and the expected unit of measure.
+    QUANTITY_BLOCK_ATTRIBUTES = {}
 
     # Full list af all attribute names, any subclass should update these with additional names.
     MESSAGE_ATTRIBUTES_FULL = MESSAGE_ATTRIBUTES
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
+    QUANTITY_BLOCK_ATTRIBUTES_FULL = QUANTITY_BLOCK_ATTRIBUTES
 
     DEFAULT_SIMULATION_ID = "simulation_id"
 
