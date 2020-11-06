@@ -29,7 +29,7 @@ class AbstractSimulationComponent:
     READY_STATUS = StatusMessage.STATUS_VALUES[0]  # "ready"
     ERROR_STATUS = StatusMessage.STATUS_VALUES[-1]  # "error"
 
-    def __init__(self):
+    def __init__(self, simulation_id: str = None, component_name: str = None):
         """Loads the simulation is and the component name as wells as the required topic names from environmental
            variables and sets up the connection to the RabbitMQ message bus for which the connection parameters are
            fetched from environmental variables. Opens a topic listener for the simulation state and epoch messages
@@ -49,8 +49,15 @@ class AbstractSimulationComponent:
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
         self._rabbitmq_client = RabbitmqClient()
 
-        self._simulation_id = cast(str, env_variables[SIMULATION_ID])
-        self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
+        if simulation_id is not None:
+            self._simulation_id = simulation_id
+        else:
+            self._simulation_id = cast(str, env_variables[SIMULATION_ID])
+        if component_name is not None:
+            self._component_name = component_name
+        else:
+            self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
+
         self._is_stopped = True
         self.initialization_error = None
 
@@ -205,7 +212,7 @@ class AbstractSimulationComponent:
         return False
 
     async def all_messages_received_for_epoch(self) -> bool:
-        """Returns True, if all the messages required to start the processing for the current epoch.
+        """Returns True, if all the messages required to start calculations for the current epoch have been received.
            Checks only that all the required information is available.
            Does not check any other conditions like the simulation state.
 
