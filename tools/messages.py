@@ -6,6 +6,7 @@
 from tools.message.abstract import BaseMessage, AbstractMessage     # pylint: disable=unused-import
 from tools.message.abstract import AbstractResultMessage, get_json  # pylint: disable=unused-import
 from tools.message.utils import get_next_message_id                 # pylint: disable=unused-import
+from tools.message.generator import MessageGenerator                # pylint: disable=unused-import
 
 from tools.message.simulation_state import SimulationStateMessage
 from tools.message.epoch import EpochMessage
