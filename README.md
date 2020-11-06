@@ -7,6 +7,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 - [`tools/callbacks.py`](tools/callbacks.py)
     - Contains MessageCallback class that can convert a message received from the message bus to a Message object.
     - Used also by tools.clients.RabbitmqClient when setting up topic listeners.
+
 - [`tools/clients.py`](tools/clients.py)
     - Contains RabbitmqClient that can be used as a client to send and receive messages to and from RabbitMQ message bus.
     - Uses the asynchronous RabbitMQ library aio_pika.
