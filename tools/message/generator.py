@@ -209,7 +209,7 @@ class MessageGenerator:
         abstract_message = self.get_abstract_message()
         try:
             return ResourceStateMessage(
-                Type=EpochMessage.CLASS_MESSAGE_TYPE,
+                Type=ResourceStateMessage.CLASS_MESSAGE_TYPE,
                 SimulationId=abstract_message.simulation_id,
                 SourceProcessId=abstract_message.source_process_id,
                 MessageId=abstract_message.message_id,
