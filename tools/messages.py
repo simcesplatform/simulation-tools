@@ -5,6 +5,7 @@
 # import these for backwards compatibility
 from tools.message.abstract import BaseMessage, AbstractMessage     # pylint: disable=unused-import
 from tools.message.abstract import AbstractResultMessage, get_json  # pylint: disable=unused-import
+from tools.message.block import QuantityBlock                       # pylint: disable=unused-import
 from tools.message.utils import get_next_message_id                 # pylint: disable=unused-import
 from tools.message.generator import MessageGenerator                # pylint: disable=unused-import
 
