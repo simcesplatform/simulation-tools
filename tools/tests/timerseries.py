@@ -120,19 +120,32 @@ class TestTimeSeriesAttribute(unittest.TestCase):
         self.assertIsInstance(TimeSeriesAttribute.from_json(attribute_valid), TimeSeriesAttribute)
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_missing_unit))
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_missing_values))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_invalid_unit))
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_invalid_values))
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values1))
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values2))
         self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values3))
 
+        # the unit validation should be off by default
+        self.assertFalse(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
+        self.assertIsInstance(TimeSeriesAttribute.from_json(attribute_invalid_unit), TimeSeriesAttribute)
+        TimeSeriesAttribute.UNIT_CODE_VALIDATION = True  # type: ignore
+        self.assertTrue(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
+        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_invalid_unit))
+        TimeSeriesAttribute.UNIT_CODE_VALIDATION = False
+
         self.assertRaises(TimeSeriesUnitError, TimeSeriesAttribute, **attribute_missing_unit)
         self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_missing_values)
-        self.assertRaises(TimeSeriesUnitError, TimeSeriesAttribute, **attribute_invalid_unit)
         self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_invalid_values)
         self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values1)
         self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values2)
         self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values3)
+
+        self.assertFalse(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
+        TimeSeriesAttribute(**attribute_invalid_unit)
+        TimeSeriesAttribute.UNIT_CODE_VALIDATION = True  # type: ignore
+        self.assertTrue(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
+        self.assertRaises(TimeSeriesUnitError, TimeSeriesAttribute, **attribute_invalid_unit)
+        TimeSeriesAttribute.UNIT_CODE_VALIDATION = False
 
 
 class TestTimeSeriesBlock(unittest.TestCase):

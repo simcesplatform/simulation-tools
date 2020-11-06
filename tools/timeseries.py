@@ -138,6 +138,7 @@ class UnitCode:
 
 class TimeSeriesAttribute:
     """Class for containing one time series attribute within a TimeSeriesBlock."""
+    UNIT_CODE_VALIDATION = False
     TIMESERIES_ATTRIBUTES = {
         "UnitOfMeasure": "unit_of_measurement",
         "Values": "values"
@@ -175,7 +176,10 @@ class TimeSeriesAttribute:
 
     @classmethod
     def _check_unit_of_measurement(cls, unit_of_measurement: str) -> bool:
-        return isinstance(unit_of_measurement, str) and UnitCode.is_valid(unit_of_measurement)
+        return (
+            isinstance(unit_of_measurement, str) and
+            (not cls.UNIT_CODE_VALIDATION or UnitCode.is_valid(unit_of_measurement))
+        )
 
     @classmethod
     def _check_values(cls, values: Union[List[bool], List[int], List[float], List[str]]) -> bool:
