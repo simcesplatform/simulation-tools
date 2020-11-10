@@ -2,6 +2,12 @@
 
 Tools for working with simulation messages and with the RabbitMQ message bus in Python.
 
+<!-- no toc -->
+- [Contents](#contents)
+- [How to include simulation-tools to your own project](#how-to-include-simulation-tools-to-your-own-project)
+- [Run unit tests](#run-unit-tests)
+- [Clean up after running the tests](#clean-up-after-running-the-tests)
+
 ## Contents
 
 - [`tools/callbacks.py`](tools/callbacks.py)
@@ -191,6 +197,71 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 - [`tools/tools.py`](tools/tools.py)
     - Contains tools that can be used to fetch environmental variables and to setup a logger object.
+
+## How to include simulation-tools to your own project
+
+These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate.
+
+- Manual copy of the tools folder
+
+    - The easiest way to get the most recent version of the library.
+    - No easy way of checking if there are updates for the library code. For a work in progress library this is a significant downside.
+
+    Installation instructions:
+    - Clone the simulation-tools repository:
+
+        ```bash
+        git -c http.sslverify=false clone https://git.ain.rd.tut.fi/procemplus/simulation-tools.git
+        ```
+
+    - Copy the `tools` folder from simulation-tools repository manually to the root folder of your own Python project.
+    - Start using the library. For example the RabbitMQ client class can be made available by using:
+
+       ```python
+       from tools.clients import RabbitmqClient
+       ```
+
+- Using simulation-tools as a Git submodule in your own Git repository
+    - Allows an easy way to update to the newest version of the library.
+    - Requires the use of Git repository (some kind of version control is always recommended when working source code).
+    - Requires more initial setup than manual copying.
+    - For example, simulation-manager repository is including the library as a Git submodule.
+
+    Installation instructions:
+    - In the root folder of your Git repository add simulation-tools as a Git submodule
+
+        ```bash
+        # run this from the root folder of your Git repository
+        git -c http.sslverify=false submodule add -b master https://git.ain.rd.tut.fi/procemplus/simulation-tools.git
+        git submodule init
+        cd simulation-tools
+        git config http.sslverify false --local
+        cd ..
+        git submodule update --remote
+        ```
+
+    - The simulation-tools folder should now contain a copy of the simulation-tools repository with the library code found in the `simulation-tools/tools` folder. To enable similar way of importing library modules as is used in the library itself or when using the manual copy of the tools folder, the Python interpreter needs to be told of the location of the tools folder. One way to do this is to use the init code from simulation-tools:
+        1. Copy the init folder from simulation-tools to the root folder of your code repository:
+
+            ```bash
+            # run this from the root folder of your Git repository
+            cp -r simulation-tools/init .
+            ```
+
+        2. Include a line `import init` at the beginning of the Python source code file from where your program is started. E.g. if your program is started with `python master.py` or `python -m master` include the import init line at the `master.py` file before any imports from the simulation-tools library.
+            - Another way to avoid modifying your source code would be to include the import init line in `__init__.py` file as has been used for example in the [Simulation Manager repository](https://git.ain.rd.tut.fi/procemplus/simulation-manager/-/tree/master/manager).
+    - Start using the library. For example the RabbitMQ client class can be made available by using:
+
+       ```python
+       from tools.clients import RabbitmqClient
+       ```
+
+    - To update the simulation-tools library to the newest version, run:
+
+        ```bash
+        # run this from inside your Git repository (but not from the simulation-tools folder)
+        git submodule update --remote
+        ```
 
 ## Run unit tests
 
