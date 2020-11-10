@@ -200,7 +200,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 ## How to include simulation-tools to your own project
 
-These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate.
+These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate. Two optional ways of including simulation-tools are described here.
 
 - Manual copy of the tools folder
 
@@ -262,6 +262,30 @@ These instructions try to take into account the problems arising from the fact t
         # run this from inside your Git repository (but not from the simulation-tools folder)
         git submodule update --remote
         ```
+
+## How to add support for a new message type as a Python class
+
+Assumption is that the new message type is based on AbstractResult message.
+
+There are some examples available:
+
+- The Python class for [Epoch](https://wiki.eduuni.fi/display/tuniSimCES/Epoch) message can be found at [tools/message/epoch.py](tools/message/epoch.py)
+- The Python class for [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status) message can be found at [tools/message/status.py](tools/message/status.py)
+- The Python class for [ResourceState](https://wiki.eduuni.fi/display/tuniSimCES/ResourceState) message can be found at [tools/message/resourcestate.py](tools/message/resourcestate.py)
+
+A template for a new message type is given at [`message_template.txt`](message_template.txt).
+
+- The current implementation of the message classes is quite verbose but a template is provided to make it easier for the development of new message classes.
+- All `<message type>`, `<property name 1>`, ... should be replaced with the appropriate names for the new message. For example `<message type>` for a NetworkState.Current message could be NetworkStateCurrentMessage.
+- Attributes containing [Quantity blocks](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block) as attributes have special support. However, no such support exists yet for [Quantity array block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+array+block) or [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block).
+- Existing message classes can be used as examples when implementing new message classes.
+- Overview of what is required from a new message class for it to be compatible with the existing message classes:
+    - Set the class constants `CLASS_MESSAGE_TYPE`, `MESSAGE_TYPE_CHECK`, `MESSAGE_ATTRIBUTES`, `OPTIONAL_ATTRIBUTES`, `QUANTITY_BLOCK_ATTRIBUTES`, `MESSAGE_ATTRIBUTES_FULL`, `OPTIONAL_ATTRIBUTES_FULL` and `QUANTITY_BLOCK_ATTRIBUTES_FULL` with the instructions given in the template.
+    - Add a property getter for each new attribute in the message (those attributes that don't belong to [AbstractResult](https://wiki.eduuni.fi/display/tuniSimCES/AbstractResult)).
+    - Add a property setter for each new attribute in the message (those attributes that don't belong to [AbstractResult](https://wiki.eduuni.fi/display/tuniSimCES/AbstractResult)).
+    - Add a check function (with a name of `"_check_<property name>"` for each property that checks the validity of the given value. This can be very general in some cases. For example, "isinstance(value, str) and len(value) > 0" would ensure that "value" is a non-empty string.
+    - Add a new implementation for the equality check method `"__eq__"`.
+    - Add a new implementation for the "from_json" method. This is only for the return value type for the use of Python linters, not for any actual additional functionality.
 
 ## Run unit tests
 
