@@ -208,9 +208,11 @@ class FullLogger:
 
     def __print(self, message_level: int, message: str, *args):
         if self.__stdout_output and self.__log_level <= message_level:
+            # NOTE: this is done to allow a change from old print format using "%" to using the new format syntax
+            modified_message = message.replace("{", "{{").replace("}", "}}")
             print(
                 datetime.datetime.now().isoformat(),
-                FullLogger.MESSAGE_LEVEL[message_level], ":", message % args,
+                FullLogger.MESSAGE_LEVEL[message_level], ":", modified_message.format(args),
                 flush=True)
 
 
