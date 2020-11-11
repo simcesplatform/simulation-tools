@@ -6,11 +6,13 @@ from __future__ import annotations
 import datetime
 import json
 from typing import Any, Dict, List, Tuple, Type, Union
+from collections.abc import Callable
 
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
                                       MessageValueError, MessageEpochValueError
 from tools.tools import FullLogger
+from tools.message.block import QuantityBlock
 
 LOGGER = FullLogger(__name__)
 
@@ -145,6 +147,49 @@ class BaseMessage():
     @classmethod
     def _check_timestamp(cls, timestamp: Union[str, datetime.datetime]) -> bool:
         return cls._check_datetime(timestamp)
+    
+    @classmethod
+    def _check_quantity_block(cls, value: Union[str, float, QuantityBlock, dict, None], unit: str, can_be_none: bool = False, float_value_check: Callable[[float], bool] = None ) -> bool:
+        """Check that value for quantity block is valid.
+        value: The value to be checked. String can be converted to float or the given QuantityBlock has the given unit
+        or the dict has the required attributes and correct unit.
+        unit: The unit of measure expected.
+        can_be_none: Should a None value be accepted.
+        float_value_check: Optional additional check for the float value for example it has to be positive. A callable which accepts a float argument and returns a boolean."""
+        if can_be_none and value is None:
+            return True
+        
+        if isinstance(value, (QuantityBlock, dict)):
+            if isinstance(value, dict):
+                if not QuantityBlock.validate_json(value):
+                    return False
+                value = QuantityBlock(**value)
+
+            return value.unit_of_measure == unit and (float_value_check is None or float_value_check(value.value))  
+
+        try:
+            float(value)
+            return float_value_check is None or float_value_check( value )
+
+        except (ValueError, TypeError):
+            return False
+    
+    def _set_quantity_block_value(self, message_attribute: str, quantity_value: Union[str, float, QuantityBlock, Dict[str, Any], None]):
+        """Set value for a quantity block attribute.
+        message_attribute: Name of the message attribute e.g. RealPower whose value is set.
+        quantity_value: The value to be set which can be float, string, dict, QuantityBlock or None.
+        A string value is converted to a float. A float value is converted into a QuantityBlock with the default unit for the attribute.
+        A dict is assumed to have Value and UnitOfMeasure keys and is converted to a QuantityBlock."""
+        unit = self.QUANTITY_BLOCK_ATTRIBUTES_FULL[message_attribute]
+        if isinstance(quantity_value, dict):
+            quantity_value = QuantityBlock(**quantity_value)
+
+        elif quantity_value is not None and not isinstance( quantity_value, QuantityBlock) :
+            quantity_value = QuantityBlock(Value=float(quantity_value), UnitOfMeasure=unit)
+        
+        # set value for attribute
+        # note attribute name has to include the class name since that is what self.__attribute_name actually uses.
+        setattr( self, '_' +self.__class__.__name__ +'__' +self.MESSAGE_ATTRIBUTES_FULL[message_attribute], quantity_value )
 
     def json(self) -> Dict[str, Any]:
         """Returns the message as a JSON object."""
