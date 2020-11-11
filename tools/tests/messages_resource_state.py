@@ -17,6 +17,7 @@ BUS_ATTRIBUTE = "Bus"
 REAL_POWER_ATTRIBUTE = "RealPower"
 REACTIVE_POWER_ATTRIBUTE = "ReactivePower"
 NODE_ATTRIBUTE = "Node"
+STATE_OF_CHARGE_ATTRIBUTE = "StateOfCharge"
 
 DEFAULT_BUS = "bus"
 DEFAULT_REACTIVE_POWER = {
@@ -27,12 +28,17 @@ DEFAULT_REAL_POWER = {
     QuantityBlock.VALUE_ATTRIBUTE: 100.0,
     QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[REAL_POWER_ATTRIBUTE]
 }
+DEFAULT_STATE_OF_CHARGE = {
+    QuantityBlock.VALUE_ATTRIBUTE: 90.0,
+    QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: ResourceStateMessage.QUANTITY_BLOCK_ATTRIBUTES[STATE_OF_CHARGE_ATTRIBUTE]
+}
 DEFAULT_NODE = 2
 
 SUBCLASS_JSON = {
     BUS_ATTRIBUTE: DEFAULT_BUS,
     REAL_POWER_ATTRIBUTE: DEFAULT_REAL_POWER,
     REACTIVE_POWER_ATTRIBUTE: DEFAULT_REACTIVE_POWER,
+    STATE_OF_CHARGE_ATTRIBUTE: DEFAULT_STATE_OF_CHARGE,
     NODE_ATTRIBUTE: DEFAULT_NODE
 }
 
@@ -44,6 +50,7 @@ MESSAGE_JSON = {**FULL_JSON, **SUBCLASS_JSON}
 # without optional attributes
 MESSAGE_STRIPPED_JSON = copy.deepcopy(MESSAGE_JSON)
 del MESSAGE_STRIPPED_JSON[NODE_ATTRIBUTE]
+del MESSAGE_STRIPPED_JSON[STATE_OF_CHARGE_ATTRIBUTE]
 
 
 class TestResourceStateMessage(unittest.TestCase):
@@ -59,13 +66,12 @@ class TestResourceStateMessage(unittest.TestCase):
     def test_message_creation(self):
         """Test basic object creation does not produce any errors."""
         message_data = copy.deepcopy(MESSAGE_JSON)
-        message_data[REAL_POWER_ATTRIBUTE] = QuantityBlock.from_json(message_data[REAL_POWER_ATTRIBUTE])
-        message_data[REACTIVE_POWER_ATTRIBUTE] = QuantityBlock.from_json(message_data[REACTIVE_POWER_ATTRIBUTE])
-        # with optional parameter
+        # with optional parameterS
         message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
-        # without optional parameter
+        # without optional parameterS
         del message_data[NODE_ATTRIBUTE]
+        del message_data[STATE_OF_CHARGE_ATTRIBUTE]
         message = ResourceStateMessage(**message_data)
         self.assertIsInstance(message, ResourceStateMessage)
 
@@ -121,7 +127,8 @@ class TestResourceStateMessage(unittest.TestCase):
             "bus": "foo",
             "real_power": 200,
             "reactive_power": 10,
-            "node": 3
+            "node": 3,
+            "state_of_charge": 42
         }
 
         for attr, value in different_values.items():
@@ -138,7 +145,8 @@ class TestResourceStateMessage(unittest.TestCase):
             "Bus": [1],
             "ReactivePower": ['foo', QuantityBlock(Value=1.0, UnitOfMeasure='kW')],
             "RealPower": [None, {QuantityBlock.VALUE_ATTRIBUTE: 'foo', QuantityBlock.UNIT_OF_MEASURE_ATTRIBUTE: 'kW'}],
-            "Node": [4, "foo"]
+            "Node": [4, "foo"],
+            "StateOfCharge": [ 150.0, QuantityBlock( Value = -1.0, UnitOfMeasure = "%" ), QuantityBlock( Value = 10.0, UnitOfMeasure = "x" ) ]
         }
 
         # try to create object with invalid values for each attribute in turn
