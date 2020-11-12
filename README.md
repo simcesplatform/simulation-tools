@@ -145,10 +145,6 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
             - Child class of AbstractResultMessage
             - Adds Value and Description
             - Definition: [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status)
-        - `ResourceStateMessage`
-            - Child class of AbstractResultMessage
-            - Adds Bus, RealPower, ReactivePower, Node and StateOfCharge
-            - Definition: [ResourceState](https://wiki.eduuni.fi/display/tuniSimCES/ResourceState)
         - `ResultMessage`
             - Child class of AbstractResultMessage
             - Can add any user chosen attributes but does not provide any checks for validity of the attribute values.
@@ -271,7 +267,6 @@ There are some examples available:
 
 - The Python class for [Epoch](https://wiki.eduuni.fi/display/tuniSimCES/Epoch) message can be found at [tools/message/epoch.py](tools/message/epoch.py)
 - The Python class for [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status) message can be found at [tools/message/status.py](tools/message/status.py)
-- The Python class for [ResourceState](https://wiki.eduuni.fi/display/tuniSimCES/ResourceState) message can be found at [tools/message/resourcestate.py](tools/message/resourcestate.py)
 
 A template for a new message type is given at [`message_template.txt`](message_template.txt).
 

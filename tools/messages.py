@@ -12,7 +12,6 @@ from tools.message.generator import MessageGenerator                # pylint: di
 from tools.message.simulation_state import SimulationStateMessage
 from tools.message.epoch import EpochMessage
 from tools.message.status import StatusMessage
-from tools.message.resource_state import ResourceStateMessage
 from tools.message.general import GeneralMessage, ResultMessage
 from tools.tools import FullLogger
 
@@ -23,7 +22,6 @@ MESSAGE_TYPES = {
     "SimState": SimulationStateMessage,
     "Epoch": EpochMessage,
     "Status": StatusMessage,
-    "ResourceState": ResourceStateMessage,
     "Result": ResultMessage,
     "General": GeneralMessage
 }
