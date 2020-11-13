@@ -121,10 +121,10 @@ class MessageCallback():
                 else:
                     expected_message_type = self.__message_type
 
-                message_object = MessageFactory.get_message(**{
+                message_object = MessageFactory.get_message(
+                    message_type=expected_message_type,
                     **message_json,
-                    self.__class__.MESSAGE_TYPE_ATTRIBUTE: expected_message_type
-                })
+                )
 
             except json.decoder.JSONDecodeError:
                 LOGGER.warning("Received message could not be decoded into JSON format.")

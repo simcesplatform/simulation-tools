@@ -44,14 +44,18 @@ class MessageFactory:
         return list(cls.__message_types)
 
     @classmethod
-    def get_message(cls, **kwargs) -> BaseMessage:
+    def get_message(cls, message_type: str = None, **kwargs) -> BaseMessage:
         """Returns a message object corresponding the given keyword attributes.
-           The type of the message object is determined by the "Type" attribute.
-           For example, if "Type" == "Epoch", the return type will be EpochMessage.
+           The type of the message object is determined by the "message_type" attribute if it is not None
+           or otherwise by the "Type" attribute.
+           For example, if "message_type" is None and "Type" == "Epoch", the return type will be EpochMessage.
+
            If the given message type is not supported by the factory or some of the attributes
            are not valid values for the message type, an exception MessageError, ValueError or TypeError will be thrown.
         """
-        message_type = kwargs.get("Type", None)
+        if message_type is None:
+            message_type = kwargs.get("Type", None)
+
         if message_type is None:
             raise TypeError("No message type found")
         if message_type not in cls.__message_types:
