@@ -9,8 +9,9 @@ from typing import Awaitable, Callable, Union
 
 import aio_pika.message
 
-from tools.messages import BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage, \
-                           SimulationStateMessage, StatusMessage, MESSAGE_TYPES, DEFAULT_MESSAGE_TYPE
+from tools.exceptions.messages import MessageError
+from tools.messages import AbstractMessage, AbstractResultMessage, BaseMessage, EpochMessage, GeneralMessage, \
+                           SimulationStateMessage, StatusMessage, MessageFactory
 from tools.tools import FullLogger
 
 CallbackFunctionType = Callable[[Union[BaseMessage, dict, str], str], Awaitable[None]]
@@ -23,11 +24,12 @@ class MessageCallback():
        Stores the latest received message and the corresponding topic name.
     """
     MESSAGE_CODING = "UTF-8"
-    MESSAGE_TYPE_ATTRIBUTE = next(iter(AbstractMessage.MESSAGE_ATTRIBUTES))  # should be "Type"
+    MESSAGE_TYPE_ATTRIBUTE = next(iter(BaseMessage.MESSAGE_ATTRIBUTES))  # should be "Type"
+    DEFAULT_MESSAGE_TYPE = GeneralMessage.CLASS_MESSAGE_TYPE
 
     def __init__(self, callback_function: CallbackFunctionType, message_type: Union[str, None] = None):
         """Sets up a callback that receives incoming messages from the message bus, transforms the received object
-           to an instance of AbstractMessage and sends the transformed object to the given callback_function.
+           to an instance of BaseMessage and sends the transformed object to the given callback_function.
 
            Requirement for the callback_function is that it is awaitable and can be called by two parameters:
            the message object and the topic name.
@@ -44,8 +46,8 @@ class MessageCallback():
         self.__lock = asyncio.Lock()
         self.__callback_function = callback_function
 
-        if message_type is not None and message_type not in MESSAGE_TYPES:
-            self.__message_type = DEFAULT_MESSAGE_TYPE
+        if message_type is not None and message_type not in MessageFactory.get_message_types():
+            self.__message_type = self.__class__.DEFAULT_MESSAGE_TYPE
         else:
             self.__message_type = message_type
 
@@ -113,19 +115,26 @@ class MessageCallback():
                     # Convert the message to the specified special cases if possible.
                     expected_message_type = message_json.get(
                         self.__class__.MESSAGE_TYPE_ATTRIBUTE,
-                        DEFAULT_MESSAGE_TYPE)
-                    if expected_message_type not in MESSAGE_TYPES:
-                        expected_message_type = DEFAULT_MESSAGE_TYPE
+                        self.__class__.DEFAULT_MESSAGE_TYPE)
+                    if expected_message_type not in MessageFactory.get_message_types():
+                        expected_message_type = self.__class__.DEFAULT_MESSAGE_TYPE
                 else:
                     expected_message_type = self.__message_type
-                message_object = MESSAGE_TYPES[expected_message_type].from_json(message_json)
+
+                message_object = MessageFactory.get_message(**{
+                    **message_json,
+                    self.__class__.MESSAGE_TYPE_ATTRIBUTE: expected_message_type
+                })
 
             except json.decoder.JSONDecodeError:
                 LOGGER.warning("Received message could not be decoded into JSON format.")
                 message_object = message_str
-
-            if message_object is None:
-                # The message did not conform to the simulation platform message schema.
+            except (TypeError, ValueError, MessageError) as message_error:
+                # The message did not conform to the simulation platform message schema or
+                # the message type was not supported by the message factory.
+                LOGGER.warning("Received {:s} error when creating message object: {:s}".format(
+                    type(message_error).__name__, str(message_error)
+                ))
                 message_object = message_json
 
             self.__last_message = message_object

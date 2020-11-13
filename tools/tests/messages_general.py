@@ -72,8 +72,8 @@ class TestGeneralMessage(unittest.TestCase):
 
         self.assertGreaterEqual(message_timestamp, utcnow1)
         self.assertLessEqual(message_timestamp, utcnow2)
+        self.assertEqual(message_full.message_type, DEFAULT_TYPE)
         self.assertEqual(message_full.simulation_id, DEFAULT_SIMULATION_ID)
-        self.assertEqual(message_full.general_attributes[MESSAGE_TYPE_ATTRIBUTE], DEFAULT_TYPE)
         self.assertEqual(message_full.general_attributes[SOURCE_PROCESS_ID_ATTRIBUTE], DEFAULT_SOURCE_PROCESS_ID)
         self.assertEqual(message_full.general_attributes[MESSAGE_ID_ATTRIBUTE], DEFAULT_MESSAGE_ID)
         self.assertEqual(message_full.general_attributes[EPOCH_NUMBER_ATTRIBUTE], DEFAULT_EPOCH_NUMBER)
@@ -95,7 +95,7 @@ class TestGeneralMessage(unittest.TestCase):
         message_timestamped = tools.messages.GeneralMessage(Timestamp=DEFAULT_TIMESTAMP, **FULL_JSON)
         self.assertEqual(message_timestamped.timestamp, DEFAULT_TIMESTAMP)
         self.assertEqual(message_timestamped.simulation_id, DEFAULT_SIMULATION_ID)
-        self.assertEqual(message_timestamped.general_attributes[MESSAGE_TYPE_ATTRIBUTE], DEFAULT_TYPE)
+        self.assertEqual(message_timestamped.message_type, DEFAULT_TYPE)
         self.assertEqual(message_timestamped.general_attributes[SOURCE_PROCESS_ID_ATTRIBUTE], DEFAULT_SOURCE_PROCESS_ID)
         self.assertEqual(message_timestamped.general_attributes[MESSAGE_ID_ATTRIBUTE], DEFAULT_MESSAGE_ID)
         self.assertEqual(message_timestamped.general_attributes[EPOCH_NUMBER_ATTRIBUTE], DEFAULT_EPOCH_NUMBER)
@@ -115,7 +115,6 @@ class TestGeneralMessage(unittest.TestCase):
 
         # Test message creation without the optional attributes.
         stripped_json = copy.deepcopy(FULL_JSON)
-        stripped_json.pop(MESSAGE_TYPE_ATTRIBUTE)
         stripped_json.pop(SOURCE_PROCESS_ID_ATTRIBUTE)
         stripped_json.pop(MESSAGE_ID_ATTRIBUTE)
         stripped_json.pop(EPOCH_NUMBER_ATTRIBUTE)
@@ -132,6 +131,7 @@ class TestGeneralMessage(unittest.TestCase):
             stripped_json.pop(extra_attribute_name)
         message_stripped = tools.messages.GeneralMessage(Timestamp=DEFAULT_TIMESTAMP, **stripped_json)
         self.assertEqual(message_stripped.timestamp, DEFAULT_TIMESTAMP)
+        self.assertEqual(message_stripped.message_type, DEFAULT_TYPE)
         self.assertEqual(message_stripped.simulation_id, DEFAULT_SIMULATION_ID)
         self.assertEqual(message_stripped.general_attributes, {})
 
@@ -201,10 +201,12 @@ class TestGeneralMessage(unittest.TestCase):
         message_full_json = message_full.json()
 
         invalid_attribute_exceptions = {
+            MESSAGE_TYPE_ATTRIBUTE: tools.exceptions.messages.MessageTypeError,
             SIMULATION_ID_ATTRIBUTE: tools.exceptions.messages.MessageDateError
         }
         invalid_attribute_values = {
-            SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""]
+            MESSAGE_TYPE_ATTRIBUTE: [12, True, []],
+            SIMULATION_ID_ATTRIBUTE: ["simulation-id", 12, "2020-07-31T24:11:11.123Z", ""],
         }
         for invalid_attribute in invalid_attribute_exceptions:
             if invalid_attribute != TIMESTAMP_ATTRIBUTE:
@@ -222,7 +224,7 @@ class TestGeneralMessage(unittest.TestCase):
                         tools.messages.GeneralMessage(**json_invalid_attribute)
 
         message_full.general_attributes = {}
-        self.assertEqual(len(message_full.json()), 2)
+        self.assertEqual(len(message_full.json()), 3)
         self.assertEqual(message_full.general_attributes, {})
         self.assertRaises(
             tools.exceptions.messages.MessageValueError,

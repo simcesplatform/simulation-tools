@@ -145,10 +145,6 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
             - Child class of AbstractResultMessage
             - Adds Value and Description
             - Definition: [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status)
-        - `ResourceStateMessage`
-            - Child class of AbstractResultMessage
-            - Adds Bus, RealPower, ReactivePower, Node and StateOfCharge
-            - Definition: [ResourceState](https://wiki.eduuni.fi/display/tuniSimCES/ResourceState)
         - `ResultMessage`
             - Child class of AbstractResultMessage
             - Can add any user chosen attributes but does not provide any checks for validity of the attribute values.
@@ -199,6 +195,10 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
     - Contains tools that can be used to fetch environmental variables and to setup a logger object.
 
 ## How to include simulation-tools to your own project
+
+NOTE: If you intend to use [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages)
+you do not have to include simulation-tools separately since domain-messages already includes it.
+Use the [instructions](https://git.ain.rd.tut.fi/procemplus/domain-messages/-/blob/master/README.md#how-to-include-domain-messages-to-your-own-project) at domain-messages instead of these when using domain-messages.
 
 These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate. Two optional ways of including simulation-tools are described here.
 
@@ -271,7 +271,6 @@ There are some examples available:
 
 - The Python class for [Epoch](https://wiki.eduuni.fi/display/tuniSimCES/Epoch) message can be found at [tools/message/epoch.py](tools/message/epoch.py)
 - The Python class for [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status) message can be found at [tools/message/status.py](tools/message/status.py)
-- The Python class for [ResourceState](https://wiki.eduuni.fi/display/tuniSimCES/ResourceState) message can be found at [tools/message/resourcestate.py](tools/message/resourcestate.py)
 
 A template for a new message type is given at [`message_template.txt`](message_template.txt).
 

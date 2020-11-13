@@ -5,14 +5,14 @@
 from __future__ import annotations
 import datetime
 import json
-from typing import Any, Dict, List, Tuple, Type, Union
-from collections.abc import Callable
+from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
                                       MessageValueError, MessageEpochValueError
-from tools.tools import FullLogger
 from tools.message.block import QuantityBlock
+from tools.message.factory import MessageFactory
+from tools.tools import FullLogger
 
 LOGGER = FullLogger(__name__)
 
@@ -62,11 +62,14 @@ def validate_json(message_class: Type[BaseMessage], json_message: Dict[str, Any]
 class BaseMessage():
     """The base message class for all simulation platform messages."""
     MESSAGE_ENCODING = "UTF-8"
+    # The "Type" attribute is checked against CLASS_MESSAGE_TYPE if MESSAGE_TYPE_CHECK is True.
+    # For example, for EpochMessage, "Type" must be "Epoch", but for AbstractMessage any string is acceptable.
     CLASS_MESSAGE_TYPE = ""
     MESSAGE_TYPE_CHECK = False
 
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
+        "Type": "message_type",
         "SimulationId": "simulation_id",
         "Timestamp": "timestamp"
     }
@@ -80,7 +83,7 @@ class BaseMessage():
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
     QUANTITY_BLOCK_ATTRIBUTES_FULL = QUANTITY_BLOCK_ATTRIBUTES
 
-    DEFAULT_SIMULATION_ID = "simulation_id"
+    DEFAULT_SIMULATION_ID = "2000-01-01T00:00:00.000Z"
 
     def __init__(self, **kwargs):
         """Only arguments in MESSAGE_ATTRIBUTES_FULL of the message class are considered.
@@ -92,6 +95,11 @@ class BaseMessage():
                     kwargs.get(json_attribute_name, None))
 
     @property
+    def message_type(self) -> str:
+        """The message type attribute."""
+        return self.__message_type
+
+    @property
     def simulation_id(self) -> str:
         """The simulation id."""
         return self.__simulation_id
@@ -100,6 +108,12 @@ class BaseMessage():
     def timestamp(self) -> str:
         """The timestamp for the message in ISO 8601 format."""
         return self.__timestamp
+
+    @message_type.setter
+    def message_type(self, message_type: str):
+        if not self._check_message_type(message_type):
+            raise MessageTypeError("'{:s}' is not an allowed message type".format(str(message_type)))
+        self.__message_type = message_type
 
     @simulation_id.setter
     def simulation_id(self, simulation_id: str):
@@ -141,55 +155,73 @@ class BaseMessage():
         return to_iso_format_datetime_string(datetime_value) is not None
 
     @classmethod
+    def _check_message_type(cls, message_type: str) -> bool:
+        if cls.MESSAGE_TYPE_CHECK:
+            return message_type == cls.CLASS_MESSAGE_TYPE
+        return isinstance(message_type, str)
+
+    @classmethod
     def _check_simulation_id(cls, simulation_id: str) -> bool:
         return cls._check_datetime(simulation_id)
 
     @classmethod
     def _check_timestamp(cls, timestamp: Union[str, datetime.datetime]) -> bool:
         return cls._check_datetime(timestamp)
-    
+
     @classmethod
-    def _check_quantity_block(cls, value: Union[str, float, QuantityBlock, dict, None], unit: str, can_be_none: bool = False, float_value_check: Callable[[float], bool] = None ) -> bool:
+    def _check_quantity_block(cls, value: Union[str, float, QuantityBlock, dict, None],
+                              unit: str,
+                              can_be_none: bool = False,
+                              float_value_check: Callable[[float], bool] = None) -> bool:
         """Check that value for quantity block is valid.
         value: The value to be checked. String can be converted to float or the given QuantityBlock has the given unit
         or the dict has the required attributes and correct unit.
         unit: The unit of measure expected.
         can_be_none: Should a None value be accepted.
-        float_value_check: Optional additional check for the float value for example it has to be positive. A callable which accepts a float argument and returns a boolean."""
-        if can_be_none and value is None:
-            return True
-        
+        float_value_check: Optional additional check for the float value for example if it has to be positive.
+                           Must be a callable which accepts a float argument and returns a boolean.
+        """
+        if value is None:
+            return can_be_none
+
         if isinstance(value, (QuantityBlock, dict)):
             if isinstance(value, dict):
                 if not QuantityBlock.validate_json(value):
                     return False
                 value = QuantityBlock(**value)
 
-            return value.unit_of_measure == unit and (float_value_check is None or float_value_check(value.value))  
+            return value.unit_of_measure == unit and (float_value_check is None or float_value_check(value.value))
 
         try:
-            float(value)
-            return float_value_check is None or float_value_check( value )
+            value = float(value)
+            return float_value_check is None or float_value_check(value)
 
         except (ValueError, TypeError):
             return False
-    
-    def _set_quantity_block_value(self, message_attribute: str, quantity_value: Union[str, float, QuantityBlock, Dict[str, Any], None]):
+
+    def _set_quantity_block_value(self, message_attribute: str,
+                                  quantity_value: Union[str, float, QuantityBlock, Dict[str, Any], None]):
         """Set value for a quantity block attribute.
         message_attribute: Name of the message attribute e.g. RealPower whose value is set.
         quantity_value: The value to be set which can be float, string, dict, QuantityBlock or None.
-        A string value is converted to a float. A float value is converted into a QuantityBlock with the default unit for the attribute.
-        A dict is assumed to have Value and UnitOfMeasure keys and is converted to a QuantityBlock."""
+        A string value is converted to a float. A float value is converted into a QuantityBlock with the
+        default unit for the attribute.
+        A dict is assumed to have Value and UnitOfMeasure keys and is converted to a QuantityBlock.
+        """
         unit = self.QUANTITY_BLOCK_ATTRIBUTES_FULL[message_attribute]
         if isinstance(quantity_value, dict):
             quantity_value = QuantityBlock(**quantity_value)
 
-        elif quantity_value is not None and not isinstance( quantity_value, QuantityBlock) :
+        elif quantity_value is not None and not isinstance(quantity_value, QuantityBlock):
             quantity_value = QuantityBlock(Value=float(quantity_value), UnitOfMeasure=unit)
-        
-        # set value for attribute
-        # note attribute name has to include the class name since that is what self.__attribute_name actually uses.
-        setattr( self, '_' +self.__class__.__name__ +'__' +self.MESSAGE_ATTRIBUTES_FULL[message_attribute], quantity_value )
+
+        # set value for the attribute
+        # Note: attribute name has to include the class name to be of use in subclasses since that is what
+        #       the Python interpreter actually uses for self.__attribute_name
+        setattr(
+            self,
+            "_" + self.__class__.__name__ + "__" + self.MESSAGE_ATTRIBUTES_FULL[message_attribute],
+            quantity_value)
 
     def json(self) -> Dict[str, Any]:
         """Returns the message as a JSON object."""
@@ -213,19 +245,20 @@ class BaseMessage():
             return cls(**json_message)
         return None
 
+    @classmethod
+    def register_to_factory(cls):
+        """Registers this message class to the MessageFactory."""
+        if cls.CLASS_MESSAGE_TYPE == "":
+            LOGGER.warning("Cannot register message class with empty message type to the message factory")
+        else:
+            MessageFactory.register_message_type(cls)
+
 
 class AbstractMessage(BaseMessage):
     """The abstract message class that contains the attributes that all simulation specific messages should have."""
 
-    # The supported message types.
-    # The "Type" attribute is checked against CLASS_MESSAGE_TYPE if MESSAGE_TYPE_CHECK is True.
-    # For example, for EpochMessage, "Type" must be "Epoch", but for AbstractMessage any string is acceptable.
-    # NOTE: this is to provide some compatibility for message types that have no implemented message class
-    MESSAGE_TYPES = ["SimState", "Epoch", "Status", "Result", "General", "ResourceState"]
-
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
-        "Type": "message_type",
         "SourceProcessId": "source_process_id",
         "MessageId": "message_id"
     }
@@ -239,13 +272,6 @@ class AbstractMessage(BaseMessage):
     }
     OPTIONAL_ATTRIBUTES_FULL = BaseMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
-    DEFAULT_SIMULATION_ID = "simulation_id"
-
-    @property
-    def message_type(self) -> str:
-        """The message type attribute."""
-        return self.__message_type
-
     @property
     def source_process_id(self) -> str:
         """The source process id."""
@@ -255,12 +281,6 @@ class AbstractMessage(BaseMessage):
     def message_id(self) -> str:
         """The message id."""
         return self.__message_id
-
-    @message_type.setter
-    def message_type(self, message_type: str):
-        if not self._check_message_type(message_type):
-            raise MessageTypeError("'{:s}' is not an allowed message type".format(str(message_type)))
-        self.__message_type = message_type
 
     @source_process_id.setter
     def source_process_id(self, source_process_id: str):
@@ -282,12 +302,6 @@ class AbstractMessage(BaseMessage):
             self.source_process_id == other.source_process_id and
             self.message_id == other.message_id
         )
-
-    @classmethod
-    def _check_message_type(cls, message_type: str) -> bool:
-        if cls.MESSAGE_TYPE_CHECK:
-            return message_type == cls.CLASS_MESSAGE_TYPE
-        return isinstance(message_type, str)
 
     @classmethod
     def _check_source_process_id(cls, source_process_id: str) -> bool:

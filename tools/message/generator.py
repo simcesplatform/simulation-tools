@@ -8,7 +8,6 @@ from tools.exceptions.messages import MessageError
 from tools.message.abstract import AbstractMessage
 from tools.message.block import QuantityBlock
 from tools.message.epoch import EpochMessage
-from tools.message.resource_state import ResourceStateMessage
 from tools.message.simulation_state import SimulationStateMessage
 from tools.message.status import StatusMessage
 from tools.message.utils import get_next_message_id
@@ -59,8 +58,6 @@ class MessageGenerator:
             return self.get_status_message(**kwargs)
         if message_class is SimulationStateMessage:
             return self.get_simulation_state_message(**kwargs)
-        if message_class is ResourceStateMessage:
-            return self.get_resource_state_message(**kwargs)
 
         if not issubclass(message_class, AbstractMessage):
             raise MessageError("{:s} is not a subclass of {:s}".format(
@@ -179,30 +176,4 @@ class MessageGenerator:
             SimulationState=SimulationState,
             Name=Name,
             Description=Description
-        )
-
-    def get_resource_state_message(self, EpochNumber: int, TriggeringMessageIds: List[str], Bus: str,
-                                   RealPower: Union[float, QuantityBlock], ReactivePower: Union[float, QuantityBlock],
-                                   LastUpdatedInEpoch: int = None, Warnings: List[str] = None,
-                                   Node: int = None, StateOfCharge: Union[float, QuantityBlock] = None) \
-            -> ResourceStateMessage:
-        """Returns a new StatusMessage corresponding to the given parameters.
-           Throws an exception if the message creation was unsuccessful."""
-        # pylint: disable=invalid-name
-        abstract_message = self.get_abstract_message()
-        return ResourceStateMessage(
-            Type=ResourceStateMessage.CLASS_MESSAGE_TYPE,
-            SimulationId=abstract_message.simulation_id,
-            SourceProcessId=abstract_message.source_process_id,
-            MessageId=abstract_message.message_id,
-            Timestamp=abstract_message.timestamp,
-            EpochNumber=EpochNumber,
-            TriggeringMessageIds=TriggeringMessageIds,
-            LastUpdatedInEpoch=LastUpdatedInEpoch,
-            Warnings=Warnings,
-            Bus=Bus,
-            RealPower=RealPower,
-            ReactivePower=ReactivePower,
-            Node=Node,
-            StateOfCharge=StateOfCharge
         )
