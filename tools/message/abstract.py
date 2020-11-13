@@ -10,8 +10,9 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
                                       MessageValueError, MessageEpochValueError
-from tools.tools import FullLogger
 from tools.message.block import QuantityBlock
+from tools.message.factory import MessageFactory
+from tools.tools import FullLogger
 
 LOGGER = FullLogger(__name__)
 
@@ -61,11 +62,14 @@ def validate_json(message_class: Type[BaseMessage], json_message: Dict[str, Any]
 class BaseMessage():
     """The base message class for all simulation platform messages."""
     MESSAGE_ENCODING = "UTF-8"
+    # The "Type" attribute is checked against CLASS_MESSAGE_TYPE if MESSAGE_TYPE_CHECK is True.
+    # For example, for EpochMessage, "Type" must be "Epoch", but for AbstractMessage any string is acceptable.
     CLASS_MESSAGE_TYPE = ""
     MESSAGE_TYPE_CHECK = False
 
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
+        "Type": "message_type",
         "SimulationId": "simulation_id",
         "Timestamp": "timestamp"
     }
@@ -79,7 +83,7 @@ class BaseMessage():
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
     QUANTITY_BLOCK_ATTRIBUTES_FULL = QUANTITY_BLOCK_ATTRIBUTES
 
-    DEFAULT_SIMULATION_ID = "simulation_id"
+    DEFAULT_SIMULATION_ID = "2000-01-01T00:00:00.000Z"
 
     def __init__(self, **kwargs):
         """Only arguments in MESSAGE_ATTRIBUTES_FULL of the message class are considered.
@@ -91,6 +95,11 @@ class BaseMessage():
                     kwargs.get(json_attribute_name, None))
 
     @property
+    def message_type(self) -> str:
+        """The message type attribute."""
+        return self.__message_type
+
+    @property
     def simulation_id(self) -> str:
         """The simulation id."""
         return self.__simulation_id
@@ -99,6 +108,12 @@ class BaseMessage():
     def timestamp(self) -> str:
         """The timestamp for the message in ISO 8601 format."""
         return self.__timestamp
+
+    @message_type.setter
+    def message_type(self, message_type: str):
+        if not self._check_message_type(message_type):
+            raise MessageTypeError("'{:s}' is not an allowed message type".format(str(message_type)))
+        self.__message_type = message_type
 
     @simulation_id.setter
     def simulation_id(self, simulation_id: str):
@@ -138,6 +153,12 @@ class BaseMessage():
     @classmethod
     def _check_datetime(cls, datetime_value: Union[str, datetime.datetime]) -> bool:
         return to_iso_format_datetime_string(datetime_value) is not None
+
+    @classmethod
+    def _check_message_type(cls, message_type: str) -> bool:
+        if cls.MESSAGE_TYPE_CHECK:
+            return message_type == cls.CLASS_MESSAGE_TYPE
+        return isinstance(message_type, str)
 
     @classmethod
     def _check_simulation_id(cls, simulation_id: str) -> bool:
@@ -224,19 +245,20 @@ class BaseMessage():
             return cls(**json_message)
         return None
 
+    @classmethod
+    def register_to_factory(cls):
+        """Registers this message class to the MessageFactory."""
+        if cls.CLASS_MESSAGE_TYPE == "":
+            LOGGER.warning("Cannot register message class with empty message type to the message factory")
+        else:
+            MessageFactory.register_message_type(cls)
+
 
 class AbstractMessage(BaseMessage):
     """The abstract message class that contains the attributes that all simulation specific messages should have."""
 
-    # The supported message types.
-    # The "Type" attribute is checked against CLASS_MESSAGE_TYPE if MESSAGE_TYPE_CHECK is True.
-    # For example, for EpochMessage, "Type" must be "Epoch", but for AbstractMessage any string is acceptable.
-    # NOTE: this is to provide some compatibility for message types that have no implemented message class
-    MESSAGE_TYPES = ["SimState", "Epoch", "Status", "Result", "General", "ResourceState"]
-
     # The relationships between the JSON attributes and the object properties
     MESSAGE_ATTRIBUTES = {
-        "Type": "message_type",
         "SourceProcessId": "source_process_id",
         "MessageId": "message_id"
     }
@@ -250,13 +272,6 @@ class AbstractMessage(BaseMessage):
     }
     OPTIONAL_ATTRIBUTES_FULL = BaseMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
-    DEFAULT_SIMULATION_ID = "simulation_id"
-
-    @property
-    def message_type(self) -> str:
-        """The message type attribute."""
-        return self.__message_type
-
     @property
     def source_process_id(self) -> str:
         """The source process id."""
@@ -266,12 +281,6 @@ class AbstractMessage(BaseMessage):
     def message_id(self) -> str:
         """The message id."""
         return self.__message_id
-
-    @message_type.setter
-    def message_type(self, message_type: str):
-        if not self._check_message_type(message_type):
-            raise MessageTypeError("'{:s}' is not an allowed message type".format(str(message_type)))
-        self.__message_type = message_type
 
     @source_process_id.setter
     def source_process_id(self, source_process_id: str):
@@ -293,12 +302,6 @@ class AbstractMessage(BaseMessage):
             self.source_process_id == other.source_process_id and
             self.message_id == other.message_id
         )
-
-    @classmethod
-    def _check_message_type(cls, message_type: str) -> bool:
-        if cls.MESSAGE_TYPE_CHECK:
-            return message_type == cls.CLASS_MESSAGE_TYPE
-        return isinstance(message_type, str)
 
     @classmethod
     def _check_source_process_id(cls, source_process_id: str) -> bool:

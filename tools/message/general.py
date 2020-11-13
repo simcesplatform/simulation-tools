@@ -156,3 +156,7 @@ class ResultMessage(AbstractResultMessage):
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
+
+
+GeneralMessage.register_to_factory()
+ResultMessage.register_to_factory()

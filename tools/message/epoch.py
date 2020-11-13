@@ -94,3 +94,6 @@ class EpochMessage(AbstractResultMessage):
         if cls.validate_json(json_message):
             return cls(**json_message)
         return None
+
+
+EpochMessage.register_to_factory()
