@@ -196,9 +196,10 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 ## How to include simulation-tools to your own project
 
-NOTE: If you intend to use [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages) 
+NOTE: If you intend to use [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages)
 you do not have to include simulation-tools separately since domain-messages already includes it.
-  
+Use the [instructions](https://git.ain.rd.tut.fi/procemplus/domain-messages/-/blob/master/README.md#how-to-include-domain-messages-to-your-own-project) at domain-messages instead of these when using domain-messages.
+
 These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate. Two optional ways of including simulation-tools are described here.
 
 - Manual copy of the tools folder
