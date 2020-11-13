@@ -20,6 +20,7 @@ class MessageFactory:
     """Class for creating instances of non-abstract message classes,
        i.e. subclasses of BaseMessage that have non-empty definition for class constant CLASS_MESSAGE_TYPE.
     """
+    # TODO: implement unit test for the message factory (in addition to what callback unit test do)
     __message_types = {}
 
     @classmethod
