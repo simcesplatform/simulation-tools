@@ -123,11 +123,11 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
     - The actual source for the message classes can be found in the folder `tools/message/` but the this file can be used to simplify import calls.
     - Currently supported message types:
         - `BaseMessage`
-            - Message object that contains only SimulationId and Timestamp
-            - Log Writer can handle any message that contains at least there two attributes.
+            - Message object that contains only Type, SimulationId and Timestamp
+            - Log Writer can handle any message that contains at least these three attributes.
         - `AbstractMessage`
             - Child class of BaseMessage
-            - Adds Type, SourceProcessId and MessageId attributes
+            - Adds SourceProcessId and MessageId attributes
             - Definition: [AbstractMessage](https://wiki.eduuni.fi/pages/viewpage.action?spaceKey=tuniSimCES&title=AbstractMessage)
         - `AbstractResultMessage`
             - Child class of AbstractMessage
@@ -165,6 +165,8 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
         - `bytes`
             - Returns the message instance in UTF-8 encoded bytes format.
         - property getters and setters for each message attribute
+        - `register_to_factory` (class method)
+            - Factory registration method to allow the general message handling utils to know about new message class types.
     - Class for QuantityBlock that can be used as a message attribute
         - QuantityBlock is constructed similarly to the message classes
         - Supports Value and UnitOfMeasure attributes
@@ -285,6 +287,7 @@ A template for a new message type is given at [`message_template.txt`](message_t
     - Add a check function (with a name of `"_check_<property name>"` for each property that checks the validity of the given value. This can be very general in some cases. For example, "isinstance(value, str) and len(value) > 0" would ensure that "value" is a non-empty string.
     - Add a new implementation for the equality check method `"__eq__"`.
     - Add a new implementation for the "from_json" method. This is only for the return value type for the use of Python linters, not for any actual additional functionality.
+    - Add a call to the `register_to_factory` method after the message class definition.
 
 ## Run unit tests
 
