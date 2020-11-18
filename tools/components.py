@@ -18,6 +18,11 @@ SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
 SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
 SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
 SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
+
+# To receive any other messages other than "Epoch" and "SimState" from the message bus
+# use a comma separated list in SIMULATION_OTHER_TOPICS
+# for example: "Result,Info" would make the simulation component listen to topics
+# "Result" and "Info" in addition to the topics "Epoch" and "SimState
 SIMULATION_OTHER_TOPICS = "SIMULATION_OTHER_TOPICS"
 
 
