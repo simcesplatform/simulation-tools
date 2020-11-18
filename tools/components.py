@@ -2,12 +2,12 @@
 
 """This module contains a base simulation component that can communicate with the RabbitMQ message bus."""
 
-from typing import cast, Any, Union
+from typing import cast, Any, Dict, List, Union
 
 from tools.clients import RabbitmqClient
 from tools.messages import BaseMessage, AbstractMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
                            get_next_message_id
-from tools.tools import FullLogger, load_environmental_variables
+from tools.tools import FullLogger, EnvironmentVariable
 
 LOGGER = FullLogger(__name__)
 
@@ -35,47 +35,128 @@ class AbstractSimulationComponent:
     READY_STATUS = StatusMessage.STATUS_VALUES[0]  # "ready"
     ERROR_STATUS = StatusMessage.STATUS_VALUES[-1]  # "error"
 
-    def __init__(self, simulation_id: str = None, component_name: str = None):
+    def __init__(self,
+                 simulation_id: str = None,
+                 component_name: str = None,
+                 epoch_message_topic: str = None,
+                 simulation_state_message_topic: str = None,
+                 status_message_topic: str = None,
+                 error_message_topic: str = None,
+                 other_topics: List[str] = None,
+                 rabbitmq_host: str = None,
+                 rabbitmq_port: int = None,
+                 rabbitmq_login: str = None,
+                 rabbitmq_password: str = None,
+                 rabbitmq_ssl: bool = None,
+                 rabbitmq_ssl_version: str = None,
+                 rabbitmq_exchange: str = None,
+                 rabbitmq_exchange_autodelete: bool = None,
+                 rabbitmq_exchange_durable: bool = None):
         """Loads the simulation is and the component name as wells as the required topic names from environmental
-           variables and sets up the connection to the RabbitMQ message bus for which the connection parameters are
-           fetched from environmental variables. Opens a topic listener for the simulation state and epoch messages
-           after creating the connection to the message bus.
+        variables and sets up the connection to the RabbitMQ message bus for which the connection parameters are
+        fetched from environmental variables. Opens a topic listener for the simulation state and epoch messages
+        as well as other specified topics after creating the connection to the message bus.
+
+        If any attribute is missing or its value is None, an environmental value is used for the attribute value.
+        Most attributes also have a default value that is used when even the environmental value is missing.
+
+        The available attributes:
+        - simulation_id (str)
+            - the simulation_id for the simulation, i.e. SimulationId that is used in the messages
+            - environmental variable: "SIMULATION_ID"
+            - no default value
+        - component_name (str)
+            - the component name, i.e. the SourceProcessId, that the component uses in the messages
+            - environmental variable: "SIMULATION_COMPONENT_NAME"
+            - default value: "component"
+        - epoch_message_topic (str)
+            - the topic name for the Epoch messages
+            - environmental variable: "SIMULATION_EPOCH_MESSAGE_TOPIC"
+            - default value: "Epoch"
+        - simulation_state_message_topic (str)
+            - the topic name for the Simulation state messages
+            - environmental variable: "SIMULATION_STATE_MESSAGE_TOPIC"
+            - default value: "SimState"
+        - status_message_topic (str)
+            - the topic name for the Status ready messages
+            - environmental variable: "SIMULATION_STATUS_MESSAGE_TOPIC"
+            - default value: "Status.Ready"
+        - error_message_topic (str)
+            - the topic name for the Status error messages
+            - environmental variable: "SIMULATION_ERROR_MESSAGE_TOPIC"
+            - default value: "Status.Error"
+        - other_topics (List[str])
+            - a list of topic names that the component needs to listen to in addition to the epoch and simulation state
+            - environmental variable: "SIMULATION_OTHER_TOPICS"
+                - in the environmental variable the list is given as a comma seprated string, e.g. "Result,Info"
+            - default value: []
+        - rabbitmq_host (str)
+            - the host name for the RabbitMQ server
+            - environmental variable: "RABBITMQ_HOST"
+            - default value: "localhost"
+        - rabbitmq_port (int)
+            - the port number for the RabbitMQ server
+            - environmental variable: "RABBITMQ_PORT"
+            - default value: 5672
+        - rabbitmq_login (str)
+            - the username for access to the RabbitMQ server
+            - environmental variable: "RABBITMQ_LOGIN"
+            - default value: ""
+        - rabbitmq_password (str)
+            - the password for access to the RabbitMQ server
+            - environmental variable: "RABBITMQ_PASSWORD"
+            - default value: ""
+        - rabbitmq_ssl (bool)
+            - whether to use SSL connection to the RabbitMQ server
+            - environmental variable: "RABBITMQ_SSL"
+            - default value: False
+        - rabbitmq_ssl_version (str)
+            - the SSL version parameter for the SSL connection (ignored if rabbitmq_ssl is False)
+            - environmental variable: "RABBITMQ_SSL_VERSION"
+            - default value: "PROTOCOL_TLS"
+        - rabbitmq_exchange (str)
+            - the name for the exchange used by the RabbitMQ client
+            - environmental variable: "RABBITMQ_EXCHANGE"
+            - default value: ""
+        - rabbitmq_exchange_autodelete (bool)
+            - whether to automatically delete the exchange after use
+            - environmental variable: "RABBITMQ_EXCHANGE_AUTODELETE"
+            - default value: False
+        - rabbitmq_exchange_durable (bool)
+            - whether to setup the exchange to survive message bus restarts
+            - environmental variable: "RABBITMQ_EXCHANGE_DURABLE"
+            - default value: False
         """
-        # Load the component specific environmental variables.
-        env_variables = load_environmental_variables(
-            (SIMULATION_ID, str),
-            (SIMULATION_COMPONENT_NAME, str, "component"),
-            (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch"),
-            (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status.Ready"),
-            (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState"),
-            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Status.Error"),
-            (SIMULATION_OTHER_TOPICS, str, "")
+
+        # Start the connection to the RabbitMQ client using the given connection parameters and
+        # the environmental values for those parameters that were not given.
+        self._rabbitmq_client = RabbitmqClient(
+            **AbstractSimulationComponent.__get_rabbitmq_parameters(
+                host=rabbitmq_host,
+                port=rabbitmq_port,
+                login=rabbitmq_login,
+                password=rabbitmq_password,
+                ssl=rabbitmq_ssl,
+                ssl_version=rabbitmq_ssl_version,
+                exchange=rabbitmq_exchange,
+                exchange_autodelete=rabbitmq_exchange_autodelete,
+                exchange_durable=rabbitmq_exchange_durable
+            )
         )
 
-        # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
-        self._rabbitmq_client = RabbitmqClient()
-
-        if simulation_id is not None:
-            self._simulation_id = simulation_id
-        else:
-            self._simulation_id = cast(str, env_variables[SIMULATION_ID])
-        if component_name is not None:
-            self._component_name = component_name
-        else:
-            self._component_name = cast(str, env_variables[SIMULATION_COMPONENT_NAME])
+        # set the component variables for which the values can also be received from the environmental variables
+        self.__set_component_variables(
+            simulation_id=simulation_id,
+            component_name=component_name,
+            epoch_message_topic=epoch_message_topic,
+            simulation_state_message_topic=simulation_state_message_topic,
+            status_message_topic=status_message_topic,
+            error_message_topic=error_message_topic,
+            other_topics=other_topics
+        )
 
         self._is_stopped = True
         self.initialization_error = None
-
-        self._simulation_state_topic = cast(str, env_variables[SIMULATION_STATE_MESSAGE_TOPIC])
-        self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
-        self._status_topic = cast(str, env_variables[SIMULATION_STATUS_MESSAGE_TOPIC])
-        self._error_topic = cast(str, env_variables[SIMULATION_ERROR_MESSAGE_TOPIC])
-        other_topics = cast(str, env_variables[SIMULATION_OTHER_TOPICS])
-        if other_topics:
-            self._other_topics = ",".split(other_topics)
-        else:
-            self._other_topics = []
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
@@ -354,3 +435,56 @@ class AbstractSimulationComponent:
             return None
 
         return error_message
+
+    def __set_component_variables(self,
+                                  simulation_id: str = None,
+                                  component_name: str = None,
+                                  epoch_message_topic: str = None,
+                                  simulation_state_message_topic: str = None,
+                                  status_message_topic: str = None,
+                                  error_message_topic: str = None,
+                                  other_topics: List[str] = None):
+        """Sets the topic name related variables for the object. Called automatically from the constructor."""
+        if simulation_id is None:
+            simulation_id = cast(str, EnvironmentVariable(SIMULATION_ID, str).value)
+        if component_name is None:
+            component_name = cast(str, EnvironmentVariable(SIMULATION_COMPONENT_NAME, str, "component").value)
+
+        if simulation_state_message_topic is None:
+            simulation_state_message_topic = cast(
+                str, EnvironmentVariable(SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState").value)
+        if epoch_message_topic is None:
+            epoch_message_topic = cast(str, EnvironmentVariable(SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch").value)
+        if status_message_topic is None:
+            status_message_topic = cast(
+                str, EnvironmentVariable(SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status.Ready").value)
+        if error_message_topic is None:
+            error_message_topic = cast(
+                str, EnvironmentVariable(SIMULATION_ERROR_MESSAGE_TOPIC, str, "Status.Error").value)
+        if other_topics is None:
+            other_topics_from_env = cast(str, EnvironmentVariable(SIMULATION_OTHER_TOPICS, str, "").value)
+            if other_topics_from_env:
+                other_topics = ",".split(other_topics_from_env)
+            else:
+                other_topics = []
+
+        # NOTE: No checking for the validity of the parameters is done here. If for example the simulation_id is
+        #       invalid, the component should enter in an error state when trying to create a message.
+        self._simulation_id = simulation_id
+        self._component_name = component_name
+
+        self._simulation_state_topic = simulation_state_message_topic
+        self._epoch_topic = epoch_message_topic
+        self._status_topic = status_message_topic
+        self._error_topic = error_message_topic
+        self._other_topics = other_topics
+
+    @staticmethod
+    def __get_rabbitmq_parameters(**kwargs: Union[str, int, bool, None]) -> Dict[str, Union[str, int, bool]]:
+        """Returns a dictionary of parameters that can be used with the RabbitmqClient constructor.
+        Only those parameters that are not None will be included in the dictionary."""
+        return {
+            parameter_name: parameter_value
+            for parameter_name, parameter_value in kwargs.items()
+            if parameter_value is not None
+        }
