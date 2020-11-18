@@ -70,8 +70,10 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
                     - The simulation id for the simulation run
                 - `component_name`
                     - The component name, i.e. the source process id, for the simulation run
-                - The RabbitMQ connection parameters are taken from environmental variables. In a future update, the parameters could be alternatively given as constructor parameters.
-                - Also the simulation_id and component_name can be given as environmental variables.
+                - `other_topics`
+                    - A list of topics that the components wants to listen to (in addition to the Epoch and SimState topics)
+                - The RabbitMQ connection parameters can be either given as constructor parameters or taken from environmental variables.
+                - Also, all other parameters can be given as environmental variables. See the source code [components.py (line 38)](tools/components.py) for detailed information about the parameters and the corresponding environmental variables and their default values.
             - `start`
                 - Starts the component including setting up the message bus topic listeners.
                 - TODO: provide the user a way to give additional topics that are listened to
