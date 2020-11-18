@@ -18,6 +18,7 @@ SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
 SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
 SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
 SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
+SIMULATION_OTHER_TOPICS = "SIMULATION_OTHER_TOPICS"
 
 
 class AbstractSimulationComponent:
@@ -42,8 +43,8 @@ class AbstractSimulationComponent:
             (SIMULATION_EPOCH_MESSAGE_TOPIC, str, "Epoch"),
             (SIMULATION_STATUS_MESSAGE_TOPIC, str, "Status.Ready"),
             (SIMULATION_STATE_MESSAGE_TOPIC, str, "SimState"),
-            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Status.Error")
-
+            (SIMULATION_ERROR_MESSAGE_TOPIC, str, "Status.Error"),
+            (SIMULATION_OTHER_TOPICS, str, "")
         )
 
         # Start the connection to the RabbitMQ client with the parameter values read from environmental variables.
@@ -65,6 +66,11 @@ class AbstractSimulationComponent:
         self._epoch_topic = cast(str, env_variables[SIMULATION_EPOCH_MESSAGE_TOPIC])
         self._status_topic = cast(str, env_variables[SIMULATION_STATUS_MESSAGE_TOPIC])
         self._error_topic = cast(str, env_variables[SIMULATION_ERROR_MESSAGE_TOPIC])
+        other_topics = cast(str, env_variables[SIMULATION_OTHER_TOPICS])
+        if other_topics:
+            self._other_topics = ",".split(other_topics)
+        else:
+            self._other_topics = []
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
@@ -112,12 +118,11 @@ class AbstractSimulationComponent:
             self._rabbitmq_client = RabbitmqClient()
 
         LOGGER.info("Starting the component: '{:s}'".format(self.component_name))
-        self._rabbitmq_client.add_listener(
-            [
-                self._simulation_state_topic,
-                self._epoch_topic
-            ],
-            self.general_message_handler_base)
+        topics_to_listen = self._other_topics + [
+            self._simulation_state_topic,
+            self._epoch_topic
+        ]
+        self._rabbitmq_client.add_listener(topics_to_listen, self.general_message_handler_base)
         self._is_stopped = False
 
     async def stop(self) -> None:
