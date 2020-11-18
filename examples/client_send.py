@@ -38,20 +38,17 @@ async def start_sender():
     print()
 
     message = generator.get_status_ready_message(
-        EpochNumber=2,
-        TriggeringMessageIds=["new-id", "new-id2"])
-    send_message(client, "Status", message.bytes())
+        EpochNumber=1,
+        TriggeringMessageIds=["message-id-3"])
+    await client.send_message("Status", message.bytes())
 
     await asyncio.sleep(5)
     print()
 
-    message = generator.get_resource_state_message(
+    message = generator.get_status_ready_message(
         EpochNumber=2,
-        TriggeringMessageIds=["new-id3"],
-        Bus="bus",
-        RealPower=100.0,
-        ReactivePower=1.0)
-    send_message(client, "ResourceState.Generator", message.bytes())
+        TriggeringMessageIds=["new-id", "new-id2"])
+    send_message(client, "Status", message.bytes())
 
     await asyncio.sleep(5)
     print()
