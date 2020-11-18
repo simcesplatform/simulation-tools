@@ -130,19 +130,18 @@ class AbstractSimulationComponent:
 
         # Start the connection to the RabbitMQ client using the given connection parameters and
         # the environmental values for those parameters that were not given.
-        self._rabbitmq_client = RabbitmqClient(
-            **AbstractSimulationComponent.__get_rabbitmq_parameters(
-                host=rabbitmq_host,
-                port=rabbitmq_port,
-                login=rabbitmq_login,
-                password=rabbitmq_password,
-                ssl=rabbitmq_ssl,
-                ssl_version=rabbitmq_ssl_version,
-                exchange=rabbitmq_exchange,
-                exchange_autodelete=rabbitmq_exchange_autodelete,
-                exchange_durable=rabbitmq_exchange_durable
-            )
+        self._rabbitmq_parameters = AbstractSimulationComponent.__get_rabbitmq_parameters(
+            host=rabbitmq_host,
+            port=rabbitmq_port,
+            login=rabbitmq_login,
+            password=rabbitmq_password,
+            ssl=rabbitmq_ssl,
+            ssl_version=rabbitmq_ssl_version,
+            exchange=rabbitmq_exchange,
+            exchange_autodelete=rabbitmq_exchange_autodelete,
+            exchange_durable=rabbitmq_exchange_durable
         )
+        self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
 
         # set the component variables for which the values can also be received from the environmental variables
         self.__set_component_variables(
@@ -201,7 +200,7 @@ class AbstractSimulationComponent:
     async def start(self) -> None:
         """Starts the component."""
         if self.is_client_closed:
-            self._rabbitmq_client = RabbitmqClient()
+            self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
 
         LOGGER.info("Starting the component: '{:s}'".format(self.component_name))
         topics_to_listen = self._other_topics + [
