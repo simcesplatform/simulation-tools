@@ -156,6 +156,12 @@ class AbstractSimulationComponent:
 
         self._is_stopped = True
         self.initialization_error = None
+        # component goes to error state after it has sent an error message
+        # in an error state the component only reacts to simulation state message "stopped" by stopping and
+        # to epoch message and simulation state message "running" by sending an error message.
+        # Note: for errors during initialization, the self.initialization_error variable should be used
+        self._in_error_state = False
+        self._error_description = ""
 
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         self._latest_epoch = 0
@@ -199,6 +205,10 @@ class AbstractSimulationComponent:
 
     async def start(self) -> None:
         """Starts the component."""
+        if self.initialization_error is not None or self._in_error_state:
+            LOGGER.error("Cannot start component because it is in an error state: {}".format(self._error_description))
+            return
+
         if self.is_client_closed:
             self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
 
@@ -232,8 +242,12 @@ class AbstractSimulationComponent:
             if new_simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_RUNNING:
                 if self._latest_epoch == 0:
                     if self.initialization_error is None:
-                        await self.send_status_message()
-
+                        if not self._in_error_state:
+                            # normal situation
+                            await self.send_status_message()
+                        else:
+                            # component is in an error state
+                            await self.send_error_message(self._error_description)
                     else:
                         # the component could not be initialized properly
                         await self.send_error_message(self.initialization_error)
@@ -260,9 +274,16 @@ class AbstractSimulationComponent:
 
         self._latest_epoch = self._latest_epoch_message.epoch_number
 
+        if self._in_error_state:
+            # Component is in an error state and instead of starting a new epoch will just send an error message.
+            LOGGER.error("Component is in an error state: {}".format(self._error_description))
+            await self.send_error_message(self._error_description)
+            return True
+
         if self._completed_epoch == self._latest_epoch:
             LOGGER.warning("The epoch {:d} has already been processed.".format(self._completed_epoch))
             LOGGER.debug("Resending status message for epoch {:d}".format(self._latest_epoch))
+            await self.send_status_message()
             return True
 
         if await self.ready_for_new_epoch():
@@ -320,6 +341,10 @@ class AbstractSimulationComponent:
 
         elif isinstance(message_object, EpochMessage):
             await self.epoch_message_handler(message_object, message_routing_key)
+
+        elif self._in_error_state:
+            # component is in an error state and will not react to any other messages
+            return
 
         else:
             # Handling of any other message types would be added to a separate function.
@@ -381,6 +406,11 @@ class AbstractSimulationComponent:
 
     async def send_status_message(self) -> None:
         """Sends a new status message to the message bus."""
+        if self._in_error_state:
+            # component is in an error state => send an error message instead
+            await self.send_error_message(self._error_description)
+            return
+
         status_message = self._get_status_message()
         if status_message is None:
             await self.send_error_message("Internal error when creating status message.")
@@ -390,9 +420,13 @@ class AbstractSimulationComponent:
 
     async def send_error_message(self, description: str) -> None:
         """Sends an error message to the message bus."""
+        self._error_description = description
+        self._in_error_state = True
+
         error_message = self._get_error_message(description)
         if error_message is None:
             # So serious error that even the error message could not be created => stop the component.
+            LOGGER.error("Could not create an error message")
             await self.stop()
         else:
             await self._rabbitmq_client.send_message(self._error_topic, error_message.bytes())
