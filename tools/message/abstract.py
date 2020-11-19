@@ -190,6 +190,10 @@ class BaseMessage():
         if value is None:
             return can_be_none
 
+        # extra check to avoid illegal value types
+        if not isinstance(value, (str, float, QuantityBlock, dict)):
+            return False
+
         if isinstance(value, (QuantityBlock, dict)):
             if isinstance(value, dict):
                 if not QuantityBlock.validate_json(value):
@@ -252,6 +256,10 @@ class BaseMessage():
         """
         if value is None:
             return can_be_none
+
+        # extra check to avoid illegal value types
+        if not isinstance(value, (TimeSeriesBlock, dict)):
+            return False
 
         if isinstance(value, dict):
             if not TimeSeriesBlock.validate_json(value):
