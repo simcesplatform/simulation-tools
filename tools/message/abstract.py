@@ -9,8 +9,8 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
-                                      MessageValueError, MessageEpochValueError
-from tools.message.block import QuantityBlock
+                                      MessageValueError, MessageEpochValueError, MessageBlockError
+from tools.message.block import QuantityBlock, TimeSeriesBlock
 from tools.message.factory import MessageFactory
 from tools.tools import FullLogger
 
@@ -75,13 +75,19 @@ class BaseMessage():
     }
     # Attributes that can be missing from the message. Missing attributes are set to value None.
     OPTIONAL_ATTRIBUTES = []
+
     # attributes whose value is a QuantityBlock and the expected unit of measure.
+    # https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block
     QUANTITY_BLOCK_ATTRIBUTES = {}
+    # a list of attributes whose value is a TimeSeriesBlock.
+    # https://wiki.eduuni.fi/pages/viewpage.action?spaceKey=tuniSimCES&title=Time+series+block
+    TIMESERIES_BLOCK_ATTRIBUTES = []
 
     # Full list af all attribute names, any subclass should update these with additional names.
     MESSAGE_ATTRIBUTES_FULL = MESSAGE_ATTRIBUTES
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
     QUANTITY_BLOCK_ATTRIBUTES_FULL = QUANTITY_BLOCK_ATTRIBUTES
+    TIMESERIES_BLOCK_ATTRIBUTES_FULL = TIMESERIES_BLOCK_ATTRIBUTES
 
     DEFAULT_SIMULATION_ID = "2000-01-01T00:00:00.000Z"
 
@@ -184,6 +190,10 @@ class BaseMessage():
         if value is None:
             return can_be_none
 
+        # extra check to avoid illegal value types
+        if not isinstance(value, (str, float, QuantityBlock, dict)):
+            return False
+
         if isinstance(value, (QuantityBlock, dict)):
             if isinstance(value, dict):
                 if not QuantityBlock.validate_json(value):
@@ -202,12 +212,20 @@ class BaseMessage():
     def _set_quantity_block_value(self, message_attribute: str,
                                   quantity_value: Union[str, float, QuantityBlock, Dict[str, Any], None]):
         """Set value for a quantity block attribute.
+
         message_attribute: Name of the message attribute e.g. RealPower whose value is set.
         quantity_value: The value to be set which can be float, string, dict, QuantityBlock or None.
         A string value is converted to a float. A float value is converted into a QuantityBlock with the
         default unit for the attribute.
         A dict is assumed to have Value and UnitOfMeasure keys and is converted to a QuantityBlock.
+
+        Throws MessageBlockError if the message_attribute has not been included in QUANTITY_BLOCK_ATTRIBUTES_FULL.
         """
+        if message_attribute not in self.QUANTITY_BLOCK_ATTRIBUTES_FULL:
+            LOGGER.warning("Attribute {:s} is not registered as a quantity block".format(message_attribute))
+            raise MessageBlockError(
+                "Attribute {:s} is not registered as a quantity block".format(message_attribute))
+
         unit = self.QUANTITY_BLOCK_ATTRIBUTES_FULL[message_attribute]
         if isinstance(quantity_value, dict):
             quantity_value = QuantityBlock(**quantity_value)
@@ -222,6 +240,60 @@ class BaseMessage():
             self,
             "_" + self.__class__.__name__ + "__" + self.MESSAGE_ATTRIBUTES_FULL[message_attribute],
             quantity_value)
+
+    @classmethod
+    def _check_timeseries_block(cls, value: Union[TimeSeriesBlock, Dict[str, Any], None],
+                                can_be_none: bool = False,
+                                block_check: Callable[[TimeSeriesBlock], bool] = None) -> bool:
+        """Check that value for time series block is valid.
+
+        value:       The value to be checked.
+                     A dictionary has to in a form that can be used to construct a TimeSeriesBlock object.
+        can_be_none: Should a None value be accepted.
+        block_check: Optional additional check for the time series value. For example if it only certain value series
+                     names are allowed or the length of the value series is required to be a some fixed number.
+                     Must be a callable which accepts a TimeSeriesBlock argument and returns a boolean.
+        """
+        if value is None:
+            return can_be_none
+
+        # extra check to avoid illegal value types
+        if not isinstance(value, (TimeSeriesBlock, dict)):
+            return False
+
+        if isinstance(value, dict):
+            if not TimeSeriesBlock.validate_json(value):
+                return False
+            value = TimeSeriesBlock(**value)
+
+        return block_check is None or block_check(value)
+
+    def _set_timeseries_block_value(self, message_attribute: str,
+                                    timeseries_value: Union[TimeSeriesBlock, Dict[str, Any], None]):
+        """Sets value for a timeseries block attribute.
+
+        message_attribute: Name of the message attribute e.g. Prices whose value is set.
+        timeseries_value:  The value to be set which can be either a dictionary, TimeSeriesBlock or None.
+        A dictionary should follow the definition of time series block and it is converted to a TimeSeriesBlock.
+
+        Throws MessageBlockError if the message_attribute has not been included in TIMESERIES_BLOCK_ATTRIBUTES_FULL.
+        If the timeseries_value contains invalid values, throws an appropriate exception.
+        """
+        if message_attribute not in self.TIMESERIES_BLOCK_ATTRIBUTES_FULL:
+            LOGGER.warning("Attribute {:s} is not registered as an time series block".format(message_attribute))
+            raise MessageBlockError(
+                "Attribute {:s} is not registered as an time series block".format(message_attribute))
+
+        if isinstance(timeseries_value, dict):
+            timeseries_value = TimeSeriesBlock(**timeseries_value)
+
+        # set value for the attribute
+        # Note: attribute name has to include the class name to be of use in subclasses since that is what
+        #       the Python interpreter actually uses for self.__attribute_name
+        setattr(
+            self,
+            "_" + self.__class__.__name__ + "__" + self.MESSAGE_ATTRIBUTES_FULL[message_attribute],
+            timeseries_value)
 
     def json(self) -> Dict[str, Any]:
         """Returns the message as a JSON object."""

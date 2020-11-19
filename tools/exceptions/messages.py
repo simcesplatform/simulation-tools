@@ -41,3 +41,7 @@ class MessageEpochValueError(MessageValueError):
 
 class MessageStateValueError(MessageValueError):
     """Exception class for errors related to invalid simulation state values in messages."""
+
+
+class MessageBlockError(MessageError):
+    """Exception class for errors related to invalid use of block attributes."""

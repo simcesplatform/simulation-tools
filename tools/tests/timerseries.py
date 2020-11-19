@@ -11,7 +11,8 @@ import unittest
 
 from tools.datetime_tools import to_iso_format_datetime_string
 from tools.exceptions.timeseries import TimeSeriesDateError, TimeSeriesUnitError, TimeSeriesValueError
-from tools.timeseries import UnitCode, TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.unit import UnitCode
+from tools.message.block import TimeSeriesAttribute, TimeSeriesBlock
 
 
 def get_unit_code() -> Generator[str, None, None]:
@@ -75,13 +76,15 @@ class TestUnitCode(unittest.TestCase):
 
     def test_is_valid(self):
         """Unit test for testing the validity checking of UCUM unit codes."""
-        valid_codes = ["m", "ug", "mA", "m3/s", "J", "V", "MW"]
+        valid_codes = ["m", "ug", "mA", "m3/s", "J", "V", "MW", "kV.A{r}"]
         invalid_codes = ["invalid", "", "mmmm"]
 
         for valid_code in valid_codes:
-            self.assertTrue(UnitCode.is_valid(valid_code))
+            with self.subTest(valid_code=valid_code):
+                self.assertTrue(UnitCode.is_valid(valid_code))
         for invalid_code in invalid_codes:
-            self.assertFalse(UnitCode.is_valid(invalid_code))
+            with self.subTest(invalid_code=invalid_code):
+                self.assertFalse(UnitCode.is_valid(invalid_code))
 
 
 class TestTimeSeriesAttribute(unittest.TestCase):
