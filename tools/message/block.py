@@ -94,6 +94,9 @@ class QuantityBlock():
         '''
         return json.dumps(self.json())
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
     @classmethod
     def validate_json(cls, json_quantity_block: Dict[str, Any]) -> bool:
         '''
@@ -197,6 +200,9 @@ class TimeSeriesAttribute:
 
     def __str__(self) -> str:
         return json.dumps(self.json())
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     @classmethod
     def validate_json(cls, json_timeseries: Dict[str, Any]) -> bool:
@@ -366,6 +372,9 @@ class TimeSeriesBlock():
 
     def __str__(self) -> str:
         return json.dumps(self.json())
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     @classmethod
     def validate_json(cls, json_timeseries_block: Dict[str, Any]) -> bool:
