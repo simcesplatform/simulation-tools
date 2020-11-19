@@ -132,7 +132,7 @@ class ExampleMessage(AbstractResultMessage):
     @temperature.setter
     def temperature(self, temperature: Union[TimeSeriesBlock, Dict[str, Any]]):
         if self._check_temperature(temperature):
-            self._set_timeseries_block_value(self.TIME_ATTRIBUTE, temperature)
+            self._set_timeseries_block_value(self.TEMPERATURE_ATTRIBUTE, temperature)
         else:
             raise MessageValueError("Invalid value, {}, for attribute: temperature".format(temperature))
 
@@ -154,7 +154,8 @@ class ExampleMessage(AbstractResultMessage):
     def weight(self, weight: Union[TimeSeriesBlock, Dict[str, Any], None]):
         if self._check_weight(weight):
             self._set_timeseries_block_value(self.WEIGHT_ATTRIBUTE, weight)
-        raise MessageValueError("Invalid value, {}, for attribute: weight".format(weight))
+        else:
+            raise MessageValueError("Invalid value, {}, for attribute: weight".format(weight))
 
     # provide a new implementation for the "test of message equality" function
     def __eq__(self, other: Any) -> bool:
@@ -173,7 +174,7 @@ class ExampleMessage(AbstractResultMessage):
     # These should return True only when the given parameter corresponds to an acceptable value for the attribute
     @classmethod
     def _check_positive_integer(cls, positive_integer: int) -> bool:
-        return positive_integer > 0
+        return isinstance(positive_integer, int) and positive_integer > 0
 
     @classmethod
     def _check_power_quantity(cls, power_quantity: Union[str, float, QuantityBlock, Dict[str, Any]]) -> bool:
@@ -191,7 +192,7 @@ class ExampleMessage(AbstractResultMessage):
 
     @classmethod
     def _check_eight_characters(cls, eight_characters: Union[str, None]) -> bool:
-        return eight_characters is None or len(eight_characters) == 8
+        return eight_characters is None or (isinstance(eight_characters, str) and len(eight_characters) == 8)
 
     @classmethod
     def _check_time_quantity(cls, time_quantity: Union[str, float, QuantityBlock, Dict[str, Any], None]) -> bool:
