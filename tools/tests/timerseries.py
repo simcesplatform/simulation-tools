@@ -12,7 +12,7 @@ import unittest
 from tools.datetime_tools import to_iso_format_datetime_string
 from tools.exceptions.timeseries import TimeSeriesDateError, TimeSeriesUnitError, TimeSeriesValueError
 from tools.message.unit import UnitCode
-from tools.timeseries import TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.block import TimeSeriesAttribute, TimeSeriesBlock
 
 
 def get_unit_code() -> Generator[str, None, None]:
