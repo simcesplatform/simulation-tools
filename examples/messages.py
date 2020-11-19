@@ -6,9 +6,11 @@ import json
 import logging
 
 # the used message examples are defined in examples/message_json.py
-from examples.message_json import status_ready_message, status_error_message, \
+from examples.message_json import status_ready_message, status_error_message, example_message, \
                                   invalid_status_1, invalid_status_2, invalid_status_3
 from tools.exceptions.messages import MessageError
+from tools.message.block import TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.example import ExampleMessage
 from tools.messages import StatusMessage, MessageGenerator
 from tools.tools import FullLogger
 
@@ -61,6 +63,38 @@ def test_from_json():
     LOGGER.info("Warnings for Status message:             {}".format(status_error.warnings))
     LOGGER.info("Value for Status message:                {}".format(status_error.value))
     LOGGER.info("Descriptions for Status message:         {}".format(status_error.description))
+    LOGGER.info("")
+
+    LOGGER.info("Example of creating a message of type Example from JSON")
+    example = ExampleMessage.from_json(example_message)
+    LOGGER.info("Example:   {}".format(type(example)))
+    LOGGER.info(json.dumps(example.json(), indent=4))  # output the message as JSON in a readable format
+    LOGGER.info("")
+
+    LOGGER.info("Type for Example message:                      {}".format(example.message_type))
+    LOGGER.info("SourceProcessId for Example message:           {}".format(example.source_process_id))
+    LOGGER.info("MessageId for Example message:                 {}".format(example.message_id))
+    LOGGER.info("Timestamp for Example message:                 {}".format(example.timestamp))
+    LOGGER.info("EpochNumber for Example message:               {}".format(example.epoch_number))
+    LOGGER.info("LastUpdatedInEpoch for Example message:        {}".format(example.last_updated_in_epoch))
+    LOGGER.info("TriggeringMessageIds for Example message:      {}".format(example.triggering_message_ids))
+    LOGGER.info("Warnings for Example message:                  {}".format(example.warnings))
+    LOGGER.info("")
+    LOGGER.info("PositiveInteger for Example message:           {}".format(example.positive_integer))
+    LOGGER.info("EightCharacters for Example message:           {}".format(example.eight_characters))
+    LOGGER.info("PowerQuantity value for Example message:       {}".format(example.power_quantity.value))
+    LOGGER.info("PowerQuantity unit for Example message:        {}".format(example.power_quantity.unit_of_measure))
+    LOGGER.info("TimeQuantity value for Example message:        {}".format(example.time_quantity.value))
+    LOGGER.info("TimeQuantity unit for Example message:         {}".format(example.time_quantity.unit_of_measure))
+    LOGGER.info("")
+    LOGGER.info("Temperature time index for Example message:    {}".format(example.temperature.time_index))
+    LOGGER.info("Temperature PlaceA series for Example message: {}".format(example.temperature.series["PlaceA"]))
+    LOGGER.info("Temperature PlaceB values for Example message: {}".format(
+        example.temperature.get_single_series("PlaceB").values))
+    LOGGER.info("Temperature PlaceB unit for Example message:   {}".format(
+        example.temperature.get_single_series("PlaceB").unit_of_measurement))
+    LOGGER.info("Weight time index for Example message:         {}".format(example.weight.time_index))
+    LOGGER.info("Weight series for Example message:             {}".format(example.weight.series))
     LOGGER.info("")
 
 
@@ -116,7 +150,8 @@ def test_message_generator():
         EpochNumber=0,
         TriggeringMessageIds=["manager-1"],
         Value="ready")
-    LOGGER.info("{} : {}".format(type(status1), status1))
+    LOGGER.info("{}".format(type(status1)))
+    LOGGER.info(json.dumps(status1.json(), indent=4))
     LOGGER.info("")
 
     # Using the direct helper method get_status_ready_message to create a Status ready message
@@ -124,7 +159,33 @@ def test_message_generator():
     status2 = message_generator.get_status_ready_message(
         EpochNumber=1,
         TriggeringMessageIds=["manager-2"])
-    LOGGER.info("{} : {}".format(type(status2), status2))
+    LOGGER.info("{}".format(type(status2)))
+    LOGGER.info(json.dumps(status2.json(), indent=4))
+    LOGGER.info("")
+
+    # Using the general get_message method to create an Example message.
+    LOGGER.info("Generating an example message")
+    example = message_generator.get_message(
+        ExampleMessage,
+        EpochNumber=5,
+        TriggeringMessageIds=["manager-6"],
+        PositiveInteger=42,
+        PowerQuantity=10.1,
+        Temperature=TimeSeriesBlock(
+            TimeIndex=["2010-01-01T00:00:00Z", "2010-01-02T00:00:00Z", "2010-01-03T00:00:00Z"],
+            Series={
+                "PlaceA": TimeSeriesAttribute(
+                    UnitOfMeasure="Cel",
+                    Values=[-10.1, -12.3, -11.2]
+                ),
+                "PlaceB": TimeSeriesAttribute(
+                    UnitOfMeasure="Cel",
+                    Values=[-5.6, -7.9, -8.2]
+                )
+            }
+        ))
+    LOGGER.info("{}".format(type(example)))
+    LOGGER.info(json.dumps(example.json(), indent=4))
     LOGGER.info("")
 
     # Examples of trying to create an invalid status messages
