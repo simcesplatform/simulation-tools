@@ -16,6 +16,12 @@ class <message type>(AbstractResultMessage):
         ...
     }
 
+    # all attributes that are using the Quantity array block format should be listed here
+    QUANTITY_ARRAY_BLOCK_ATTRIBUTES = {
+        <JSON attribute name>: <the expected unit in UCUM format>,
+        ...
+    }
+
     # all attributes that are using the Time series block format should be listed here
     TIMESERIES_BLOCK_ATTRIBUTES = [<timeseries attribute 1>, ...]
 
@@ -29,6 +35,10 @@ class <message type>(AbstractResultMessage):
     QUANTITY_BLOCK_ATTRIBUTES_FULL = {
         **AbstractResultMessage.QUANTITY_BLOCK_ATTRIBUTES_FULL,
         **QUANTITY_BLOCK_ATTRIBUTES
+    }
+    QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL = {
+        **AbstractResultMessage.QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL,
+        **QUANTITY_ARRAY_BLOCK_ATTRIBUTES
     }
     TIMESERIES_BLOCK_ATTRIBUTES_FULL = (
         AbstractResultMessage.TIMESERIES_BLOCK_ATTRIBUTES_FULL +
