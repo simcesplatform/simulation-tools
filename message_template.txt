@@ -16,6 +16,9 @@ class <message type>(AbstractResultMessage):
         ...
     }
 
+    # all attributes that are using the Time series block format should be listed here
+    TIMESERIES_BLOCK_ATTRIBUTES = [<timeseries attribute 1>, ...]
+
     # always include these definitions to update the full list of attributes to these class variables
     # no need to modify anything here
     MESSAGE_ATTRIBUTES_FULL = {
@@ -24,9 +27,13 @@ class <message type>(AbstractResultMessage):
     }
     OPTIONAL_ATTRIBUTES_FULL = AbstractResultMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
     QUANTITY_BLOCK_ATTRIBUTES_FULL = {
-        **AbstractMessage.QUANTITY_BLOCK_ATTRIBUTES_FULL,
+        **AbstractResultMessage.QUANTITY_BLOCK_ATTRIBUTES_FULL,
         **QUANTITY_BLOCK_ATTRIBUTES
     }
+    TIMESERIES_BLOCK_ATTRIBUTES_FULL = (
+        AbstractResultMessage.TIMESERIES_BLOCK_ATTRIBUTES_FULL +
+        TIMESERIES_BLOCK_ATTRIBUTES
+    )
 
     # for each attributes added by this message type provide a property function to get the value of the attribute
     # the name of the properties must correspond to the names given in MESSAGE_ATTRIBUTES
@@ -45,7 +52,8 @@ class <message type>(AbstractResultMessage):
     def <property name 1>(self, <parameter name>: <the Python types you can use to set the value>):
         if self._check_<property name 1>(<parameter name>):
             self.__<property name 1> = <the value calculated based on the value of <parameter name>>
-        raise <message exception type (MessageError or one its child classes)>(<appropriate error message string>)
+        else:
+            raise <message exception type (MessageError or one its child classes)>(<appropriate error message string>)
 
     # property setters for all the other attributes
     ...
