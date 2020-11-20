@@ -221,7 +221,7 @@ class ExampleMessage(AbstractResultMessage):
             if temperature_series_name not in block_series:
                 return False
             current_series = block_series[temperature_series_name]
-            if current_series.unit_of_measurement != cls.TEMPERATURE_SERIES_UNIT or len(current_series.values) < 3:
+            if current_series.unit_of_measure != cls.TEMPERATURE_SERIES_UNIT or len(current_series.values) < 3:
                 return False
 
         return True
@@ -233,7 +233,7 @@ class ExampleMessage(AbstractResultMessage):
             return False
 
         for _, series_attribute in block_series.items():
-            if series_attribute.unit_of_measurement not in cls.ALLOWED_WEIGHT_UNITS:
+            if series_attribute.unit_of_measure not in cls.ALLOWED_WEIGHT_UNITS:
                 return False
 
         return True

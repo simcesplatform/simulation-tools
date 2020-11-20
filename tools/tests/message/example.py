@@ -10,7 +10,7 @@ import unittest
 from tools.datetime_tools import to_utc_datetime_object
 from tools.exceptions.messages import MessageValueError
 from tools.message.abstract import AbstractResultMessage
-from tools.message.block import QuantityBlock, TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.block import QuantityBlock, ValueArrayBlock, TimeSeriesBlock
 from tools.message.example import ExampleMessage
 
 EXAMPLE_MESSAGE = {
@@ -90,7 +90,7 @@ ALTERNATE_MESSAGE = {
             "2020-07-03T17:12:32.222Z"
         ],
         Series={
-            "PlaceA": TimeSeriesAttribute(
+            "PlaceA": ValueArrayBlock(
                 UnitOfMeasure="Cel",
                 Values=[
                     -15.1,
@@ -98,7 +98,7 @@ ALTERNATE_MESSAGE = {
                     -4.3
                 ]
             ),
-            "PlaceB": TimeSeriesAttribute(
+            "PlaceB": ValueArrayBlock(
                 UnitOfMeasure="Cel",
                 Values=[
                     23.7,
@@ -157,14 +157,14 @@ class TestExampleMessage(unittest.TestCase):
         self.assertEqual(example_message.temperature.time_index, EXAMPLE_MESSAGE["Temperature"]["TimeIndex"])
         for series_name, series_values in EXAMPLE_MESSAGE["Temperature"]["Series"].items():
             with self.subTest(series_name=series_name):
-                self.assertEqual(example_message.temperature.series[series_name].unit_of_measurement,
+                self.assertEqual(example_message.temperature.series[series_name].unit_of_measure,
                                  series_values["UnitOfMeasure"])
                 self.assertEqual(example_message.temperature.series[series_name].values,
                                  series_values["Values"])
         self.assertEqual(example_message.weight.time_index, EXAMPLE_MESSAGE["Weight"]["TimeIndex"])
         for series_name, series_values in EXAMPLE_MESSAGE["Weight"]["Series"].items():
             with self.subTest(series_name=series_name):
-                self.assertEqual(example_message.weight.series[series_name].unit_of_measurement,
+                self.assertEqual(example_message.weight.series[series_name].unit_of_measure,
                                  series_values["UnitOfMeasure"])
                 self.assertEqual(example_message.weight.series[series_name].values,
                                  series_values["Values"])
@@ -297,9 +297,9 @@ class TestExampleMessage(unittest.TestCase):
                 TimeSeriesBlock(
                     TimeIndex=["2000-01-01T00:00:00Z", "2000-01-02T00:00:00Z", "2000-01-03T00:00:00Z"],
                     Series={
-                        "PlaceA": TimeSeriesAttribute(UnitOfMeasure="Cel", Values=[12.3, 12.4, 12.5]),
-                        "PlaceB": TimeSeriesAttribute(UnitOfMeasure="Cel", Values=[13.3, 14.4, 15.5]),
-                        "PlaceC": TimeSeriesAttribute(UnitOfMeasure="Cel", Values=[1.3, 1.4, 1.5])
+                        "PlaceA": ValueArrayBlock(UnitOfMeasure="Cel", Values=[12.3, 12.4, 12.5]),
+                        "PlaceB": ValueArrayBlock(UnitOfMeasure="Cel", Values=[13.3, 14.4, 15.5]),
+                        "PlaceC": ValueArrayBlock(UnitOfMeasure="Cel", Values=[1.3, 1.4, 1.5])
                     }
                 )
             ],
@@ -315,9 +315,9 @@ class TestExampleMessage(unittest.TestCase):
                 TimeSeriesBlock(
                     TimeIndex=["2000-01-01T00:00:00Z", "2000-01-02T00:00:00Z", "2000-01-03T00:00:00Z"],
                     Series={
-                        "Cargo1": TimeSeriesAttribute(UnitOfMeasure="kg", Values=[12.3, 12.4, 12.5]),
-                        "Cargo2": TimeSeriesAttribute(UnitOfMeasure="g", Values=[13.3, 14.4, 15.5]),
-                        "Cargo3": TimeSeriesAttribute(UnitOfMeasure="mg", Values=[1.3, 1.4, 1.5])
+                        "Cargo1": ValueArrayBlock(UnitOfMeasure="kg", Values=[12.3, 12.4, 12.5]),
+                        "Cargo2": ValueArrayBlock(UnitOfMeasure="g", Values=[13.3, 14.4, 15.5]),
+                        "Cargo3": ValueArrayBlock(UnitOfMeasure="mg", Values=[1.3, 1.4, 1.5])
                     }
                 )
             ]

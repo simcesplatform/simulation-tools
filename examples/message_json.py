@@ -6,7 +6,7 @@
 #       I.e. all JSON objects cab be Python dictionaries but not all Python dictionaries are JSON objects.
 
 from tools.message.abstract import AbstractResultMessage
-from tools.message.block import QuantityBlock, TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.block import QuantityBlock, TimeSeriesBlock, ValueArrayBlock
 
 # define example status ready message in JSON format (without timestamp or optional attributes)
 status_ready_message = {
@@ -61,7 +61,7 @@ example_message = {
             "2020-07-03T17:12:32.222Z"
         ],
         Series={
-            "PlaceA": TimeSeriesAttribute(
+            "PlaceA": ValueArrayBlock(
                 UnitOfMeasure="Cel",
                 Values=[
                     -15.1,
@@ -69,7 +69,7 @@ example_message = {
                     -4.3
                 ]
             ),
-            "PlaceB": TimeSeriesAttribute(
+            "PlaceB": ValueArrayBlock(
                 UnitOfMeasure="Cel",
                 Values=[
                     23.7,

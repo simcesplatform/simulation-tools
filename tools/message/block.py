@@ -4,14 +4,12 @@ Defines various message attribute value blocks that different kinds of messages 
 """
 
 from __future__ import annotations
-import collections
 import datetime
 import json
 from typing import Any, Dict, List, Union
 
 from tools.datetime_tools import to_iso_format_datetime_string
-from tools.exceptions.messages import MessageValueError
-from tools.exceptions.timeseries import TimeSeriesError, TimeSeriesDateError, TimeSeriesUnitError, TimeSeriesValueError
+from tools.exceptions.messages import MessageDateError, MessageError, MessageValueError, MessageUnitValueError
 from tools.message.unit import UnitCode
 from tools.tools import FullLogger
 
@@ -123,51 +121,53 @@ class QuantityBlock():
         return None
 
 
-class TimeSeriesAttribute:
-    """Class for containing one time series attribute within a TimeSeriesBlock."""
+class ValueArrayBlock:
+    """
+    Represents an array of values with an associated unit of measurement.
+    The allowed value types are int, float, str and bool. The value array can contain only one type of values.
+    """
+    ALLOWED_VALUE_TYPES = [int, float, str, bool]
+
+    # name of block attribute which contains the array of number values
+    VALUES_ATTRIBUTE = 'Values'
+    # name of the block attribute which contains the unit of measurement.
+    UNIT_OF_MEASURE_ATTRIBUTE = 'UnitOfMeasure'
+
     # By default the unit code validator is not in use.
     UNIT_CODE_VALIDATION = False
 
-    TIMESERIES_ATTRIBUTES = {
-        "UnitOfMeasure": "unit_of_measurement",
-        "Values": "values"
-    }
-
-    def __init__(self, **kwargs):
-        """Only attributes "UnitOfMeasure" and "Values" are considered.
-           If either attribute contains invalid values, throws an instance of TimeSeriesError.
-        """
-        for json_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES:
-            setattr(self, TimeSeriesAttribute.TIMESERIES_ATTRIBUTES[json_attribute_name],
-                    kwargs.get(json_attribute_name, None))
+    def __init__(self, Values: Union[List[int], List[float], List[str], List[bool]], UnitOfMeasure: str):
+        """Creates a new value array block. Throws an exception if parameters contain invalid values."""
+        self.values = Values
+        self.unit_of_measure = UnitOfMeasure
 
     @property
-    def unit_of_measurement(self) -> str:
-        """The unit of measurement for the time series."""
-        return self.__unit_of_measurement
+    def unit_of_measure(self) -> str:
+        """The unit of measurement for the value array block."""
+        return self.__unit_of_measure
 
     @property
     def values(self) -> Union[List[bool], List[int], List[float], List[str]]:
-        """The values for the time series."""
+        """The values for the value array block"""
         return self.__values
 
-    @unit_of_measurement.setter
-    def unit_of_measurement(self, unit_of_measurement: str):
-        if not self._check_unit_of_measurement(unit_of_measurement):
-            raise TimeSeriesUnitError("'{:s}' is not an allowed unit of measurement".format(str(unit_of_measurement)))
-        self.__unit_of_measurement = unit_of_measurement
+    @unit_of_measure.setter
+    def unit_of_measure(self, unit_of_measure: str):
+        if not self._check_unit_of_measure(unit_of_measure):
+            raise MessageUnitValueError("'{:s}' is not an allowed unit of measurement".format(str(unit_of_measure)))
+        self.__unit_of_measure = unit_of_measure
 
     @values.setter
     def values(self, values: Union[List[bool], List[int], List[float], List[str]]):
         if not self._check_values(values):
-            raise TimeSeriesValueError("'{:s}' is not a valid time series value list".format(str(values)))
+            raise MessageValueError("'{:s}' is not a valid for value array block".format(str(values)))
         self.__values = values
 
     @classmethod
-    def _check_unit_of_measurement(cls, unit_of_measurement: str) -> bool:
+    def _check_unit_of_measure(cls, unit_of_measure: str) -> bool:
         return (
-            isinstance(unit_of_measurement, str) and
-            (not cls.UNIT_CODE_VALIDATION or UnitCode.is_valid(unit_of_measurement))
+            isinstance(unit_of_measure, str) and
+            (not cls.UNIT_CODE_VALIDATION or UnitCode.is_valid(unit_of_measure))
         )
 
     @classmethod
@@ -178,23 +178,26 @@ class TimeSeriesAttribute:
             return True
 
         value_type = type(values[0])
+        if value_type not in cls.ALLOWED_VALUE_TYPES:  # check that the first value is a valid type
+            return False
+
         for value in values:
             # Check that all the values in the list are of the same type.
-            if not isinstance(value, (bool, int, float, str)) or not isinstance(value, value_type):
+            if not isinstance(value, value_type):
                 return False
         return True
 
     def json(self) -> Dict[str, Any]:
         """Returns the time series attribute as JSON object."""
         return {
-            json_attribute_name: getattr(self, object_attribute_name)
-            for json_attribute_name, object_attribute_name in TimeSeriesAttribute.TIMESERIES_ATTRIBUTES.items()
+            self.UNIT_OF_MEASURE_ATTRIBUTE: self.unit_of_measure,
+            self.VALUES_ATTRIBUTE: self.values
         }
 
     def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, TimeSeriesAttribute) and
-            self.unit_of_measurement == other.unit_of_measurement and
+            isinstance(other, self.__class__) and
+            self.unit_of_measure == other.unit_of_measure and
             self.values == other.values
         )
 
@@ -205,33 +208,45 @@ class TimeSeriesAttribute:
         return self.__str__()
 
     @classmethod
-    def validate_json(cls, json_timeseries: Dict[str, Any]) -> bool:
-        """Validates the given the given json object for the attributes covered in TimeSeriesAttribute class.
-           Returns True if the time series is ok. Otherwise, return False."""
-        if not isinstance(json_timeseries, dict):
+    def validate_json(cls, json_value_array_block: Dict[str, Any]) -> bool:
+        """Validates if the given json object can be used to create a valid ValueArrayBlock instance.
+        Returns True if the value array block is ok. Otherwise, returns False."""
+        if not isinstance(json_value_array_block, dict):
+            return False
+        try:
+            cls(**json_value_array_block)
+            return True
+
+        except (MessageValueError, ValueError, TypeError) as message_error:
+            LOGGER.warning("{:s} error '{:s}' encountered when validating value array block".format(
+                str(type(message_error)), str(message_error)))
             return False
 
-        for json_attribute_name, object_attribute_name in cls.TIMESERIES_ATTRIBUTES.items():
-            if json_attribute_name not in json_timeseries:
-                LOGGER.warning("{:s} attribute is missing from the time series".format(json_attribute_name))
-                return False
-
-            if not getattr(
-                    cls,
-                    "_".join(["_check", object_attribute_name]))(json_timeseries[json_attribute_name]):
-                LOGGER.warning("'{:s}' is not valid value for {:s}".format(
-                    str(json_timeseries[json_attribute_name]), json_attribute_name))
-                return False
-
-        return True
-
     @classmethod
-    def from_json(cls, json_timeseries: Dict[str, Any]) -> Union[TimeSeriesAttribute, None]:
+    def from_json(cls, json_value_array_block: Dict[str, Any]) -> Union[ValueArrayBlock, None]:
         """Returns a class object created based on the given JSON attributes.
            If the given JSON is contains invalid values, returns None."""
-        if cls.validate_json(json_timeseries):
-            return cls(**json_timeseries)
+        if cls.validate_json(json_value_array_block):
+            return cls(**json_value_array_block)
         return None
+
+
+class QuantityArrayBlock(ValueArrayBlock):
+    """
+    Represents an array of float values with an associated unit of measurement.
+    """
+    ALLOWED_VALUE_TYPES = [float]
+
+    @property
+    def values(self) -> List[float]:
+        """The values for the value array block"""
+        return self.__values
+
+    @values.setter
+    def values(self, values: List[float]):
+        if not self._check_values(values):
+            raise MessageValueError("'{:s}' is not a valid for value array block".format(str(values)))
+        self.__values = values
 
 
 class TimeSeriesBlock():
@@ -239,18 +254,11 @@ class TimeSeriesBlock():
     TIMEINDEX_ATTRIBUTE = "TimeIndex"
     SERIES_ATTRIBUTE = "Series"
 
-    TIMESERIES_BLOCK_ATTRIBUTES = collections.OrderedDict({
-        TIMEINDEX_ATTRIBUTE: "time_index",
-        SERIES_ATTRIBUTE: "series"
-    })
-
-    def __init__(self, **kwargs):
-        """Only attributes "TimeIndex" and "Series" are considered.
-           If either attribute contains invalid values, throws an instance of TimeSeriesError.
-        """
-        for json_attribute_name in TimeSeriesBlock.TIMESERIES_BLOCK_ATTRIBUTES:
-            setattr(self, TimeSeriesBlock.TIMESERIES_BLOCK_ATTRIBUTES[json_attribute_name],
-                    kwargs.get(json_attribute_name, None))
+    def __init__(self, TimeIndex: List[Union[str, datetime.datetime]],
+                 Series: Dict[str, Union[ValueArrayBlock, Dict[str, Any]]]):
+        """Creates a new Time series block. Throws an exception if parameters contain invalid values."""
+        self.time_index = TimeIndex
+        self.series = Series
 
     @property
     def time_index(self) -> List[str]:
@@ -258,13 +266,13 @@ class TimeSeriesBlock():
         return self.__time_index
 
     @property
-    def series(self) -> Dict[str, TimeSeriesAttribute]:
+    def series(self) -> Dict[str, ValueArrayBlock]:
         """The list of the time series values as dictionary with the series name as keys and
-           TimeSeriesAttribute objects as values."""
+           ValueArrayBlock objects as values."""
         return self.__series
 
-    def get_single_series(self, series_name: str) -> Union[TimeSeriesAttribute, None]:
-        """Returns the corresponding time series values as a TimeSeriesAttribute object.
+    def get_single_series(self, series_name: str) -> Union[ValueArrayBlock, None]:
+        """Returns the corresponding time series values as a ValueArrayBlock object.
            Returns None if the series does not exist."""
         return self.__series.get(series_name, None)
 
@@ -274,7 +282,7 @@ class TimeSeriesBlock():
             expected_list_length = None
         else:
             # Check that the time series list is the same length as the first value series list.
-            expected_list_length = len(self.get_single_series(next(iter(self.series))).values)
+            expected_list_length = len(self.series[next(iter(self.series))].values)
 
         if self._check_time_index(time_index, expected_list_length):
             new_time_index_list = []
@@ -283,14 +291,14 @@ class TimeSeriesBlock():
                 if isinstance(iso_format_string, str):
                     new_time_index_list.append(iso_format_string)
                 else:
-                    raise TimeSeriesDateError("'{:s}' is not a valid date time value".format(str(datetime_value)))
+                    raise MessageDateError("'{:s}' is not a valid date time value".format(str(datetime_value)))
             self.__time_index = new_time_index_list
 
         else:
-            raise TimeSeriesDateError("'{:s}' is not a valid list of date times".format(str(time_index)))
+            raise MessageDateError("'{:s}' is not a valid list of date times".format(str(time_index)))
 
     @series.setter
-    def series(self, series: Dict[str, Union[TimeSeriesAttribute, dict]]):
+    def series(self, series: Dict[str, Union[ValueArrayBlock, Dict[str, Any]]]):
         if getattr(self, "time_index", None) is None:
             expected_list_length = None
         else:
@@ -298,23 +306,21 @@ class TimeSeriesBlock():
             expected_list_length = len(self.time_index)
 
         if not self._check_series(series, expected_list_length):
-            raise TimeSeriesValueError("'{:s}' is not a valid dictionary of time series values".format(str(series)))
+            raise MessageValueError("'{:s}' is not a valid dictionary of time series values".format(str(series)))
 
         self.__series = {}
         for series_name, series_values in series.items():
-            if isinstance(series_values, TimeSeriesAttribute):
+            if isinstance(series_values, ValueArrayBlock):
                 self.__series[series_name] = series_values
             else:
-                attribute_series = TimeSeriesAttribute.from_json(series_values)
-                if attribute_series is not None:
-                    self.__series[series_name] = attribute_series
+                self.__series[series_name] = ValueArrayBlock(**series_values)
 
-    def add_series(self, series_name: str, series_values: TimeSeriesAttribute):
+    def add_series(self, series_name: str, series_values: ValueArrayBlock):
         """Adds a new or replaces an old value series for the TimeSeriesBlock."""
         if self._check_series({series_name: series_values}, len(self.__time_index)):
             self.series[series_name] = series_values
         else:
-            raise TimeSeriesValueError("'{:s}' is not a valid value series for {:s}".format(
+            raise MessageValueError("'{:s}' is not a valid value series for {:s}".format(
                 str(series_name), str(series_values)))
 
     @classmethod
@@ -334,7 +340,8 @@ class TimeSeriesBlock():
         return True
 
     @classmethod
-    def _check_series(cls, series: Dict[str, Union[TimeSeriesAttribute, dict]], list_length: int = None) -> bool:
+    def _check_series(cls, series: Dict[str, Union[ValueArrayBlock, Dict[str, Any]]], list_length: int = None) -> bool:
+        # There must be at least one series
         if not isinstance(series, dict) or len(series) == 0:
             return False
 
@@ -342,19 +349,21 @@ class TimeSeriesBlock():
             if not isinstance(series_name, str) or len(series_name) == 0:
                 return False
 
-            if isinstance(series_values, TimeSeriesAttribute):
+            if isinstance(series_values, ValueArrayBlock):
                 if list_length is not None and len(series_values.values) != list_length:
                     return False
             else:
-                timeseries_attribute = TimeSeriesAttribute.from_json(series_values)
-                if (timeseries_attribute is None or
-                        (list_length is not None and len(timeseries_attribute.values) != list_length)):
+                try:
+                    timeseries_attribute = ValueArrayBlock(**series_values)
+                    if list_length is not None and len(timeseries_attribute.values) != list_length:
+                        return False
+                except (MessageError, ValueError):
                     return False
 
         return True
 
     def json(self) -> Dict[str, Any]:
-        """Returns the timeseries block as a JSON object."""
+        """Returns the Time series block as a JSON object."""
         return {
             self.TIMEINDEX_ATTRIBUTE: self.time_index,
             self.SERIES_ATTRIBUTE: {
@@ -365,7 +374,7 @@ class TimeSeriesBlock():
 
     def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, TimeSeriesBlock) and
+            isinstance(other, self.__class__) and
             self.time_index == other.time_index and
             self.series == other.series
         )
@@ -384,7 +393,7 @@ class TimeSeriesBlock():
             _ = cls(**json_timeseries_block)
             return True
 
-        except TimeSeriesError as time_series_error:
+        except (MessageError, ValueError, TypeError) as time_series_error:
             LOGGER.warning("{:s} error '{:s}' encountered when validating time series block".format(
                 str(type(time_series_error)), str(time_series_error)))
             return False

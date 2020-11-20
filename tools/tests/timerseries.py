@@ -6,13 +6,13 @@ import datetime
 import json
 import random
 import string
-from typing import Dict, Generator, List, Union
+from typing import Dict, Generator, List, Union, cast
 import unittest
 
 from tools.datetime_tools import to_iso_format_datetime_string
-from tools.exceptions.timeseries import TimeSeriesDateError, TimeSeriesUnitError, TimeSeriesValueError
+from tools.exceptions.messages import MessageDateError, MessageValueError, MessageUnitValueError
 from tools.message.unit import UnitCode
-from tools.message.block import TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.block import ValueArrayBlock, TimeSeriesBlock
 
 
 def get_unit_code() -> Generator[str, None, None]:
@@ -87,30 +87,30 @@ class TestUnitCode(unittest.TestCase):
                 self.assertFalse(UnitCode.is_valid(invalid_code))
 
 
-class TestTimeSeriesAttribute(unittest.TestCase):
-    """Unit tests for the TimeSeriesAttribute class."""
+class TestValueArrayBlock(unittest.TestCase):
+    """Unit tests for the ValueArrayBlock class."""
 
     def test_valid_attributes(self):
-        """Unit test for creating TimeSeriesAttribute objects with valid input."""
+        """Unit test for creating ValueArrayBlock objects with valid input."""
         test_attributes = [generate_timeseries_values(next(get_unit_code()), 12) for _ in range(20)]
 
         for test_attribute in test_attributes:
             # test creating object using from_json method
-            attribute_object = TimeSeriesAttribute.from_json(test_attribute)
-            self.assertIsInstance(attribute_object, TimeSeriesAttribute)
-            self.assertEqual(attribute_object.unit_of_measurement, test_attribute["UnitOfMeasure"])
+            attribute_object = ValueArrayBlock.from_json(test_attribute)
+            self.assertIsInstance(attribute_object, ValueArrayBlock)
+            self.assertEqual(attribute_object.unit_of_measure, test_attribute["UnitOfMeasure"])
             self.assertEqual(attribute_object.values, test_attribute["Values"])
             self.assertEqual(attribute_object.json(), test_attribute)
 
             # test creating object using constructor
-            attribute_object2 = TimeSeriesAttribute(
-                UnitOfMeasure=test_attribute["UnitOfMeasure"],
-                Values=test_attribute["Values"]
+            attribute_object2 = ValueArrayBlock(
+                UnitOfMeasure=cast(str, test_attribute["UnitOfMeasure"]),
+                Values=cast(list, test_attribute["Values"])
             )
             self.assertEqual(attribute_object, attribute_object2)
 
     def test_invalid_attributes(self):
-        """Unit test for creating TimeSeriesAttribute objects with invalid input."""
+        """Unit test for creating ValueArrayBlock objects with invalid input."""
         attribute_valid = {"UnitOfMeasure": "m", "Values": [1, 2, 3]}
         attribute_missing_unit = {"Values": [1, 2, 3]}
         attribute_missing_values = {"UnitOfMeasure": "m"}
@@ -120,35 +120,35 @@ class TestTimeSeriesAttribute(unittest.TestCase):
         attribute_inconsistent_values2 = {"UnitOfMeasure": "m", "Values": [1, "2", 3]}
         attribute_inconsistent_values3 = {"UnitOfMeasure": "m", "Values": [True, False, 3]}
 
-        self.assertIsInstance(TimeSeriesAttribute.from_json(attribute_valid), TimeSeriesAttribute)
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_missing_unit))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_missing_values))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_invalid_values))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values1))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values2))
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_inconsistent_values3))
+        self.assertIsInstance(ValueArrayBlock.from_json(attribute_valid), ValueArrayBlock)
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_missing_unit))
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_missing_values))
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_invalid_values))
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_inconsistent_values1))
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_inconsistent_values2))
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_inconsistent_values3))
 
         # the unit validation should be off by default
-        self.assertFalse(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
-        self.assertIsInstance(TimeSeriesAttribute.from_json(attribute_invalid_unit), TimeSeriesAttribute)
-        TimeSeriesAttribute.UNIT_CODE_VALIDATION = True  # type: ignore
-        self.assertTrue(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
-        self.assertIsNone(TimeSeriesAttribute.from_json(attribute_invalid_unit))
-        TimeSeriesAttribute.UNIT_CODE_VALIDATION = False
+        self.assertFalse(ValueArrayBlock.UNIT_CODE_VALIDATION)
+        self.assertIsInstance(ValueArrayBlock.from_json(attribute_invalid_unit), ValueArrayBlock)
+        ValueArrayBlock.UNIT_CODE_VALIDATION = True  # type: ignore
+        self.assertTrue(ValueArrayBlock.UNIT_CODE_VALIDATION)
+        self.assertIsNone(ValueArrayBlock.from_json(attribute_invalid_unit))
+        ValueArrayBlock.UNIT_CODE_VALIDATION = False
 
-        self.assertRaises(TimeSeriesUnitError, TimeSeriesAttribute, **attribute_missing_unit)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_missing_values)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_invalid_values)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values1)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values2)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesAttribute, **attribute_inconsistent_values3)
+        self.assertRaises(TypeError, ValueArrayBlock, **attribute_missing_unit)
+        self.assertRaises(TypeError, ValueArrayBlock, **attribute_missing_values)
+        self.assertRaises(MessageValueError, ValueArrayBlock, **attribute_invalid_values)
+        self.assertRaises(MessageValueError, ValueArrayBlock, **attribute_inconsistent_values1)
+        self.assertRaises(MessageValueError, ValueArrayBlock, **attribute_inconsistent_values2)
+        self.assertRaises(MessageValueError, ValueArrayBlock, **attribute_inconsistent_values3)
 
-        self.assertFalse(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
-        TimeSeriesAttribute(**attribute_invalid_unit)
-        TimeSeriesAttribute.UNIT_CODE_VALIDATION = True  # type: ignore
-        self.assertTrue(TimeSeriesAttribute.UNIT_CODE_VALIDATION)
-        self.assertRaises(TimeSeriesUnitError, TimeSeriesAttribute, **attribute_invalid_unit)
-        TimeSeriesAttribute.UNIT_CODE_VALIDATION = False
+        self.assertFalse(ValueArrayBlock.UNIT_CODE_VALIDATION)
+        ValueArrayBlock(**attribute_invalid_unit)
+        ValueArrayBlock.UNIT_CODE_VALIDATION = True  # type: ignore
+        self.assertTrue(ValueArrayBlock.UNIT_CODE_VALIDATION)
+        self.assertRaises(MessageUnitValueError, ValueArrayBlock, **attribute_invalid_unit)
+        ValueArrayBlock.UNIT_CODE_VALIDATION = False
 
 
 class TestTimeSeriesBlock(unittest.TestCase):
@@ -190,7 +190,7 @@ class TestTimeSeriesBlock(unittest.TestCase):
             )
             for series_name in series_names[1:]:
                 attribute_object3.add_series(
-                    series_name, TimeSeriesAttribute(**test_block["Series"][series_name]))
+                    series_name, ValueArrayBlock(**test_block["Series"][series_name]))
             self.assertEqual(attribute_object3, attribute_object)
 
     def test_invalid_blocks(self):
@@ -228,23 +228,23 @@ class TestTimeSeriesBlock(unittest.TestCase):
         self.assertIsNone(TimeSeriesBlock.from_json(block_different_length1))
         self.assertIsNone(TimeSeriesBlock.from_json(block_different_length2))
 
-        self.assertRaises(TimeSeriesDateError, TimeSeriesBlock, **block_missing_timeindex)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesBlock, **block_missing_series1)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesBlock, **block_missing_series2)
-        self.assertRaises(TimeSeriesDateError, TimeSeriesBlock, **block_invalid_timeindex)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesBlock, **block_invalid_series)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesBlock, **block_different_length1)
-        self.assertRaises(TimeSeriesValueError, TimeSeriesBlock, **block_different_length2)
+        self.assertRaises(TypeError, TimeSeriesBlock, **block_missing_timeindex)
+        self.assertRaises(TypeError, TimeSeriesBlock, **block_missing_series1)
+        self.assertRaises(MessageValueError, TimeSeriesBlock, **block_missing_series2)
+        self.assertRaises(MessageDateError, TimeSeriesBlock, **block_invalid_timeindex)
+        self.assertRaises(MessageValueError, TimeSeriesBlock, **block_invalid_series)
+        self.assertRaises(MessageValueError, TimeSeriesBlock, **block_different_length1)
+        self.assertRaises(MessageValueError, TimeSeriesBlock, **block_different_length2)
 
-        self.assertRaises(TimeSeriesDateError, setattr, valid_object_3, "time_index", time_index_valid_4)
-        self.assertRaises(TimeSeriesValueError, setattr, valid_object_3, "series", {"X": attribute_valid_4})
-        self.assertRaises(TimeSeriesDateError, setattr, valid_object_4, "time_index", time_index_valid_3)
-        self.assertRaises(TimeSeriesValueError, setattr, valid_object_4, "series", {"X": attribute_valid_3})
+        self.assertRaises(MessageDateError, setattr, valid_object_3, "time_index", time_index_valid_4)
+        self.assertRaises(MessageValueError, setattr, valid_object_3, "series", {"X": attribute_valid_4})
+        self.assertRaises(MessageDateError, setattr, valid_object_4, "time_index", time_index_valid_3)
+        self.assertRaises(MessageValueError, setattr, valid_object_4, "series", {"X": attribute_valid_3})
 
-        self.assertRaises(TimeSeriesValueError, valid_object_3.add_series,
-                          "Z", TimeSeriesAttribute(**attribute_valid_4))
-        self.assertRaises(TimeSeriesValueError, valid_object_4.add_series,
-                          "Z", TimeSeriesAttribute(**attribute_valid_3))
+        self.assertRaises(MessageValueError, valid_object_3.add_series,
+                          "Z", ValueArrayBlock(**attribute_valid_4))
+        self.assertRaises(MessageValueError, valid_object_4.add_series,
+                          "Z", ValueArrayBlock(**attribute_valid_3))
 
 
 if __name__ == '__main__':

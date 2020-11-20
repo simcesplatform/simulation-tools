@@ -9,7 +9,7 @@ import logging
 from examples.message_json import status_ready_message, status_error_message, example_message, \
                                   invalid_status_1, invalid_status_2, invalid_status_3
 from tools.exceptions.messages import MessageError
-from tools.message.block import TimeSeriesAttribute, TimeSeriesBlock
+from tools.message.block import QuantityBlock, TimeSeriesBlock, ValueArrayBlock
 from tools.message.example import ExampleMessage
 from tools.messages import StatusMessage, MessageGenerator
 from tools.tools import FullLogger
@@ -92,7 +92,7 @@ def test_from_json():
     LOGGER.info("Temperature PlaceB values for Example message: {}".format(
         example.temperature.get_single_series("PlaceB").values))
     LOGGER.info("Temperature PlaceB unit for Example message:   {}".format(
-        example.temperature.get_single_series("PlaceB").unit_of_measurement))
+        example.temperature.get_single_series("PlaceB").unit_of_measure))
     LOGGER.info("Weight time index for Example message:         {}".format(example.weight.time_index))
     LOGGER.info("Weight series for Example message:             {}".format(example.weight.series))
     LOGGER.info("")
@@ -171,14 +171,18 @@ def test_message_generator():
         TriggeringMessageIds=["manager-6"],
         PositiveInteger=42,
         PowerQuantity=10.1,
+        TimeQuantity=QuantityBlock(
+            UnitOfMeasure="s",
+            Value=60
+        ),
         Temperature=TimeSeriesBlock(
             TimeIndex=["2010-01-01T00:00:00Z", "2010-01-02T00:00:00Z", "2010-01-03T00:00:00Z"],
             Series={
-                "PlaceA": TimeSeriesAttribute(
+                "PlaceA": ValueArrayBlock(
                     UnitOfMeasure="Cel",
                     Values=[-10.1, -12.3, -11.2]
                 ),
-                "PlaceB": TimeSeriesAttribute(
+                "PlaceB": ValueArrayBlock(
                     UnitOfMeasure="Cel",
                     Values=[-5.6, -7.9, -8.2]
                 )

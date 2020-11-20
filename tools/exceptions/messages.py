@@ -43,5 +43,9 @@ class MessageStateValueError(MessageValueError):
     """Exception class for errors related to invalid simulation state values in messages."""
 
 
+class MessageUnitValueError(MessageValueError):
+    """Exception class for errors related to invalid unit of measurement in a message block."""
+
+
 class MessageBlockError(MessageError):
     """Exception class for errors related to invalid use of block attributes."""
