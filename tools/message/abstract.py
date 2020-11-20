@@ -246,7 +246,8 @@ class BaseMessage():
             quantity_value)
 
     @classmethod
-    def _check_quantity_array_block(cls, value: Union[List[float], QuantityArrayBlock, Dict[str, Any], None],
+    def _check_quantity_array_block(cls, value: Union[List[float], QuantityArrayBlock,
+                                                      Dict[str, Union[str, List[float]]], None],
                                     unit: str,
                                     can_be_none: bool = False,
                                     value_array_check: Callable[[List[float]], bool] = None) -> bool:
@@ -265,10 +266,13 @@ class BaseMessage():
             return can_be_none
 
         # extra check to avoid illegal value types
-        if not isinstance(value, (QuantityArrayBlock, dict)):
+        if not isinstance(value, (list, QuantityArrayBlock, dict)):
             return False
 
         if isinstance(value, list):
+            for list_item in value:
+                if not isinstance(list_item, float):
+                    return False
             return value_array_check is None or value_array_check(value)
 
         if isinstance(value, dict):
@@ -280,7 +284,7 @@ class BaseMessage():
 
     def _set_quantity_array_block_value(
             self, message_attribute: str,
-            quantity_array_value: Union[List[float], QuantityArrayBlock, Dict[str, Any], None]):
+            quantity_array_value: Union[List[float], QuantityArrayBlock, Dict[str, Union[str, List[float]]], None]):
         """Sets value for a quantity array block attribute.
 
         message_attribute:     Name of the message attribute e.g. RatedCurrent whose value is set.

@@ -227,7 +227,7 @@ class ExampleMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_current_array(cls, current_array: Union[QuantityArrayBlock, Dict[str, Any]]) -> bool:
+    def _check_current_array(cls, current_array: Union[List[float], QuantityArrayBlock, Dict[str, Any]]) -> bool:
         return cls._check_quantity_array_block(
             value=current_array,
             unit=cls.QUANTITY_ARRAY_BLOCK_ATTRIBUTES[cls.CURRENT_ARRAY_ATTRIBUTE]
@@ -254,7 +254,7 @@ class ExampleMessage(AbstractResultMessage):
         )
 
     @classmethod
-    def _check_voltage_array(cls, voltage_array: Union[QuantityArrayBlock, Dict[str, Any], None]) -> bool:
+    def _check_voltage_array(cls, voltage_array: Union[List[float], QuantityArrayBlock, Dict[str, Any], None]) -> bool:
         return cls._check_quantity_array_block(
             value=voltage_array,
             unit=cls.QUANTITY_ARRAY_BLOCK_ATTRIBUTES[cls.VOLTAGE_ARRAY_ATTRIBUTE],
