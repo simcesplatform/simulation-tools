@@ -246,7 +246,7 @@ class BaseMessage():
             quantity_value)
 
     @classmethod
-    def _check_quantity_array_block(cls, value: Union[QuantityArrayBlock, Dict[str, Any], None],
+    def _check_quantity_array_block(cls, value: Union[List[float], QuantityArrayBlock, Dict[str, Any], None],
                                     unit: str,
                                     can_be_none: bool = False,
                                     value_array_check: Callable[[List[float]], bool] = None) -> bool:
@@ -254,6 +254,7 @@ class BaseMessage():
 
         value:             The value to be checked.
                            A dictionary has to in a form that can be used to construct a QuantityArrayBlock object.
+                           A QuantityArrayBlock has to have the expected unit.
         unit:              The unit of measure expected.
         can_be_none:       Should a None value be accepted.
         value_array_check: Optional additional check for the quantity array. For example if it only positive values
@@ -267,6 +268,9 @@ class BaseMessage():
         if not isinstance(value, (QuantityArrayBlock, dict)):
             return False
 
+        if isinstance(value, list):
+            return value_array_check is None or value_array_check(value)
+
         if isinstance(value, dict):
             if not QuantityArrayBlock.validate_json(value):
                 return False
@@ -274,8 +278,9 @@ class BaseMessage():
 
         return value.unit_of_measure == unit and (value_array_check is None or value_array_check(value.values))
 
-    def _set_quantity_array_block_value(self, message_attribute: str,
-                                        quantity_array_value: Union[QuantityArrayBlock, Dict[str, Any], None]):
+    def _set_quantity_array_block_value(
+            self, message_attribute: str,
+            quantity_array_value: Union[List[float], QuantityArrayBlock, Dict[str, Any], None]):
         """Sets value for a quantity array block attribute.
 
         message_attribute:     Name of the message attribute e.g. RatedCurrent whose value is set.
@@ -290,7 +295,11 @@ class BaseMessage():
             raise MessageBlockError(
                 "Attribute {:s} is not registered as a quantity array block".format(message_attribute))
 
-        if isinstance(quantity_array_value, dict):
+        if isinstance(quantity_array_value, list):
+            unit = self.QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL[message_attribute]
+            quantity_array_value = QuantityArrayBlock(Values=quantity_array_value, UnitOfMeasure=unit)
+
+        elif isinstance(quantity_array_value, dict):
             quantity_array_value = QuantityArrayBlock(**quantity_array_value)
 
         # set value for the attribute
