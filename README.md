@@ -156,7 +156,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
             - Similar to ResultMessage but only requires the SimulationId and Timestamp attributes
         - `ExampleMessage`
             - Child class of AbstractResult
-            - Not to be used in the actual simulation components but made as an example for a message type that uses [Quantity block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block) and [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block) as the attribute value types.
+            - Not to be used in the actual simulation components but made as an example for a message type that uses [Quantity block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block), [Quantity array block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+array+block) and [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block) as the attribute value types.
     - Common methods for all message classes:
         - `__init__` (constructor)
             - Takes in all the arguments as defined in the wiki pages for the message.
@@ -180,8 +180,12 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
         - TimeSeriesBlock is constructed similarly to the message classes
         - Supports TimeIndex and Series attributes
         - Definition: [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block)
-        - A separate class TimeSeriesAttribute that can be used as a value for the value series inside a Time series block
+        - A separate class ValueArrayBlock that can be used as a value for the value series inside a Time series block
             - Supports UnitOfMeasure and Values attributes
+    - Class for QuantityArrayBlock that can be used as a value for a message attribute
+        - QuantityArrayBlock is child class of ValueArrayBlock that only allows float values
+        - Supports Values and UnitOfMeasure attributes
+        - Definition: [Quantity array block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+array+block)
     - MessageGenerator class for creating a series message of messages that have common SimulationId and SourceProcessId.
         - `__init__` (constructor)
             - `simulation_id`
