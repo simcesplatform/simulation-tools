@@ -87,6 +87,11 @@ def test_from_json():
     LOGGER.info("TimeQuantity value for Example message:        {}".format(example.time_quantity.value))
     LOGGER.info("TimeQuantity unit for Example message:         {}".format(example.time_quantity.unit_of_measure))
     LOGGER.info("")
+    LOGGER.info("CurrentArray values for Example message:       {}".format(example.current_array.values))
+    LOGGER.info("CurrentArray unit for Example message:         {}".format(example.current_array.unit_of_measure))
+    LOGGER.info("VoltageArray values for Example message:       {}".format(example.voltage_array.values))
+    LOGGER.info("VoltageArray unit for Example message:         {}".format(example.voltage_array.unit_of_measure))
+    LOGGER.info("")
     LOGGER.info("Temperature time index for Example message:    {}".format(example.temperature.time_index))
     LOGGER.info("Temperature PlaceA series for Example message: {}".format(example.temperature.series["PlaceA"]))
     LOGGER.info("Temperature PlaceB values for Example message: {}".format(
@@ -175,6 +180,7 @@ def test_message_generator():
             UnitOfMeasure="s",
             Value=60
         ),
+        CurrentArray=[111.1, 122.2, 133.3],
         Temperature=TimeSeriesBlock(
             TimeIndex=["2010-01-01T00:00:00Z", "2010-01-02T00:00:00Z", "2010-01-03T00:00:00Z"],
             Series={
