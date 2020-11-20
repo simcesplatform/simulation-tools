@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
 from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
                                       MessageValueError, MessageEpochValueError, MessageBlockError
-from tools.message.block import QuantityBlock, TimeSeriesBlock
+from tools.message.block import QuantityArrayBlock, QuantityBlock, TimeSeriesBlock
 from tools.message.factory import MessageFactory
 from tools.tools import FullLogger
 
@@ -79,6 +79,9 @@ class BaseMessage():
     # attributes whose value is a QuantityBlock and the expected unit of measure.
     # https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block
     QUANTITY_BLOCK_ATTRIBUTES = {}
+    # attributes whose value is a QuantityArrayBlock and the expected unit of measure.
+    # https://wiki.eduuni.fi/display/tuniSimCES/Quantity+array+block
+    QUANTITY_ARRAY_BLOCK_ATTRIBUTES = {}
     # a list of attributes whose value is a TimeSeriesBlock.
     # https://wiki.eduuni.fi/pages/viewpage.action?spaceKey=tuniSimCES&title=Time+series+block
     TIMESERIES_BLOCK_ATTRIBUTES = []
@@ -87,6 +90,7 @@ class BaseMessage():
     MESSAGE_ATTRIBUTES_FULL = MESSAGE_ATTRIBUTES
     OPTIONAL_ATTRIBUTES_FULL = OPTIONAL_ATTRIBUTES
     QUANTITY_BLOCK_ATTRIBUTES_FULL = QUANTITY_BLOCK_ATTRIBUTES
+    QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL = QUANTITY_ARRAY_BLOCK_ATTRIBUTES
     TIMESERIES_BLOCK_ATTRIBUTES_FULL = TIMESERIES_BLOCK_ATTRIBUTES
 
     DEFAULT_SIMULATION_ID = "2000-01-01T00:00:00.000Z"
@@ -240,6 +244,60 @@ class BaseMessage():
             self,
             "_" + self.__class__.__name__ + "__" + self.MESSAGE_ATTRIBUTES_FULL[message_attribute],
             quantity_value)
+
+    @classmethod
+    def _check_quantity_array_block(cls, value: Union[QuantityArrayBlock, Dict[str, Any], None],
+                                    can_be_none: bool = False,
+                                    value_array_check: Callable[[List[float]], bool] = None) -> bool:
+        """Check that the value for quantity array block is valid.
+
+        value:             The value to be checked.
+                           A dictionary has to in a form that can be used to construct a QuantityArrayBlock object.
+        can_be_none:       Should a None value be accepted.
+        value_array_check: Optional additional check for the quantity array. For example if it only positive values
+                           are allowed or the length of the value array is required to be a some fixed number.
+                           Must be a callable which accepts a list of floats as argument and returns a boolean.
+        """
+        if value is None:
+            return can_be_none
+
+        # extra check to avoid illegal value types
+        if not isinstance(value, (QuantityArrayBlock, dict)):
+            return False
+
+        if isinstance(value, dict):
+            if not QuantityArrayBlock.validate_json(value):
+                return False
+            value = QuantityArrayBlock(**value)
+
+        return value_array_check is None or value_array_check(value.values)
+
+    def _set_quantity_array_block_value(self, message_attribute: str,
+                                        quantity_array_value: Union[QuantityArrayBlock, Dict[str, Any], None]):
+        """Sets value for a quantity array block attribute.
+
+        message_attribute:     Name of the message attribute e.g. RatedCurrent whose value is set.
+        quantity_array_value:  The value to be set which can be either a dictionary, QuantityArrayBlock or None.
+        A dictionary should follow the definition of time series block and it is converted to a QuantityArrayBlock.
+
+        Throws MessageBlockError if the message_attribute has not been included in QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL.
+        If the quantity_array_value contains invalid values, throws an appropriate exception.
+        """
+        if message_attribute not in self.QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL:
+            LOGGER.warning("Attribute {:s} is not registered as a quantity array block".format(message_attribute))
+            raise MessageBlockError(
+                "Attribute {:s} is not registered as a quantity array block".format(message_attribute))
+
+        if isinstance(quantity_array_value, dict):
+            quantity_array_value = QuantityArrayBlock(**quantity_array_value)
+
+        # set value for the attribute
+        # Note: attribute name has to include the class name to be of use in subclasses since that is what
+        #       the Python interpreter actually uses for self.__attribute_name
+        setattr(
+            self,
+            "_" + self.__class__.__name__ + "__" + self.MESSAGE_ATTRIBUTES_FULL[message_attribute],
+            quantity_array_value)
 
     @classmethod
     def _check_timeseries_block(cls, value: Union[TimeSeriesBlock, Dict[str, Any], None],
