@@ -10,7 +10,7 @@ import unittest
 from tools.datetime_tools import to_utc_datetime_object
 from tools.exceptions.messages import MessageValueError
 from tools.message.abstract import AbstractResultMessage
-from tools.message.block import QuantityBlock, ValueArrayBlock, TimeSeriesBlock
+from tools.message.block import QuantityArrayBlock, QuantityBlock, ValueArrayBlock, TimeSeriesBlock
 from tools.message.example import ExampleMessage
 
 EXAMPLE_MESSAGE = {
@@ -29,6 +29,22 @@ EXAMPLE_MESSAGE = {
     "TimeQuantity": {
         "UnitOfMeasure": "s",
         "Value": 3600
+    },
+    "CurrentArray": {
+        "UnitOfMeasure": "mA",
+        "Values": [
+            100.2,
+            201.4,
+            156.7
+        ]
+    },
+    "VoltageArray": {
+        "UnitOfMeasure": "V",
+        "Values": [
+            999.9,
+            0.1,
+            -999.9
+        ]
     },
     "Temperature": {
         "TimeIndex": [
@@ -83,6 +99,10 @@ ALTERNATE_MESSAGE = {
     ).json(),
     "PositiveInteger": 12,
     "PowerQuantity": 100.5,
+    "CurrentArray": [
+        24.5,
+        34.6
+    ],
     "Temperature": TimeSeriesBlock(
         TimeIndex=[
             "2020-07-01T13:00:00.000Z",
@@ -154,6 +174,13 @@ class TestExampleMessage(unittest.TestCase):
                          EXAMPLE_MESSAGE["TimeQuantity"]["UnitOfMeasure"])
         self.assertEqual(example_message.time_quantity.value, EXAMPLE_MESSAGE["TimeQuantity"]["Value"])
 
+        self.assertEqual(example_message.current_array.unit_of_measure,
+                         EXAMPLE_MESSAGE["CurrentArray"]["UnitOfMeasure"])
+        self.assertEqual(example_message.current_array.values, EXAMPLE_MESSAGE["CurrentArray"]["Values"])
+        self.assertEqual(example_message.voltage_array.unit_of_measure,
+                         EXAMPLE_MESSAGE["VoltageArray"]["UnitOfMeasure"])
+        self.assertEqual(example_message.voltage_array.values, EXAMPLE_MESSAGE["VoltageArray"]["Values"])
+
         self.assertEqual(example_message.temperature.time_index, EXAMPLE_MESSAGE["Temperature"]["TimeIndex"])
         for series_name, series_values in EXAMPLE_MESSAGE["Temperature"]["Series"].items():
             with self.subTest(series_name=series_name):
@@ -173,6 +200,7 @@ class TestExampleMessage(unittest.TestCase):
         stripped_json = copy.deepcopy(EXAMPLE_MESSAGE)
         stripped_json.pop("EightCharacters")
         stripped_json.pop("TimeQuantity")
+        stripped_json.pop("VoltageArray")
         stripped_json.pop("Weight")
         message_stripped = ExampleMessage(Timestamp=example_message.timestamp, **stripped_json)
         self.assertEqual(message_stripped.timestamp, example_message.timestamp)
@@ -184,9 +212,11 @@ class TestExampleMessage(unittest.TestCase):
         self.assertEqual(message_stripped.triggering_message_ids, example_message.triggering_message_ids)
         self.assertEqual(message_stripped.positive_integer, example_message.positive_integer)
         self.assertEqual(message_stripped.power_quantity, example_message.power_quantity)
+        self.assertEqual(message_stripped.current_array, example_message.current_array)
         self.assertEqual(message_stripped.temperature, example_message.temperature)
         self.assertIsNone(message_stripped.eight_characters)
         self.assertIsNone(message_stripped.time_quantity)
+        self.assertIsNone(message_stripped.voltage_array)
         self.assertIsNone(message_stripped.weight)
 
     def test_message_json(self):
@@ -208,6 +238,8 @@ class TestExampleMessage(unittest.TestCase):
         self.assertEqual(message_copy.eight_characters, message_original.eight_characters)
         self.assertEqual(message_copy.power_quantity, message_original.power_quantity)
         self.assertEqual(message_copy.time_quantity, message_original.time_quantity)
+        self.assertEqual(message_copy.current_array, message_original.current_array)
+        self.assertEqual(message_copy.voltage_array, message_original.voltage_array)
         self.assertEqual(message_copy.temperature, message_original.temperature)
         self.assertEqual(message_copy.weight, message_original.weight)
 
@@ -232,6 +264,8 @@ class TestExampleMessage(unittest.TestCase):
             "eight_characters",
             "power_quantity",
             "time_quantity",
+            "current_array",
+            "voltage_array",
             "temperature",
             "weight"
         ]
@@ -250,6 +284,7 @@ class TestExampleMessage(unittest.TestCase):
         optional_attributes = [
             "EightCharacters",
             "TimeQuantity",
+            "VoltageArray",
             "Weight"
         ]
 
@@ -258,6 +293,8 @@ class TestExampleMessage(unittest.TestCase):
             "EightCharacters": MessageValueError,
             "PowerQuantity": MessageValueError,
             "TimeQuantity": MessageValueError,
+            "CurrentArray": MessageValueError,
+            "VoltageArray": MessageValueError,
             "Temperature": MessageValueError,
             "Weight": MessageValueError,
         }
@@ -268,6 +305,12 @@ class TestExampleMessage(unittest.TestCase):
                               QuantityBlock(UnitOfMeasure="A", Value=0.1)],
             "TimeQuantity": [-5, 86400.1, "hello", [], ["hello"], {"UnitOfMeasure": "h", "Value": 12.3},
                              QuantityBlock(UnitOfMeasure="min", Value=0.1)],
+            "CurrentArray": [12, "hello", ["hello"], {"UnitOfMeasure": "mA", "Values": "12.3"},
+                             QuantityArrayBlock(UnitOfMeasure="A", Values=[12.3])],
+            "VoltageArray": [12, "hello", ["hello"], {"UnitOfMeasure": "V", "Values": "12.3"},
+                             QuantityArrayBlock(UnitOfMeasure="mV", Values=[12.3]),
+                             QuantityArrayBlock(UnitOfMeasure="V", Values=[1000.0]),
+                             QuantityArrayBlock(UnitOfMeasure="V", Values=[-1000.0])],
             "Temperature": [
                 12, "hello", [], ["hello"],
                 {"TimeIndex": [], "Series": {}},
