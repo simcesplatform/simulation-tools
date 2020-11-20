@@ -247,12 +247,14 @@ class BaseMessage():
 
     @classmethod
     def _check_quantity_array_block(cls, value: Union[QuantityArrayBlock, Dict[str, Any], None],
+                                    unit: str,
                                     can_be_none: bool = False,
                                     value_array_check: Callable[[List[float]], bool] = None) -> bool:
         """Check that the value for quantity array block is valid.
 
         value:             The value to be checked.
                            A dictionary has to in a form that can be used to construct a QuantityArrayBlock object.
+        unit:              The unit of measure expected.
         can_be_none:       Should a None value be accepted.
         value_array_check: Optional additional check for the quantity array. For example if it only positive values
                            are allowed or the length of the value array is required to be a some fixed number.
@@ -270,7 +272,7 @@ class BaseMessage():
                 return False
             value = QuantityArrayBlock(**value)
 
-        return value_array_check is None or value_array_check(value.values)
+        return value.unit_of_measure == unit and (value_array_check is None or value_array_check(value.values))
 
     def _set_quantity_array_block_value(self, message_attribute: str,
                                         quantity_array_value: Union[QuantityArrayBlock, Dict[str, Any], None]):
