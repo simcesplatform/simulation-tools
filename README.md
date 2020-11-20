@@ -123,7 +123,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
     - Contains message classes that can be used to handle messages in the simulation platform.
     - The timestamps for the message objects are generated automatically if the timestamp is not explicitly given.
     - The actual source for the message classes can be found in the folder `tools/message/` but the this file can be used to simplify import calls.
-    - Currently supported message types:
+    - Currently supported message types (more supported message types can be found from [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages) repository):
         - `BaseMessage`
             - Message object that contains only Type, SimulationId and Timestamp
             - Log Writer can handle any message that contains at least these three attributes.
@@ -154,6 +154,9 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
         - `GeneralMessage`
             - Child class of BaseMessage
             - Similar to ResultMessage but only requires the SimulationId and Timestamp attributes
+        - `ExampleMessage`
+            - Child class of AbstractResult
+            - Not to be used in the actual simulation components but made as an example for a message type that uses [Quantity block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block) and [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block) as the attribute value types.
     - Common methods for all message classes:
         - `__init__` (constructor)
             - Takes in all the arguments as defined in the wiki pages for the message.
@@ -169,10 +172,16 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
         - property getters and setters for each message attribute
         - `register_to_factory` (class method)
             - Factory registration method to allow the general message handling utils to know about new message class types.
-    - Class for QuantityBlock that can be used as a message attribute
+    - Class for QuantityBlock that can be used as a value for a message attribute
         - QuantityBlock is constructed similarly to the message classes
         - Supports Value and UnitOfMeasure attributes
         - Definition: [Quantity block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block)
+    - Class for TimeSeriesBlock that can be used as a value for a message attribute
+        - TimeSeriesBlock is constructed similarly to the message classes
+        - Supports TimeIndex and Series attributes
+        - Definition: [Time series block](https://wiki.eduuni.fi/display/tuniSimCES/Time+series+block)
+        - A separate class TimeSeriesAttribute that can be used as a value for the value series inside a Time series block
+            - Supports UnitOfMeasure and Values attributes
     - MessageGenerator class for creating a series message of messages that have common SimulationId and SourceProcessId.
         - `__init__` (constructor)
             - `simulation_id`
@@ -275,6 +284,7 @@ There are some examples available:
 
 - The Python class for [Epoch](https://wiki.eduuni.fi/display/tuniSimCES/Epoch) message can be found at [tools/message/epoch.py](tools/message/epoch.py)
 - The Python class for [Status](https://wiki.eduuni.fi/display/tuniSimCES/Status) message can be found at [tools/message/status.py](tools/message/status.py)
+- The Python class for Example message type can be found at [tools/message/example.py](tools/message/example.py). This example message type is made as an example of a message that adds some attributes to the AbstractResult message type with some of the attributes using the [Quantity block](https://wiki.eduuni.fi/display/tuniSimCES/Quantity+block) or [Time series block](https://wiki.eduuni.fi/pages/viewpage.action?spaceKey=tuniSimCES&title=Time+series+block) as the attribute values.
 
 A template for a new message type is given at [`message_template.txt`](message_template.txt).
 
