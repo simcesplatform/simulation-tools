@@ -5,7 +5,7 @@
 from tools.clients import RabbitmqClient
 
 
-def get_client():
+def get_client() -> RabbitmqClient:
     """Returns a RabbitmqClient instance."""
     # Replace the parameters with proper values for host, port, login and password
     # Change the value of exchange if needed.
