@@ -5,7 +5,7 @@
 import datetime
 import logging
 import os
-from typing import Dict, List, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
 SIMULATION_LOG_FILE = "SIMULATION_LOG_FILE"
@@ -19,17 +19,17 @@ class EnvironmentVariable:
     """Class for accessing and holding environment variable information."""
 
     def __init__(self, variable_name: str, variable_type: EnvironmentVariableType,
-                 default_value: EnvironmentVariableValue = None):
+                 default_value: Optional[EnvironmentVariableValue] = None):
         """Creates a new EnvironmentVariable object that can be used to access the environment variable information."""
         self.__variable_name = variable_name
         self.__variable_type = variable_type
         if default_value is None:
-            self.__default_value = variable_type()
+            self.__default_value = default_value
         else:
             self.__default_value = variable_type(default_value)
 
         self.__value_fetched = False
-        self.__value = default_value
+        self.__value = self.__default_value
 
     @property
     def variable_name(self) -> str:
@@ -42,16 +42,16 @@ class EnvironmentVariable:
         return self.__variable_type
 
     @property
-    def default_value(self) -> EnvironmentVariableValue:
+    def default_value(self) -> Optional[EnvironmentVariableValue]:
         """Returns the default value for the variable."""
         return self.__default_value
 
     @property
-    def value(self) -> EnvironmentVariableValue:
+    def value(self) -> Optional[EnvironmentVariableValue]:
         """Returns the value of the environmental value.
            The value is only fetched from the environment at the first call."""
         if not self.__value_fetched:
-            new_value = os.environ.get(self.variable_name)
+            new_value = os.environ.get(self.variable_name, None)
             if new_value is None:
                 self.__value = self.__default_value
             elif self.variable_type is bool:
@@ -59,10 +59,6 @@ class EnvironmentVariable:
             else:
                 self.__value = self.variable_type(new_value)
             self.__value_fetched = True
-
-        # This is added to allow pylance linter to recognize that self.__value cannot be None
-        if self.__value is None:
-            self.__value = self.default_value
 
         return self.__value
 
@@ -95,7 +91,7 @@ class EnvironmentVariables:
                 self.__variables[new_variable[0]] = EnvironmentVariable(new_variable[0], new_variable[1])
             elif len(new_variable) == 3:
                 self.__variables[new_variable[0]] = EnvironmentVariable(
-                    new_variable[0], new_variable[1], new_variable[2])
+                    new_variable[0], new_variable[1], new_variable[2])  # type: ignore
         elif isinstance(new_variable, EnvironmentVariable):
             self.__variables[new_variable.variable_name] = new_variable
 
