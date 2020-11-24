@@ -120,15 +120,18 @@ def load_environmental_variables(*env_variable_specifications: EnvironmentVariab
     }
 
 
+DEFAULT_LOGFILE_NAME = "logfile.log"
+DEFAULT_LOGFILE_FORMAT = " --- ".join([
+    "%(asctime)s",
+    "%(levelname)s",
+    "%(name)s",
+    "%(funcName)s",
+    "%(message)s"
+])
 COMMON_ENV_VARIABLES = load_environmental_variables(
     (SIMULATION_LOG_LEVEL, int, logging.DEBUG),
-    (SIMULATION_LOG_FILE, str, "logfile.log"),
-    (SIMULATION_LOG_FORMAT, str, " --- ".join([
-        "%(asctime)s",
-        "%(levelname)s",
-        "%(name)s",
-        "%(funcName)s",
-        "%(message)s"]))
+    (SIMULATION_LOG_FILE, str, DEFAULT_LOGFILE_NAME),
+    (SIMULATION_LOG_FORMAT, str, DEFAULT_LOGFILE_FORMAT)
 )
 
 
