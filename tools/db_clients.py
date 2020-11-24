@@ -31,7 +31,8 @@ def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableTyp
         (env_variable_name("tz_aware"), bool, True),
         (env_variable_name("metadata_collection"), str, "simulations"),
         (env_variable_name("messages_collection_prefix"), str, "simulation_"),
-        (env_variable_name("collection_identifier"), str, "SimulationId")
+        (env_variable_name("collection_identifier"), str, "SimulationId"),
+        (env_variable_name("admin"), bool, True)
     ]
 
 
@@ -54,6 +55,7 @@ class MongodbClient:
     CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware"]
     AUTHENTICATION_INPUT_PARAMETER = "database"
     AUTHENTICATION_OUTPUT_PARAMETER = "authSource"
+    ADMIN_ATTRIBUTE = "admin"
     TOPIC_ATTRIBUTE = "Topic"
 
     TIMESTAMP_ATTRIBUTE = "Timestamp"
@@ -72,7 +74,7 @@ class MongodbClient:
     PROCESS_ATTRIBUTE = "SourceProcessId"
 
     FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + \
-        ["database", "metadata_collection", "messages_collection_prefix", "collection_identifier"]
+        ["database", "metadata_collection", "messages_collection_prefix", "collection_identifier", "admin"]
 
     # List of possible metadata attributes in addition to the simulation id.
     # Each element is a tuple (attribute_name, attribute_types, comparison_operator)
@@ -91,16 +93,17 @@ class MongodbClient:
 
     def __init__(self, **kwargs):
         """Available attributes, all other attributes are ignored:
-           - host                        : the host name for the MongoDB
-           - port                        : the port number for the MongoDB
-           - username                    : username for access to the MongoDB
-           - password                    : password for access to the MongoDB
-           - database                    : the database name used with the MongoDB
-           - appname                     : application name for the connection to the MongoDB
-           - tz_aware                    : are datetime values timezone aware (True/False)
-           - metadata_collection         : the collection name for the simulation metadata
-           - messages_collection_prefix  : the prefix for the collection names for the simulation messages
-           - collection_identifier       : the attribute name in the messages that tells the simulation id
+           - host                        : the host name for the MongoDB (str)
+           - port                        : the port number for the MongoDB (int)
+           - username                    : username for access to the MongoDB (str)
+           - password                    : password for access to the MongoDB (str)
+           - database                    : the database name used with the MongoDB (str)
+           - appname                     : application name for the connection to the MongoDB (str)
+           - tz_aware                    : are datetime values timezone aware (bool)
+           - metadata_collection         : the collection name for the simulation metadata (str)
+           - messages_collection_prefix  : the prefix for the collection names for the simulation messages (str)
+           - collection_identifier       : the attribute name in the messages that tells the simulation id (str)
+           - admin                       : whether the given account has root user access (bool)
 
            If a value for attribute is missing from kwargs, the value is read from
            the corresponding environmental variable with the given default value as a backup.
@@ -114,6 +117,7 @@ class MongodbClient:
            - MONGODB_METADATA_COLLECTION (default value: "simulations")
            - MONGODB_MESSAGES_COLLECTION_PREFIX (default value: "simulation_")
            - MONGODB_COLLECTION_IDENTIFIER (default value: "SimulationId")
+           - MONGODB_ADMIN (default value: True)
         """
         kwargs_env = load_config_from_env_variables()
         kwargs = {
@@ -383,7 +387,8 @@ class MongodbClient:
         }
 
         # for non-root users: authorize only for the database containing the documents instead to admin
-        if cls.AUTHENTICATION_INPUT_PARAMETER in connection_config_dict:
+        if (not connection_config_dict.get(cls.ADMIN_ATTRIBUTE, True) and
+                cls.AUTHENTICATION_INPUT_PARAMETER in connection_config_dict):
             stripped_connection_config[cls.AUTHENTICATION_OUTPUT_PARAMETER] = \
                 connection_config_dict[cls.AUTHENTICATION_INPUT_PARAMETER]
 

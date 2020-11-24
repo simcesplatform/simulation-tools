@@ -103,12 +103,13 @@ class TestMongodbClient(aiounittest.AsyncTestCase):
         for simulation_message, topic_name in zip(
                 [status_message, epoch_message, result_message],
                 ["Status", "Epoch", "Result"]):
-            self.assertIsNotNone(simulation_message)
-            if isinstance(simulation_message, messages.AbstractMessage):
-                self.assertFalse(document_exists(simulation_message, topic_name))
-                write_result = await client.store_message(simulation_message.json(), topic_name)
-                self.assertTrue(write_result)
-                self.assertTrue(document_exists(simulation_message, topic_name))
+            with self.subTest(topic_name=topic_name, simulation_message=simulation_message):
+                self.assertIsNotNone(simulation_message)
+                if isinstance(simulation_message, messages.AbstractMessage):
+                    self.assertFalse(document_exists(simulation_message, topic_name))
+                    write_result = await client.store_message(simulation_message.json(), topic_name)
+                    self.assertTrue(write_result)
+                    self.assertTrue(document_exists(simulation_message, topic_name))
 
     async def test_adding_many_documents(self):
         """Unit test for adding documents to MongoDB several documents at a time."""
@@ -123,14 +124,16 @@ class TestMongodbClient(aiounittest.AsyncTestCase):
 
         messages_with_topics = []
         for simulation_message, topic_name in zip(simulation_messages, ["Status", "Epoch", "Result"]):
-            self.assertFalse(document_exists(simulation_message, topic_name))
-            messages_with_topics.append((simulation_message.json(), topic_name))
+            with self.subTest(topic_name=topic_name, simulation_message=simulation_message):
+                self.assertFalse(document_exists(simulation_message, topic_name))
+                messages_with_topics.append((simulation_message.json(), topic_name))
 
         write_result = await client.store_messages(messages_with_topics)
         self.assertEqual(len(write_result), len(simulation_messages))
 
         for simulation_message, topic_name in zip(simulation_messages, ["Status", "Epoch", "Result"]):
-            self.assertTrue(document_exists(simulation_message, topic_name))
+            with self.subTest(topic_name=topic_name, simulation_message=simulation_message):
+                self.assertTrue(document_exists(simulation_message, topic_name))
 
     async def test_updating_metadata(self):
         """Unit test adding or updating a simulation metadata record."""
