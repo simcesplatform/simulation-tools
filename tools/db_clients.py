@@ -52,6 +52,8 @@ class MongodbClient:
     """MongoDB client that can be used to write JSON documents to Mongo database."""
     DEFAULT_ENV_VARIABLE_PREFIX = "MONGODB_"
     CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware"]
+    AUTHENTICATION_INPUT_PARAMETER = "database"
+    AUTHENTICATION_OUTPUT_PARAMETER = "authSource"
     TOPIC_ATTRIBUTE = "Topic"
 
     TIMESTAMP_ATTRIBUTE = "Timestamp"
@@ -379,5 +381,10 @@ class MongodbClient:
             for config_parameter, parameter_value in connection_config_dict.items()
             if config_parameter in cls.CONNECTION_PARAMTERS
         }
+
+        # for non-root users: authorize only for the database containing the documents instead to admin
+        if cls.AUTHENTICATION_INPUT_PARAMETER in connection_config_dict:
+            stripped_connection_config[cls.AUTHENTICATION_OUTPUT_PARAMETER] = \
+                connection_config_dict[cls.AUTHENTICATION_INPUT_PARAMETER]
 
         return stripped_connection_config
