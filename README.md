@@ -5,6 +5,8 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 <!-- no toc -->
 - [Contents](#contents)
 - [How to include simulation-tools to your own project](#how-to-include-simulation-tools-to-your-own-project)
+- [How to add support for a new message type as a Python class](#how-to-add-support-for-a-new-message-type-as-a-python-class)
+- [How to use the example code](#how-to-use-the-example-code)
 - [Run unit tests](#run-unit-tests)
 - [Clean up after running the tests](#clean-up-after-running-the-tests)
 
@@ -304,6 +306,36 @@ A template for a new message type is given at [`message_template.txt`](message_t
     - Add a new implementation for the equality check method `"__eq__"`.
     - Add a new implementation for the "from_json" method. This is only for the return value type for the use of Python linters, not for any actual additional functionality.
     - Add a call to the `register_to_factory` method after the message class definition.
+
+## How to use the example code
+
+- Message class examples, [`examples/messages.py`](examples/messages.py)
+    - Contains some examples on how create and use the message classes.
+    - The default Python interpreter can be used to run the test code (run `python` or `python3` from the the project root):
+
+        ```python
+        from examples.messages import *
+
+        test_from_json()          # examples on creating message objects from JSON
+        test_invalid_status()     # examples on trying to create status messages with invalid input
+        test_message_generator()  # examples on creating messages using the message generator helper class
+        ```
+
+- Message bus client examples
+    - Contains an example on how to create an instance of the RabbitmqClient that can be used to send and receive messages to and from the message bus, [`examples/client.py`](examples/client.py).
+    - Contains examples on how to send messages to the message bus using the RabbitmqClient class, [`examples/client_send.py`](examples/client_send.py).
+    - Contains an example on how to receive and handle messages incoming from the message bus using the RabbitmqClient class, [`examples/client_receive.py`](examples/client_receive.py).
+    - To start the message receiver example (from the command line):
+
+        ```python
+        python -u -m examples.client_receive
+        ```
+
+    - To start the message sender example (from the command line):
+
+        ```python
+        python -u -m examples.client_send
+        ```
 
 ## Run unit tests
 
