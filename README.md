@@ -9,8 +9,8 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
     - [Abstract simulation component](#abstract-simulation-component)
     - [Tools for handling datetime values](#tools-for-handling-datetime-values)
     - [Callback class for transforming incoming messages to message objects](#callback-class-for-transforming-incoming-messages-to-message-objects)
-    - [MongoDB client](#mongodb-client)
     - [Timer class for handling timed tasks](#timer-class-for-handling-timed-tasks)
+    - [MongoDB client](#mongodb-client)
     - [Miscellaneous tools](#miscellaneous-tools)
 - [How to include simulation-tools to your own project](#how-to-include-simulation-tools-to-your-own-project)
 - [How to add support for a new message type as a Python class](#how-to-add-support-for-a-new-message-type-as-a-python-class)
@@ -241,38 +241,51 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 ### Tools for handling datetime values
 
-- [`tools/datetime_tools.py`](tools/datetime_tools.py)
-    - Contains tools for handling datetime objects and strings.
-    - `get_utcnow_in_milliseconds`
-        - Returns the current ISO 8601 format datetime string in UTC timezone.
-    - `to_iso_format_datetime_string`
-        - `datetime_value`
-            - A datetime value given either as a string or as a datetime object.
-        - Returns the given datetime_value as a ISO 8601 formatted string in UTC timezone.
-        - Returns None if the given string is not in an appropriate format.
-    - `to_utc_datetime_object`
-        - `datetime_str`
-            - A datetime given as a ISO 8601 formatted string
-        - Returns the corresponding datetime object.
+[`tools/datetime_tools.py`](tools/datetime_tools.py)
+
+- Contains tools for handling datetime objects and strings.
+- `get_utcnow_in_milliseconds`
+    - Returns the current ISO 8601 format datetime string in UTC timezone.
+- `to_iso_format_datetime_string`
+    - `datetime_value`
+        - A datetime value given either as a string or as a datetime object.
+    - Returns the given datetime_value as a ISO 8601 formatted string in UTC timezone.
+    - Returns None if the given string is not in an appropriate format.
+- `to_utc_datetime_object`
+    - `datetime_str`
+        - A datetime given as a ISO 8601 formatted string
+    - Returns the corresponding datetime object.
 
 ### Callback class for transforming incoming messages to message objects
 
-- [`tools/callbacks.py`](tools/callbacks.py)
-    - Contains MessageCallback class that can convert a message received from the message bus to a Message object.
-    - All message types that have been registered are recognized by the callback class.
-        - The registering is done by using the register_to_factory() method as is mentioned in the instructions for creating a new message.
-    - Used also by `tools.clients.RabbitmqClient` when setting up topic listeners.
+[`tools/callbacks.py`](tools/callbacks.py)
 
-### MongoDB client
-
-- [`tools/db_clients.py`](tools/db_clients.py)
-    - Contains a MongodbClient client that can be used to store messages to Mongo database.
-    - Currently contains mainly functionalities required by Log Writer.
+- Contains MessageCallback class that can convert a message received from the message bus to a message object, e.g. EpochMessage, StatusMessage or some other message type.
+- All message types that have been registered are recognized by the callback class.
+    - The registering is done by using the `register_to_factory()` method as is mentioned in the instructions for creating a new message.
+- Used also by `tools.clients.RabbitmqClient` when setting up topic listeners.
 
 ### Timer class for handling timed tasks
 
-- [`tools/timer.py`](tools/timer.py)
-    - Contains Timer class that can be used to setup timed tasks.
+[`tools/timer.py`](tools/timer.py)
+
+- Contains Timer class that can be used to setup timed tasks.
+- The constructor requires at least 3 arguments:
+    - `is_repeating`
+        - True or False, whether the task is repeated or not. A repeating task will only end after calling the cancel() method.
+    - `timeout`
+        - The delay of the execution of the task in seconds. For repeating tasks this is the interval between repeated executions.
+    - `callback`
+        - The function that is called after timeout. The function must be awaitable and compatible with the other parameters given in this constructor.
+    - Extra parameters that are given in the constructor will be passed on to the callback function.
+- See the example code [examples/timer.py](examples/timer.py) for an example on how to use the Timer class for timed tasks.
+
+### MongoDB client
+
+[`tools/db_clients.py`](tools/db_clients.py)
+
+- Contains a MongodbClient client that can be used to store messages to Mongo database.
+- Currently contains mainly functionalities required by Log Writer.
 
 ### Miscellaneous tools
 
@@ -425,6 +438,14 @@ When implementing a new simulation component in Python it is advisable to try to
 
         ```python
         python -u -m examples.client_send
+        ```
+
+- The Timer class examples, [examples/timer.py](examples/timer.py)
+    - Contains a couple of examples on how to start timed tasks with or without extra parameters.
+    - To start the timer example (from the command line):
+
+        ```python
+        python -u -m examples.timer
         ```
 
 ## Run unit tests
