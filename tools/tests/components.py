@@ -4,7 +4,6 @@
 
 import asyncio
 import datetime
-import os
 from typing import List, Tuple, Union, cast
 
 import aiounittest
@@ -124,7 +123,10 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     # The keyword arguments for the component creator.
     # NOTE: for the AbstractSimulationComponent the parameters can be given
     #       either as constructor arguments or as environmental variables
-    component_creator_params = {}
+    component_creator_params = {
+        "simulation_id": simulation_id,
+        "component_name": component_name
+    }
     # The generator class that can produce messages comparable to the ones produced by the test component.
     message_generator_type = MessageGenerator
 
@@ -133,14 +135,6 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
     test_manager_name = "TestManager"
     manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # set the environment variables for the use of unit tests
-        # the RabbitMQ parameters are taken from the test environment and they are not set here
-        os.environ["SIMULATION_ID"] = self.__class__.simulation_id
-        os.environ["SIMULATION_COMPONENT_NAME"] = self.__class__.component_name
-        os.environ["SIMULATION_OTHER_TOPICS"] = ",".join(self.__class__.other_topics)
 
     def get_expected_messages(self, component_message_generator: MessageGenerator, epoch_number: int,
                               triggering_message_ids: List[str]) -> List[Tuple[AbstractMessage, str]]:
@@ -300,6 +294,6 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
         await self.end_tester(message_client, test_component)
 
-    async def test_component_robustness(self):
-        """Unit test for testing simulation component behaviour when simulation does not go smoothly."""
-        # TODO: implement test_component_robustness
+    # async def test_component_robustness(self):
+    #     """Unit test for testing simulation component behaviour when simulation does not go smoothly."""
+    #     # TODO: implement test_component_robustness
