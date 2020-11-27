@@ -2,9 +2,9 @@
 
 """Module containing common tools for the use of simulation platform components."""
 
-import datetime
 import logging
 import os
+import sys
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
@@ -145,45 +145,40 @@ class FullLogger:
         logging.CRITICAL: "CRITICAL"
     }
 
-    def __init__(self, logger_name: str, logger_level: Union[int, None] = None, stdout_output: bool = True):
+    def __init__(self, logger_name: str, logger_level: Optional[int] = None, stdout_output: bool = True):
         """Creates a logger object with the given name and log level and that writes the logs to a file.
            The log filename is determined by the environment variable SIMULATION_LOG_FILE. If argument
            logger_level is None, the logging level is determined by the environment variable SIMULATION_LOG_LEVEL.
            If stdout_output is True, then the log messages are also printed on the stdout device.
         """
         self.__logger = get_logger(logger_name, log_level=logger_level)
-        self.__log_level = self.__logger.level
-        self.__stdout_output = stdout_output
 
-    def debug(self, message: str, *args):
+        if stdout_output:
+            console_handler = logging.StreamHandler(sys.stdout)
+            logger_formatter = self.__logger.handlers[0].formatter
+            if logger_formatter is not None:
+                console_handler.setFormatter(logger_formatter)
+            self.__logger.addHandler(console_handler)
+
+    def debug(self, message: str, *args, **kwargs):
         """Writes log message with DEBUG logging level."""
-        if self.level <= logging.DEBUG:
-            self.__logger.debug(message, *args)
-            self.__print(logging.DEBUG, message, *args)
+        self.__logger.debug(message, *args, **kwargs)
 
-    def info(self, message: str, *args):
+    def info(self, message: str, *args, **kwargs):
         """Writes log message with INFO logging level."""
-        if self.level <= logging.INFO:
-            self.__logger.info(message, *args)
-            self.__print(logging.INFO, message, *args)
+        self.__logger.info(message, *args, **kwargs)
 
-    def warning(self, message: str, *args):
+    def warning(self, message: str, *args, **kwargs):
         """Writes log message with WARNING logging level."""
-        if self.level <= logging.WARNING:
-            self.__logger.warning(message, *args)
-            self.__print(logging.WARNING, message, *args)
+        self.__logger.warning(message, *args, **kwargs)
 
     def error(self, message: str, *args):
         """Writes log message with ERROR logging level."""
-        if self.level <= logging.ERROR:
-            self.__logger.error(message, *args)
-            self.__print(logging.ERROR, message, *args)
+        self.__logger.error(message, *args)
 
     def critical(self, message: str, *args):
         """Writes log message with CRITICAL logging level."""
-        if self.level <= logging.CRITICAL:
-            self.__logger.critical(message, *args)
-            self.__print(logging.CRITICAL, message, *args)
+        self.__logger.critical(message, *args)
 
     @property
     def level(self) -> int:
@@ -205,18 +200,9 @@ class FullLogger:
         """Returns the Logger object."""
         return self.__logger
 
-    def __print(self, message_level: int, message: str, *args):
-        if self.__stdout_output and self.__log_level <= message_level:
-            # NOTE: this is done to allow a change from old print format using "%" to using the new format syntax
-            modified_message = message.replace("{", "{{").replace("}", "}}")
-            print(
-                datetime.datetime.now().isoformat(),
-                FullLogger.MESSAGE_LEVEL[message_level], ":", modified_message.format(args),
-                flush=True)
 
-
-def get_logger(logger_name: str, log_level: Union[int, None] = None) -> logging.Logger:
-    """Returns a Logger object that logs the messages both to a file.
+def get_logger(logger_name: str, log_level: Optional[int] = None) -> logging.Logger:
+    """Returns a Logger object that logs the messages to a file.
        The logging level and the log filename are determined by the environment variables
        SIMULATION_LOG_LEVEL and SIMULATION_LOG_FILE."""
     new_logger = logging.getLogger(logger_name)
