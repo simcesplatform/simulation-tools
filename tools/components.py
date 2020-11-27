@@ -51,7 +51,8 @@ class AbstractSimulationComponent:
                  rabbitmq_ssl_version: str = None,
                  rabbitmq_exchange: str = None,
                  rabbitmq_exchange_autodelete: bool = None,
-                 rabbitmq_exchange_durable: bool = None):
+                 rabbitmq_exchange_durable: bool = None,
+                 **kwargs: Any):
         """Loads the simulation is and the component name as wells as the required topic names from environmental
         variables and sets up the connection to the RabbitMQ message bus for which the connection parameters are
         fetched from environmental variables. Opens a topic listener for the simulation state and epoch messages
@@ -126,7 +127,10 @@ class AbstractSimulationComponent:
             - whether to setup the exchange to survive message bus restarts
             - environmental variable: "RABBITMQ_EXCHANGE_DURABLE"
             - default value: False
+        - **kwargs
+            - all other arguments are ignored
         """
+        # pylint: disable=unused-argument
 
         # Start the connection to the RabbitMQ client using the given connection parameters and
         # the environmental values for those parameters that were not given.
