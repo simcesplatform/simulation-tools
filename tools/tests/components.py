@@ -4,6 +4,7 @@
 
 import asyncio
 import datetime
+import os
 from typing import List, Tuple, Union, cast
 
 import aiounittest
@@ -13,7 +14,6 @@ from tools.components import AbstractSimulationComponent
 from tools.datetime_tools import to_iso_format_datetime_string
 from tools.messages import BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage, \
                            SimulationStateMessage, StatusMessage, get_next_message_id
-from tools.tools import EnvironmentVariable
 
 
 async def send_message(message_client: RabbitmqClient, message_object: AbstractMessage, topic_name: str) -> None:
@@ -111,8 +111,10 @@ class MessageGenerator:
 
 class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     """Unit tests for sending and receiving messages using AbstractSimulationComponent object."""
-    simulation_id = cast(str, EnvironmentVariable("SIMULATION_ID", str).value)
-    component_name = cast(str, EnvironmentVariable("SIMULATION_COMPONENT_NAME", str).value)
+    simulation_id = "2020-01-01T00:00:00.000Z"
+    component_name = "TestComponent"
+    other_topics = []
+
     short_wait = 0.5
     long_wait = 2.5
 
@@ -120,6 +122,8 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     # NOTE: this can also be the component type if the constructor can be used to create the component.
     component_creator = AbstractSimulationComponent
     # The keyword arguments for the component creator.
+    # NOTE: for the AbstractSimulationComponent the parameters can be given
+    #       either as constructor arguments or as environmental variables
     component_creator_params = {}
     # The generator class that can produce messages comparable to the ones produced by the test component.
     message_generator_type = MessageGenerator
@@ -127,8 +131,16 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     # The last epoch number for the normal simulation test scenario.
     normal_simulation_epochs = 10
 
-    test_manager_name = "test_manager"
+    test_manager_name = "TestManager"
     manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # set the environment variables for the use of unit tests
+        # the RabbitMQ parameters are taken from the test environment and they are not set here
+        os.environ["SIMULATION_ID"] = self.__class__.simulation_id
+        os.environ["SIMULATION_COMPONENT_NAME"] = self.__class__.component_name
+        os.environ["SIMULATION_OTHER_TOPICS"] = ",".join(self.__class__.other_topics)
 
     def get_expected_messages(self, component_message_generator: MessageGenerator, epoch_number: int,
                               triggering_message_ids: List[str]) -> List[Tuple[AbstractMessage, str]]:

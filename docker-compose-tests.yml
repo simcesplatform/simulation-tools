@@ -16,6 +16,8 @@ services:
       - RABBITMQ_SSL=false
       - RABBITMQ_SSL_VERSION=PROTOCOL_TLS
       - RABBITMQ_EXCHANGE=procem.simulation_tools_exchange
+      - RABBITMQ_EXCHANGE_AUTODELETE=false
+      - RABBITMQ_EXCHANGE_DURABLE=false
       - MONGODB_HOST=mongodb_tools_tests
       - MONGODB_PORT=27017
       - MONGODB_USERNAME=testuser
@@ -26,8 +28,6 @@ services:
       - ENV_TEST_VALUE_INT=12
       - ENV_TEST_VALUE_FLOAT=2.34
       - ENV_TEST_VALUE_STRING=hello
-      - SIMULATION_ID=2000-01-01T00:00:00.000Z
-      - SIMULATION_COMPONENT_NAME=test_component
     networks:
       - tools_test_network
 
