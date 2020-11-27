@@ -210,8 +210,11 @@ class AbstractSimulationComponent:
     async def start(self) -> None:
         """Starts the component."""
         if self.initialization_error is not None or self._in_error_state:
-            LOGGER.error("Cannot start component because it is in an error state: {}".format(self._error_description))
-            return
+            if self.initialization_error is not None:
+                LOGGER.error("Component has an initialization error: {}".format(self.initialization_error))
+            else:
+                LOGGER.error("Component because it is in an error state: {}".format(self._error_description))
+            LOGGER.warning("The component will be started to allow the others to know about the error.")
 
         if self.is_client_closed:
             self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
