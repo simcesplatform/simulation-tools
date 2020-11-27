@@ -4,6 +4,7 @@
 
 import asyncio
 import datetime
+import os
 from typing import List, Tuple, Union, cast
 
 import aiounittest
@@ -123,10 +124,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
     # The keyword arguments for the component creator.
     # NOTE: for the AbstractSimulationComponent the parameters can be given
     #       either as constructor arguments or as environmental variables
-    component_creator_params = {
-        "simulation_id": simulation_id,
-        "component_name": component_name
-    }
+    component_creator_params = {}
     # The generator class that can produce messages comparable to the ones produced by the test component.
     message_generator_type = MessageGenerator
 
@@ -135,6 +133,14 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
     test_manager_name = "TestManager"
     manager_message_generator = MessageGenerator(simulation_id, test_manager_name)
+
+    def __init__(self, *args, **kwargs):
+        # to be more compatible with components that take all the base arguments from environment variables
+        super().__init__(*args, **kwargs)
+        if "simulation_id" not in self.__class__.component_creator_params:
+            os.environ["SIMULATION_ID"] = self.__class__.simulation_id
+        if "component_name" not in self.__class__.component_creator_params:
+            os.environ["SIMULATION_COMPONENT_NAME"] = self.__class__.component_name
 
     def get_expected_messages(self, component_message_generator: MessageGenerator, epoch_number: int,
                               triggering_message_ids: List[str]) -> List[Tuple[AbstractMessage, str]]:
