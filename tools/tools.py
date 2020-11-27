@@ -5,7 +5,7 @@
 import logging
 import os
 import sys
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union, cast
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
 SIMULATION_LOG_FILE = "SIMULATION_LOG_FILE"
@@ -123,11 +123,12 @@ def load_environmental_variables(*env_variable_specifications: EnvironmentVariab
 DEFAULT_LOGFILE_NAME = "logfile.log"
 DEFAULT_LOGFILE_FORMAT = " --- ".join([
     "%(asctime)s",
-    "%(levelname)s",
-    "%(name)s",
-    "%(funcName)s",
+    "%(levelname)8s",
     "%(message)s"
 ])
+LOGGING_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
+LOGGING_MSEC_FORMAT = "%s.%03d"
+
 COMMON_ENV_VARIABLES = load_environmental_variables(
     (SIMULATION_LOG_LEVEL, int, logging.DEBUG),
     (SIMULATION_LOG_FILE, str, DEFAULT_LOGFILE_NAME),
@@ -215,8 +216,12 @@ def get_logger(logger_name: str, log_level: Optional[int] = None) -> logging.Log
 
     log_file_name = COMMON_ENV_VARIABLES[SIMULATION_LOG_FILE]
     if isinstance(log_file_name, str):
+        log_formatter = logging.Formatter(cast(str, COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT]))
+        log_formatter.default_time_format = LOGGING_DATE_FORMAT
+        log_formatter.default_msec_format = LOGGING_MSEC_FORMAT
+
         log_file_handler = logging.FileHandler(log_file_name)
-        log_file_handler.setFormatter(logging.Formatter(str(COMMON_ENV_VARIABLES[SIMULATION_LOG_FORMAT])))
+        log_file_handler.setFormatter(log_formatter)
         new_logger.addHandler(log_file_handler)
 
     return new_logger
