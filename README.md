@@ -16,7 +16,8 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 - [How to add support for a new message type as a Python class](#how-to-add-support-for-a-new-message-type-as-a-python-class)
 - [General instructions for creating a new simulation component](#general-instructions-for-creating-a-new-simulation-component)
 - [How to use the example code](#how-to-use-the-example-code)
-- [Run unit tests](#run-unit-tests)
+- [Things not yet covered here](#things-not-yet-covered-here)
+- [Run unit tests for the simulation-tools library](#run-unit-tests-for-the-simulation-tools-library)
 - [Clean up after running the tests](#clean-up-after-running-the-tests)
 
 ## Contents
@@ -289,8 +290,9 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 ### Miscellaneous tools
 
-- [`tools/tools.py`](tools/tools.py)
-    - Contains tools that can be used to fetch environmental variables and to setup a logger object.
+[`tools/tools.py`](tools/tools.py)
+
+- Contains tools that can be used to fetch environmental variables and to setup a logger object that can output logging information both to a file and to the screen.
 
 ## How to include simulation-tools to your own project
 
@@ -448,7 +450,12 @@ When implementing a new simulation component in Python it is advisable to try to
         python -u -m examples.timer
         ```
 
-## Run unit tests
+## Things not yet covered here
+
+- Test code or how to write unit tests for new message classes or other tools based on the common code.
+- How to use the code library or your own code with Docker.
+
+## Run unit tests for the simulation-tools library
 
 ```bash
 docker network create tools_test_network
