@@ -2,11 +2,11 @@
 
 """This module contains general utils for working with simulation platform message classes."""
 
+import datetime
 from typing import Iterator, List, Type, Union
 
 from tools.exceptions.messages import MessageError
 from tools.message.abstract import AbstractMessage
-from tools.message.block import QuantityBlock
 from tools.message.epoch import EpochMessage
 from tools.message.simulation_state import SimulationStateMessage
 from tools.message.status import StatusMessage
@@ -77,7 +77,7 @@ class MessageGenerator:
         )
 
     def get_epoch_message(self, EpochNumber: int, TriggeringMessageIds: List[str],
-                          StartTime: str, EndTime: str,
+                          StartTime: Union[str, datetime.datetime], EndTime: Union[str, datetime.datetime],
                           LastUpdatedInEpoch: int = None, Warnings: List[str] = None) \
             -> EpochMessage:
         """Returns a new EpochMessage corresponding to the given parameters.
