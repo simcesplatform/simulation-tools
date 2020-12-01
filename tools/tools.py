@@ -237,6 +237,8 @@ def handle_async_exception(event_loop, context):
         exception = context.get("exception", None)
         if isinstance(exception, SystemExit):
             LOGGER.debug("SystemExit caught by async exception handler.")
+        elif isinstance(exception, RuntimeError):
+            LOGGER.debug("RuntimeError caught by async exception handler: {}".format(exception))
         else:
             LOGGER.debug("Async exception: {:s}".format(str(exception)))
     else:

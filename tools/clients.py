@@ -14,6 +14,8 @@ from tools.tools import FullLogger, handle_async_exception, load_environmental_v
 
 LOGGER = FullLogger(__name__)
 
+RECONNECT_INTERVAL = 30
+
 
 def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]:
     """Returns the default environment variable definitions for RabbitmqClient."""
@@ -107,7 +109,11 @@ class RabbitmqConnection:
         """Returns a RabbitMQ connection. Creates the connection on the first call.
            If the connection has been closed, tries to create a new connection."""
         if self.__rabbitmq_connection is None or self.__rabbitmq_connection.is_closed:
-            self.__rabbitmq_connection = await aio_pika.connect_robust(**self.__connection_parameters)
+            # TODO: add retries for the connection if it is not available at first
+            self.__rabbitmq_connection = await aio_pika.connect_robust(
+                reconnect_interval=RECONNECT_INTERVAL,
+                **self.__connection_parameters,
+            )
             self.__rabbitmq_channel = None
             self.__rabbitmq_exchange = None
         return self.__rabbitmq_connection
@@ -196,7 +202,6 @@ class RabbitmqClient:
 
         self.__send_connection = RabbitmqConnection(self.__connection_parameters, self.__exchange_parameters)
         self.__listened_topics = set()
-        self.__listener_connections = []
         self.__listener_tasks = []
 
         self.__lock = asyncio.Lock()
@@ -255,23 +260,19 @@ class RabbitmqClient:
             callback_class=MessageCallback(callback_function)
         ))
 
-        self.__listener_connections.append(new_connection)
         self.__listener_tasks.append(listener_task)
         for topic_name in topic_names:
             self.__listened_topics.add(topic_name)
 
     async def remove_listeners(self) -> None:
         """Removes all topic listeners from the client."""
-        for listener_connection, listener_task in zip(self.__listener_connections, self.__listener_tasks):
+        for listener_task in self.__listener_tasks:
             listener_task.cancel()
             try:
                 await listener_task
             except asyncio.CancelledError:
                 pass
 
-            await listener_connection.close()
-
-        self.__listener_connections = []
         self.__listener_tasks = []
         self.__listened_topics = set()
 
@@ -344,6 +345,7 @@ class RabbitmqClient:
             LOGGER.warning("OSError: '{:s}' when trying to listen to the message bus.".format(str(error)))
         finally:
             LOGGER.info("Closing listener for topics: '{:s}'".format(", ".join(topic_names)))
+            await connection_class.close()
 
     @classmethod
     def __get_connection_parameters_only(cls, connection_config_dict: dict) -> dict:
