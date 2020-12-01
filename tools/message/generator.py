@@ -11,9 +11,9 @@ from tools.message.epoch import EpochMessage
 from tools.message.simulation_state import SimulationStateMessage
 from tools.message.status import StatusMessage
 from tools.message.utils import get_next_message_id
-from tools.tools import get_logger
+from tools.tools import FullLogger
 
-LOGGER = get_logger(__name__)
+LOGGER = FullLogger(__name__)
 
 
 def abstract_message_generator(simulation_id: str, source_process_id: str, start_message_id: int = 1) \
