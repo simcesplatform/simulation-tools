@@ -298,7 +298,7 @@ class AbstractSimulationComponent:
                 # The current epoch was successfully processed.
                 self._completed_epoch = self._latest_epoch
                 await self.send_status_message()
-                LOGGER.info("Finished processing epoch {:s}".format(self._completed_epoch))
+                LOGGER.info("Finished processing epoch {:d}".format(self._completed_epoch))
                 return True
 
         # Some information required for the epoch is still missing.
