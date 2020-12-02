@@ -421,9 +421,10 @@ When implementing a new simulation component in Python it is advisable to try to
         ```python
         from examples.messages import *
 
-        test_from_json()          # examples on creating message objects from JSON
-        test_invalid_status()     # examples on trying to create status messages with invalid input
-        test_message_generator()  # examples on creating messages using the message generator helper class
+        test_from_json()            # examples on creating message objects from JSON
+        test_invalid_status()       # examples on trying to create status messages with invalid input
+        test_message_generator()    # examples on creating messages using the message generator helper class
+        test_timeseries_from_csv()  # examples on creating TimeSeriesBlock objects from CSV files
         ```
 
 - Message bus client examples
