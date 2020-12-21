@@ -16,12 +16,10 @@ from tools.tools import FullLogger
 LOGGER = FullLogger(__name__)
 
 
-def abstract_message_generator(simulation_id: str, source_process_id: str, start_message_id: int = 1) \
+def abstract_message_generator(message_id_generator: Iterator[str], simulation_id: str, source_process_id: str) \
         -> Iterator[AbstractMessage]:
     """Generator for getting new instances of AbstractMessage with updated MessageId and Timestamp fields."""
     # TODO: add unit tests for this function
-    message_id_generator = get_next_message_id(source_process_id, start_message_id)
-
     while True:
         try:
             new_message_id = next(message_id_generator)
@@ -40,8 +38,14 @@ class MessageGenerator:
     """Message generator class to help with the creation of simulation message objects."""
     def __init__(self, simulation_id: str, source_process_id: str, start_message_id: int = 1):
         # TODO: add checks for the parameters
+        self._message_id_generator = get_next_message_id(source_process_id, start_message_id)
         self._abstract_message_generator = abstract_message_generator(
-            simulation_id, source_process_id, start_message_id)
+            self._message_id_generator, simulation_id, source_process_id)
+
+    @property
+    def message_id_generator(self) -> Iterator[str]:
+        """Iterator that is used by the message generator to generate message ids."""
+        return self._message_id_generator
 
     def get_abstract_message(self) -> AbstractMessage:
         """Returns a new AbstractMessage instance."""
@@ -157,7 +161,7 @@ class MessageGenerator:
             TriggeringMessageIds=TriggeringMessageIds,
             LastUpdatedInEpoch=LastUpdatedInEpoch,
             Warnings=Warnings,
-            Value=StatusMessage.STATUS_VALUES[0],  # should be "ready"
+            Value=StatusMessage.STATUS_VALUES[-1],  # should be "error"
             Description=Description
         )
 
