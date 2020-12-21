@@ -5,8 +5,9 @@
 from typing import cast, Any, Dict, List, Union
 
 from tools.clients import RabbitmqClient
+from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage, AbstractMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
-                           get_next_message_id
+                           MessageGenerator
 from tools.tools import FullLogger, EnvironmentVariable
 
 LOGGER = FullLogger(__name__)
@@ -174,7 +175,10 @@ class AbstractSimulationComponent:
         self._latest_status_message_id = None
         self._latest_epoch_message = None
 
-        self._message_id_generator = get_next_message_id(self._component_name)
+        self._message_generator = MessageGenerator(self._simulation_id, self._component_name)
+        # include the message id generator separately to be compatible with older code created before
+        # the message generator class was implemented
+        self._message_id_generator = self._message_generator.message_id_generator
 
     @property
     def simulation_id(self) -> str:
@@ -441,40 +445,27 @@ class AbstractSimulationComponent:
     def _get_status_message(self) -> Union[StatusMessage, None]:
         """Creates a new status message and returns the created message object.
            Returns None, if there was a problem creating the message."""
-        status_message = StatusMessage.from_json({
-            "Type": StatusMessage.CLASS_MESSAGE_TYPE,
-            "SimulationId": self.simulation_id,
-            "SourceProcessId": self.component_name,
-            "MessageId": next(self._message_id_generator),
-            "EpochNumber": self._latest_epoch,
-            "TriggeringMessageIds": self._triggering_message_ids,
-            "Value": self.__class__.READY_STATUS
-        })
-        if status_message is None:
-            LOGGER.error("Problem with creating a status message")
-            return None
+        try:
+            return self._message_generator.get_status_ready_message(
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids)
 
-        self._latest_status_message_id = status_message.message_id
-        return status_message
+        except (ValueError, TypeError, MessageError) as message_error:
+            LOGGER.error("Problem with creating a status message: {}".format(message_error))
+            return None
 
     def _get_error_message(self, description: str) -> Union[StatusMessage, None]:
         """Creates a new error message and returns the created message object.
            Returns None, if there was a problem creating the message."""
-        error_message = StatusMessage.from_json({
-            "Type": StatusMessage.CLASS_MESSAGE_TYPE,
-            "SimulationId": self.simulation_id,
-            "SourceProcessId": self.component_name,
-            "MessageId": next(self._message_id_generator),
-            "EpochNumber": self._latest_epoch,
-            "TriggeringMessageIds": self._triggering_message_ids,
-            "Value": self.__class__.ERROR_STATUS,
-            "Description": description
-        })
-        if error_message is None:
-            LOGGER.error("Problem with creating an error message")
-            return None
+        try:
+            return self._message_generator.get_status_error_message(
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                Description=description)
 
-        return error_message
+        except (ValueError, TypeError, MessageError) as message_error:
+            LOGGER.error("Problem with creating an error message: {}".format(message_error))
+            return None
 
     def __set_component_variables(self,
                                   simulation_id: str = None,
