@@ -483,11 +483,12 @@ class AbstractResultMessage(AbstractMessage):
     }
     OPTIONAL_ATTRIBUTES_FULL = AbstractMessage.OPTIONAL_ATTRIBUTES_FULL + OPTIONAL_ATTRIBUTES
 
+    # Any valid warning must start with one of the following.
     WARNING_TYPES = [
         "warning.convergence",
         "warning.input",
-        "warning.input.range",
-        "warning.input.unreliable",
+        "warning.input-range",
+        "warning.input-unreliable",
         "warning.internal",
         "warning.other"
     ]
@@ -575,9 +576,19 @@ class AbstractResultMessage(AbstractMessage):
             return True
         if not isinstance(warnings, (list, tuple)):
             return False
+
+        # the warnings must all start with one of the predefined base warnings
         for warning in warnings:
-            if warning not in cls.WARNING_TYPES:
+            validity_check = False
+            for valid_warning in cls.WARNING_TYPES:
+                validity_check = warning.startswith(valid_warning)
+                if validity_check:
+                    # jump to checking the next warning in the warnings list
+                    break
+
+            if not validity_check:
                 return False
+
         return True
 
     @classmethod
