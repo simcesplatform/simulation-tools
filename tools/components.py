@@ -2,6 +2,7 @@
 
 """This module contains a base simulation component that can communicate with the RabbitMQ message bus."""
 
+import asyncio
 from typing import cast, Any, Dict, List, Union
 
 from tools.clients import RabbitmqClient
@@ -180,6 +181,9 @@ class AbstractSimulationComponent:
         # the message generator class was implemented
         self._message_id_generator = self._message_generator.message_id_generator
 
+        # lock that is set while the component is handling a message
+        self._lock = asyncio.Lock()
+
     @property
     def simulation_id(self) -> str:
         """The simulation ID for the simulation."""
@@ -347,19 +351,21 @@ class AbstractSimulationComponent:
     async def general_message_handler_base(self, message_object: Union[BaseMessage, Any],
                                            message_routing_key: str) -> None:
         """Forwards the message handling to the appropriate function depending on the message type."""
-        if isinstance(message_object, SimulationStateMessage):
-            await self.simulation_state_message_handler(message_object, message_routing_key)
+        # only allow handling one message at a time
+        async with self._lock:
+            if isinstance(message_object, SimulationStateMessage):
+                await self.simulation_state_message_handler(message_object, message_routing_key)
 
-        elif isinstance(message_object, EpochMessage):
-            await self.epoch_message_handler(message_object, message_routing_key)
+            elif isinstance(message_object, EpochMessage):
+                await self.epoch_message_handler(message_object, message_routing_key)
 
-        elif self._in_error_state:
-            # component is in an error state and will not react to any other messages
-            return
+            elif self._in_error_state:
+                # component is in an error state and will not react to any other messages
+                return
 
-        else:
-            # Handling of any other message types would be added to a separate function.
-            await self.general_message_handler(message_object, message_routing_key)
+            else:
+                # Handling of any other message types would be added to a separate function.
+                await self.general_message_handler(message_object, message_routing_key)
 
     async def general_message_handler(self, message_object: Union[BaseMessage, Any],
                                       message_routing_key: str) -> None:
