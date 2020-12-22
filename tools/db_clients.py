@@ -4,7 +4,7 @@
 
 import datetime
 import operator
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import motor.motor_asyncio
 import pymongo
@@ -36,7 +36,7 @@ def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableTyp
     ]
 
 
-def load_config_from_env_variables() -> Dict[str, EnvironmentVariableValue]:
+def load_config_from_env_variables() -> Dict[str, Optional[EnvironmentVariableValue]]:
     """Returns configuration dictionary from which values are fetched from environmental variables."""
     def simple_name(env_variable_name):
         return env_variable_name[len(MongodbClient.DEFAULT_ENV_VARIABLE_PREFIX):].lower()

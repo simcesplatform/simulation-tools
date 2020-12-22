@@ -67,8 +67,11 @@ class EnvironmentVariable:
         return "{:s}: {:s}".format(self.variable_name, str(self.value))
 
 
-EnvironmentVariableSetupType = Union[EnvironmentVariable, Tuple[str, EnvironmentVariableType],
-                                     Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]
+EnvironmentVariableSetupType = Union[
+    EnvironmentVariable,
+    Tuple[str, EnvironmentVariableType],
+    Tuple[str, EnvironmentVariableType, Optional[EnvironmentVariableValue]]
+]
 
 
 class EnvironmentVariables:
@@ -99,7 +102,7 @@ class EnvironmentVariables:
         """Returns a list of the registered environment variable names."""
         return list(self.__variables.keys())
 
-    def get_value(self, variable_name: str) -> EnvironmentVariableValue:
+    def get_value(self, variable_name: str) -> Optional[EnvironmentVariableValue]:
         """Returns the value of the wanted environmental parameter.
            The value for each parameter is only fetched from the environment at the first call.
            If the given variable is not registered to the EnvironmentVariables instance, returns an empty string."""
@@ -111,7 +114,7 @@ class EnvironmentVariables:
 
 
 def load_environmental_variables(*env_variable_specifications: EnvironmentVariableSetupType) \
-         -> Dict[str, EnvironmentVariableValue]:
+         -> Dict[str, Optional[EnvironmentVariableValue]]:
     """Returns the realized environmental variable values as a dictionary."""
     env_variables = EnvironmentVariables(*env_variable_specifications)
     return {

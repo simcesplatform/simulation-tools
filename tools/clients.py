@@ -3,7 +3,7 @@
 """This module contains a client class for sending and listening to messages using a RabbitMQ message bus."""
 
 import asyncio
-from typing import Dict, List, Tuple, Union, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import aio_pika
 
@@ -35,7 +35,7 @@ def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableTyp
     ]
 
 
-def load_config_from_env_variables() -> Dict[str, EnvironmentVariableValue]:
+def load_config_from_env_variables() -> Dict[str, Optional[EnvironmentVariableValue]]:
     """Returns configuration dictionary from which values are fetched from environmental variables."""
     def simple_name(env_variable_name: str) -> str:
         return env_variable_name[len(RabbitmqClient.DEFAULT_ENV_VARIABLE_PREFIX):].lower()
