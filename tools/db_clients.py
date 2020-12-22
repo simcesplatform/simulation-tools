@@ -31,6 +31,7 @@ def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableTyp
         (env_variable_name("tz_aware"), bool, True),
         (env_variable_name("metadata_collection"), str, "simulations"),
         (env_variable_name("messages_collection_prefix"), str, "simulation_"),
+        (env_variable_name("invalid_messages_collection_prefix"), str, "invalid_simulation_"),
         (env_variable_name("collection_identifier"), str, "SimulationId"),
         (env_variable_name("admin"), bool, True)
     ]
@@ -74,7 +75,14 @@ class MongodbClient:
     PROCESS_ATTRIBUTE = "SourceProcessId"
 
     FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + \
-        ["database", "metadata_collection", "messages_collection_prefix", "collection_identifier", "admin"]
+        [
+            "database",
+            "metadata_collection",
+            "messages_collection_prefix",
+            "invalid_messages_collection_prefix",
+            "collection_identifier",
+            "admin"
+        ]
 
     # List of possible metadata attributes in addition to the simulation id.
     # Each element is a tuple (attribute_name, attribute_types, comparison_operator)
@@ -102,6 +110,8 @@ class MongodbClient:
            - tz_aware                    : are datetime values timezone aware (bool)
            - metadata_collection         : the collection name for the simulation metadata (str)
            - messages_collection_prefix  : the prefix for the collection names for the simulation messages (str)
+           - invalid_messages_collection_prefix  : the prefix for the collection names for the invalid
+                                                   simulation messages (str)
            - collection_identifier       : the attribute name in the messages that tells the simulation id (str)
            - admin                       : whether the given account has root user access (bool)
 
@@ -116,6 +126,7 @@ class MongodbClient:
            - MONGODB_TZ_AWARE (default value: True)
            - MONGODB_METADATA_COLLECTION (default value: "simulations")
            - MONGODB_MESSAGES_COLLECTION_PREFIX (default value: "simulation_")
+           - MONGODB_INVALID_MESSAGES_COLLECTION_PREFIX (default value: "invalid_simulation_")
            - MONGODB_COLLECTION_IDENTIFIER (default value: "SimulationId")
            - MONGODB_ADMIN (default value: True)
         """
@@ -126,10 +137,11 @@ class MongodbClient:
         }
 
         self.__connection_parameters = MongodbClient.__get_connection_parameters_only(kwargs)
-        self.__database_name = kwargs["database"]
-        self.__metadata_collection_name = kwargs["metadata_collection"]
-        self.__messages_collection_prefix = kwargs["messages_collection_prefix"]
-        self.__collection_identifier = kwargs["collection_identifier"]
+        self.__database_name = str(kwargs["database"])
+        self.__metadata_collection_name = str(kwargs["metadata_collection"])
+        self.__messages_collection_prefix = str(kwargs["messages_collection_prefix"])
+        self.__invalid_messages_collection_prefix = str(kwargs["invalid_messages_collection_prefix"])
+        self.__collection_identifier = str(kwargs["collection_identifier"])
 
         # Set up the Mongo database connection and the metadata collection
         self.__mongo_client = motor.motor_asyncio.AsyncIOMotorClient(**self.__connection_parameters)
@@ -146,29 +158,23 @@ class MongodbClient:
         """The port number of the MongoDB."""
         return int(str(self.__connection_parameters["port"]))
 
-    async def store_message(self, json_document: dict, document_topic: str = None) -> bool:
-        """Stores a new JSON message to the database. The used collection is determined by
-           the 'simulation_id' attribute in the message.
+    async def store_message(self, json_document: dict, document_topic: Optional[str] = None, invalid: bool = False,
+                            default_simulation_id: Optional[str] = None) -> bool:
+        """Stores a new JSON message to the database. The used collection is determined by the 'simulation_id'
+           attribute in the message or if message has no simulation id default simulation id is used.
+           If invalid is False the normal messages collection is used.
+           If it is True the invalid messages collection is used.
            Returns True, if writing to the database was successful.
         """
-        if isinstance(document_topic, str):
-            # Adds or replaces the topic attribute in the given JSON document with the parameter document_topic.
-            json_document[MongodbClient.TOPIC_ATTRIBUTE] = document_topic
+        # use the store_messages method and check that it has returned id of the stored document.
+        return len(await self.store_messages([(json_document, document_topic)], invalid, default_simulation_id)) == 1
 
-        message_collection_name = self.__get_message_collection(json_document)
-        if message_collection_name is None:
-            LOGGER.warning("Document does not have '{:s}' attribute.".format(self.__collection_identifier))
-            return False
-
-        await MongodbClient.datetime_attributes_to_objects(json_document)
-
-        mongodb_collection = self.__mongo_database[message_collection_name]
-        write_result = await mongodb_collection.insert_one(json_document)
-        return write_result.acknowledged
-
-    async def store_messages(self, documents: List[Tuple[dict, str]]) -> List[str]:
+    async def store_messages(self, documents: List[Tuple[dict, Optional[str]]], invalid: bool = False,
+                             default_simulation_id: Optional[str] = None) -> List[str]:
         """Stores several messages to the database. All documents are expected to belong to the same simulation.
-           The simulation is identified based on the first message on the list.
+           The simulation is identified based on the first message on the list or default simulation id
+           if the first message does not have a simulation id.
+           Invalid tells if the invalid or normal message collection should be used.
 
            documents parameters is expected to be a list of tuples (message_json, topic_name),
            where message_json is the message in JSON format and topic_name is a string for the message topic."""
@@ -184,19 +190,30 @@ class MongodbClient:
             for document, topic_name in documents
         ]
 
-        message_collection_name = self.__get_message_collection(full_documents[0])
+        message_collection_name = self.__get_message_collection(full_documents[0], invalid, default_simulation_id)
         if message_collection_name is None:
-            LOGGER.warning("The first document does not have '{:s}' attribute.".format(self.__collection_identifier))
+            LOGGER.warning(
+                "The first document does not have '{:s}' attribute and default simulation was not given.".format(
+                    self.__collection_identifier))
             return []
 
         await MongodbClient.datetime_attributes_to_objects(full_documents)
 
         mongodb_collection = self.__mongo_database[message_collection_name]
-        write_result = await mongodb_collection.insert_many(full_documents)
+        inserted_ids = []  # ids of inserted documents
 
-        if write_result.acknowledged:
-            return write_result.inserted_ids
-        return []
+        # use insert_one or insert_many depending on the number of documents
+        if len(full_documents) > 1:
+            write_result = await mongodb_collection.insert_many(full_documents)
+            if write_result.acknowledged:
+                inserted_ids = write_result.inserted_ids
+
+        elif len(full_documents) == 1:
+            write_result = await mongodb_collection.insert_one(full_documents[0])
+            if write_result.acknowledged:
+                inserted_ids = [write_result.inserted_id]
+
+        return inserted_ids
 
     async def update_metadata(self, simulation_id: str, **attribute_updates) -> bool:
         """Creates or updates the metadata information for a simulation."""
@@ -263,7 +280,9 @@ class MongodbClient:
             LOGGER.debug("Updated the metadata collection indexes successfully.")
 
     async def add_simulation_indexes(self, simulation_id: str):
-        """Adds or updates indexes to the collection containing the messages from the specified simulation."""
+        """Adds or updates indexes to the collections containing the valid and invalid messages
+           from the specified simulation."""
+        # indexes for the valid messages collection
         simulation_indexes = [
             pymongo.IndexModel(
                 [
@@ -298,11 +317,57 @@ class MongodbClient:
         else:
             LOGGER.debug("Updated the message collection indexes for {:s} successfully.".format(simulation_id))
 
-    def __get_message_collection(self, json_document: dict):
-        """Returns the collection name for the document."""
-        if self.__collection_identifier not in json_document:
+        # indexes for invalid messages collection
+        simulation_indexes = [
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.TOPIC_ATTRIBUTE, pymongo.ASCENDING),
+                    (MongodbClient.TIMESTAMP_ATTRIBUTE, pymongo.ASCENDING)
+                ],
+                name="topic_index"
+            ),
+            pymongo.IndexModel(
+                [
+                    (MongodbClient.TIMESTAMP_ATTRIBUTE, pymongo.ASCENDING)
+                ],
+                name="timestamp_index"
+            )
+        ]
+
+        message_collection_name = self.__get_message_collection(
+            {self.__collection_identifier: simulation_id},
+            invalid=True
+        )
+        result = await self.__mongo_database[message_collection_name].create_indexes(simulation_indexes)
+
+        if len(result) != len(simulation_indexes):
+            LOGGER.warning("Problem with updating invalid message collection indexes for {:s}, result: {:s}".format(
+                simulation_id, str(result)))
+        else:
+            LOGGER.debug("Updated the invalid message collection indexes for {:s} successfully.".format(simulation_id))
+
+    def __get_message_collection(self, json_document: dict, invalid: bool = False,
+                                 default_simulation_id: Optional[str] = None) -> Optional[str]:
+        """Returns the collection name for the document.
+        Invalid False gives the normal messages collection and True gives the invalid messages collection.
+        Default_simulation_id is used with invalid messages which do not have simulation id.
+        """
+        if self.__collection_identifier in json_document:
+            simulation_id = str(json_document[self.__collection_identifier])
+
+        elif default_simulation_id is not None:
+            simulation_id = default_simulation_id
+
+        else:
             return None
-        return self.__messages_collection_prefix + json_document[self.__collection_identifier]
+
+        if invalid:
+            collection = self.__invalid_messages_collection_prefix + simulation_id
+
+        else:
+            collection = self.__messages_collection_prefix + simulation_id
+
+        return collection
 
     @classmethod
     async def datetime_attributes_to_objects(cls, json_documents: Union[dict, List[dict]]):
@@ -316,7 +381,7 @@ class MongodbClient:
                 if datetime_attribute in json_document and isinstance(json_document[datetime_attribute], str):
                     json_document[datetime_attribute] = to_utc_datetime_object(json_document[datetime_attribute])
 
-    async def get_metadata_json(self, old_values: dict, new_values: dict):
+    async def get_metadata_json(self, old_values: dict, new_values: dict) -> Optional[Dict[str, Any]]:
         """Returns a validated metadata document. Any attributes that not
            simulation_id or in METADATA_ATTRIBUTES list are ignored."""
         if new_values is None:
@@ -356,7 +421,7 @@ class MongodbClient:
         return metadata_values
 
     @classmethod
-    def __check_value_types(cls, value: Any, types: list):
+    def __check_value_types(cls, value: Any, types: list) -> bool:
         """Checks that value is of proper type. Used for the metadata attributes."""
         if value is None:
             return False
