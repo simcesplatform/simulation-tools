@@ -11,9 +11,9 @@ from tools.components import AbstractSimulationComponent
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables
 
-# import all the required messages from the domain_messages library
-# from domain_messages.<folder_name_1> import <message_class_name_1>
-# from domain_messages.<folder_name_2> import <message_class_name_2>
+# import all the required messages from installed libraries
+# from <library_name>.<folder_name_1> import <message_class_name_1>
+# from <library_name>.<folder_name_2> import <message_class_name_2>
 
 # initialize logging object for the module
 LOGGER = FullLogger(__name__)
