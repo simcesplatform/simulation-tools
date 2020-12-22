@@ -202,7 +202,7 @@ def create_component() -> NewSimulationComponent:
     environment_variables = load_environmental_variables(
         (COMPONENT_PARAMETER_1, int, 10),      # required integer with the default value of 10
         (COMPONENT_PARAMETER_2, str, "test"),  # required string with the default value of "test"
-        (COMPONENT_PARAMETER_3, str)            # optional string with the default value of None
+        (COMPONENT_PARAMETER_3, str)           # optional string with the default value of None
     )
 
     # The cast function here is only used to help Python linters like pyright to recognize the proper type.
