@@ -239,6 +239,11 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
             - Checks if the component is ready to do the calculations for the current epoch, using `ready_for_new_epoch`, and if that is the case calls `process_epoch`. If the `process_epoch` returns True, sends a Status ready message to the message bus.
             - Should be called whenever it is possible that the component is ready to proceed with the current epoch, I.e. usually after handling a received message in `general_message_handler`.
             - The function is called automatically after each Epoch message.
+        - `send_error_message`
+            - Sends an error message to the message bus.
+            - Sets the component in an error state so that it will no longer participate in the simulation.
+            - `description`
+                - The description for the error
 
 ### Tools for handling datetime values
 
