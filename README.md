@@ -395,7 +395,7 @@ A template for a new message type is given at [`message_template.txt`](message_t
 
 ## General instructions for creating a new simulation component
 
-When implementing a new simulation component in Python it is advisable to try to use the abstract simulation component class as the base class and implement the new simulation component as its child class. Some of the general workflow required from a component participating in a simulation run has already been implemented for the abstract class. The already implemented simulation components can be used as an example for using the abstract component as a base. Some general instructions are given here:
+When implementing a new simulation component in Python it is advisable to try to use the abstract simulation component class as the base class and implement the new simulation component as its child class. Some of the general workflow required from a component participating in a simulation run has already been implemented for the abstract class. The already implemented simulation components can be used as an example for using the abstract component as a base. Some general instructions are given here. There is also a template file, [examples/component_template.py](examples/component_template.py), that can be used as a starting point when implementing a new component.
 
 - Import the abstract component class to the project: `from tools.components import AbstractSimulationComponent`
 - Make a new class that is a child of the abstract class: `class MyComponent(AbstractSimulationComponent)`
