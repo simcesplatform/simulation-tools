@@ -276,7 +276,6 @@ class AbstractSimulationComponent:
 
            NOTE: this method should be overwritten in any child class that uses epoch specific variables
         """
-        pass
 
     async def start_epoch(self) -> bool:
         """Starts a new epoch for the component.
