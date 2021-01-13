@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 """
-Module containing a template for a simulation platform component,
+Module containing a template for a simulation platform component.
 """
 
 import asyncio
 from typing import Any, cast, Optional, Union
 
 from tools.components import AbstractSimulationComponent
+from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables
 
@@ -105,6 +106,16 @@ class NewSimulationComponent(AbstractSimulationComponent):
         # RabbitmqClient object for communicating with the message bus:
         # - self._rabbitmq_client
 
+    def clear_epoch_variables(self) -> None:
+        """
+        Clears all the variables that are used to store information about the received input within the
+        current epoch. This method is called automatically after receiving an epoch message for a new epoch.
+
+        NOTE: this method should be overwritten in any child class that uses epoch specific variables
+        """
+        # replace "pass" with the initialization of the variables for the new epoch
+        pass
+
     async def process_epoch(self) -> bool:
         """
         Process the epoch and do all the required calculations.
@@ -132,7 +143,6 @@ class NewSimulationComponent(AbstractSimulationComponent):
         information than just the Epoch message.
         """
 
-        #
         return True     # if all input messages have been received
         # return False  # otherwise
 
@@ -184,7 +194,7 @@ class NewSimulationComponent(AbstractSimulationComponent):
             # )
             pass  # remove this when the code above is properly included
 
-        except (ValueError, TypeError, MemoryError) as message_error:
+        except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.
             LOGGER.error("{}: {}".format(type(message_error).__name__, message_error))
             await self.send_error_message("Internal error when creating result message.")

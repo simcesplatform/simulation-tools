@@ -214,6 +214,9 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
             - Starts the component including setting up the message bus topic listeners.
         - `stop`
             - Stops the component including closing the message bus connection.
+        - `clear_epoch_variables`
+            - Clears and initializes all the variables that are used to store received data within each epoch.
+            - The function is called automatically after receiving an Epoch message for a new epoch.
         - `general_message_handler`
             - Should be overwritten when creating new component.
             - Should handle all received messages except SimState and Epoch messages.
@@ -401,7 +404,10 @@ When implementing a new simulation component in Python it is advisable to try to
 - Make a new class that is a child of the abstract class: `class MyComponent(AbstractSimulationComponent)`
 - Overwrite the constructor, `__init__`
     - Add new arguments as needed. Remember to call the parent class constructor with the appropriate parameters at the beginning of the new constructor: `super().__init__(<abstract_component_parameters>)`
-    - Add any initialization needed code to the new constructor. This includes initialization of any new object variables that are needed.
+    - Add any initialization needed code to the new constructor. This includes initialization of any new object variables that are needed. For example, `self._received_messages` variable could be used to store all the input messages for the current epoch and initialized to an empty list in the constructor.
+- Overwrite the `clear_epoch_variables` method
+    - This method is automatically called after receiving an Epoch message for a new epoch. It should clear and initialize all the variables that are used to store information about the received input data within each data.
+    - For example, if `self._received_messages` variable is used to store all the received input messages from the other components for the current epoch, this method would include setting that variable to an empty list.
 - Overwrite the `general_message_handler` method
     - Handling of all incoming messages other than Epoch or SimState messages should be added here.
     - After handling the incoming message call `start_epoch` method unless it is clear that the component is not yet ready to do any calculations for the current epoch.

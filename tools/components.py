@@ -270,6 +270,14 @@ class AbstractSimulationComponent:
             elif new_simulation_state == AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED:
                 await self.stop()
 
+    def clear_epoch_variables(self) -> None:
+        """Clears all the variables that are used to store information about the received input within the
+           current epoch. This method is called automatically after receiving an epoch message for a new epoch.
+
+           NOTE: this method should be overwritten in any child class that uses epoch specific variables
+        """
+        pass
+
     async def start_epoch(self) -> bool:
         """Starts a new epoch for the component.
            Returns True if the epoch calculations were completed for the current epoch.
@@ -415,6 +423,9 @@ class AbstractSimulationComponent:
                 message_object.source_process_id, message_routing_key))
             self._triggering_message_ids = [message_object.message_id]
             self._latest_epoch_message = message_object
+
+            # clear and initialize any variables used to store input within the epoch
+            self.clear_epoch_variables()
 
             # If all the epoch calculations were completed, send a new status message.
             if not await self.start_epoch():
