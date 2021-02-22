@@ -2,10 +2,12 @@
 
 """Module containing common tools for the use of simulation platform components."""
 
+import asyncio
+import functools
 import logging
 import os
 import sys
-from typing import Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, cast
 
 SIMULATION_LOG_LEVEL = "SIMULATION_LOG_LEVEL"
 SIMULATION_LOG_FILE = "SIMULATION_LOG_FILE"
@@ -114,7 +116,7 @@ class EnvironmentVariables:
 
 
 def load_environmental_variables(*env_variable_specifications: EnvironmentVariableSetupType) \
-         -> Dict[str, Optional[EnvironmentVariableValue]]:
+        -> Dict[str, Optional[EnvironmentVariableValue]]:
     """Returns the realized environmental variable values as a dictionary."""
     env_variables = EnvironmentVariables(*env_variable_specifications)
     return {
@@ -231,6 +233,21 @@ def get_logger(logger_name: str, log_level: Optional[int] = None) -> logging.Log
 
 
 LOGGER = FullLogger(__name__)
+
+
+def async_wrap(synchronous_function: Callable):
+    """Wraps a synchronous function to an asynchronous coroutine."""
+    @functools.wraps(synchronous_function)
+    async def run(
+            *args,
+            event_loop: Optional[asyncio.events.AbstractEventLoop] = None,
+            executor: Any = None,
+            **kwargs):
+        if event_loop is None:
+            event_loop = asyncio.get_event_loop()
+        partial_function = functools.partial(synchronous_function, *args, **kwargs)
+        return await event_loop.run_in_executor(executor, partial_function)
+    return run
 
 
 def handle_async_exception(event_loop, context):
