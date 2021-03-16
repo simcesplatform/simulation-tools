@@ -8,8 +8,9 @@ import logging
 from typing import Dict, Generator, Optional
 
 # the used message examples are defined in examples/message_json.py
-from examples.message_json import status_ready_message, status_error_message, example_message, \
-                                  invalid_status_1, invalid_status_2, invalid_status_3
+from examples.message_json import (
+    status_ready_message, status_error_message, example_message,
+    invalid_status_1, invalid_status_2, invalid_status_3)
 from tools.exceptions.messages import MessageError
 from tools.message.block import QuantityBlock, TimeSeriesBlock, ValueArrayBlock
 from tools.message.example import ExampleMessage
