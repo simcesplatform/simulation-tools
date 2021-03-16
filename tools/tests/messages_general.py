@@ -11,39 +11,17 @@ import tools.exceptions.messages
 import tools.messages
 from tools.datetime_tools import to_utc_datetime_object
 
-from tools.tests.messages_common import MESSAGE_TYPE_ATTRIBUTE
-from tools.tests.messages_common import TIMESTAMP_ATTRIBUTE
-from tools.tests.messages_common import SIMULATION_ID_ATTRIBUTE
-from tools.tests.messages_common import SOURCE_PROCESS_ID_ATTRIBUTE
-from tools.tests.messages_common import MESSAGE_ID_ATTRIBUTE
-from tools.tests.messages_common import EPOCH_NUMBER_ATTRIBUTE
-from tools.tests.messages_common import LAST_UPDATED_IN_EPOCH_ATTRIBUTE
-from tools.tests.messages_common import TRIGGERING_MESSAGE_IDS_ATTRIBUTE
-from tools.tests.messages_common import WARNINGS_ATTRIBUTE
-from tools.tests.messages_common import SIMULATION_STATE_ATTRIBUTE
-from tools.tests.messages_common import START_TIME_ATTRIBUTE
-from tools.tests.messages_common import END_TIME_ATTRIBUTE
-from tools.tests.messages_common import VALUE_ATTRIBUTE
-from tools.tests.messages_common import DESCRIPTION_ATTRIBUTE
-from tools.tests.messages_common import NAME_ATTRIBUTE
-from tools.tests.messages_common import DEFAULT_TYPE
-from tools.tests.messages_common import DEFAULT_TIMESTAMP
-from tools.tests.messages_common import DEFAULT_SIMULATION_ID
-from tools.tests.messages_common import DEFAULT_SOURCE_PROCESS_ID
-from tools.tests.messages_common import DEFAULT_MESSAGE_ID
-from tools.tests.messages_common import DEFAULT_EPOCH_NUMBER
-from tools.tests.messages_common import DEFAULT_LAST_UPDATED_IN_EPOCH
-from tools.tests.messages_common import DEFAULT_TRIGGERING_MESSAGE_IDS
-from tools.tests.messages_common import DEFAULT_WARNINGS
-from tools.tests.messages_common import DEFAULT_SIMULATION_STATE
-from tools.tests.messages_common import DEFAULT_START_TIME
-from tools.tests.messages_common import DEFAULT_END_TIME
-from tools.tests.messages_common import DEFAULT_VALUE
-from tools.tests.messages_common import DEFAULT_DESCRIPTION
-from tools.tests.messages_common import DEFAULT_NAME
-from tools.tests.messages_common import DEFAULT_EXTRA_ATTRIBUTES
-from tools.tests.messages_common import FULL_JSON
-from tools.tests.messages_common import ALTERNATE_JSON
+from tools.tests.messages_common import (
+    MESSAGE_TYPE_ATTRIBUTE, TIMESTAMP_ATTRIBUTE, SIMULATION_ID_ATTRIBUTE, SOURCE_PROCESS_ID_ATTRIBUTE,
+    MESSAGE_ID_ATTRIBUTE, EPOCH_NUMBER_ATTRIBUTE, LAST_UPDATED_IN_EPOCH_ATTRIBUTE,
+    TRIGGERING_MESSAGE_IDS_ATTRIBUTE, WARNINGS_ATTRIBUTE, ITERATION_STATUS_ATTRIBUTE, SIMULATION_STATE_ATTRIBUTE,
+    START_TIME_ATTRIBUTE, END_TIME_ATTRIBUTE, VALUE_ATTRIBUTE, DESCRIPTION_ATTRIBUTE, NAME_ATTRIBUTE,
+    DEFAULT_TYPE, DEFAULT_TIMESTAMP, DEFAULT_SIMULATION_ID, DEFAULT_SOURCE_PROCESS_ID, DEFAULT_MESSAGE_ID,
+    DEFAULT_EPOCH_NUMBER, DEFAULT_LAST_UPDATED_IN_EPOCH, DEFAULT_TRIGGERING_MESSAGE_IDS, DEFAULT_WARNINGS,
+    DEFAULT_ITERATION_STATUS, DEFAULT_SIMULATION_STATE, DEFAULT_START_TIME, DEFAULT_END_TIME, DEFAULT_VALUE,
+    DEFAULT_DESCRIPTION, DEFAULT_NAME, DEFAULT_EXTRA_ATTRIBUTES,
+    FULL_JSON, ALTERNATE_JSON
+)
 
 DEFAULT_TYPE = "General"
 FULL_JSON = {**FULL_JSON, "Type": DEFAULT_TYPE}
@@ -82,6 +60,7 @@ class TestGeneralMessage(unittest.TestCase):
         self.assertEqual(message_full.general_attributes[TRIGGERING_MESSAGE_IDS_ATTRIBUTE],
                          DEFAULT_TRIGGERING_MESSAGE_IDS)
         self.assertEqual(message_full.general_attributes[WARNINGS_ATTRIBUTE], DEFAULT_WARNINGS)
+        self.assertEqual(message_full.general_attributes[ITERATION_STATUS_ATTRIBUTE], DEFAULT_ITERATION_STATUS)
         self.assertEqual(message_full.general_attributes[SIMULATION_STATE_ATTRIBUTE], DEFAULT_SIMULATION_STATE)
         self.assertEqual(message_full.general_attributes[START_TIME_ATTRIBUTE], DEFAULT_START_TIME)
         self.assertEqual(message_full.general_attributes[END_TIME_ATTRIBUTE], DEFAULT_END_TIME)
@@ -104,6 +83,7 @@ class TestGeneralMessage(unittest.TestCase):
         self.assertEqual(message_timestamped.general_attributes[TRIGGERING_MESSAGE_IDS_ATTRIBUTE],
                          DEFAULT_TRIGGERING_MESSAGE_IDS)
         self.assertEqual(message_timestamped.general_attributes[WARNINGS_ATTRIBUTE], DEFAULT_WARNINGS)
+        self.assertEqual(message_timestamped.general_attributes[ITERATION_STATUS_ATTRIBUTE], DEFAULT_ITERATION_STATUS)
         self.assertEqual(message_timestamped.general_attributes[SIMULATION_STATE_ATTRIBUTE], DEFAULT_SIMULATION_STATE)
         self.assertEqual(message_timestamped.general_attributes[START_TIME_ATTRIBUTE], DEFAULT_START_TIME)
         self.assertEqual(message_timestamped.general_attributes[END_TIME_ATTRIBUTE], DEFAULT_END_TIME)
@@ -121,6 +101,7 @@ class TestGeneralMessage(unittest.TestCase):
         stripped_json.pop(LAST_UPDATED_IN_EPOCH_ATTRIBUTE)
         stripped_json.pop(TRIGGERING_MESSAGE_IDS_ATTRIBUTE)
         stripped_json.pop(WARNINGS_ATTRIBUTE)
+        stripped_json.pop(ITERATION_STATUS_ATTRIBUTE)
         stripped_json.pop(SIMULATION_STATE_ATTRIBUTE)
         stripped_json.pop(START_TIME_ATTRIBUTE)
         stripped_json.pop(END_TIME_ATTRIBUTE)
@@ -148,6 +129,7 @@ class TestGeneralMessage(unittest.TestCase):
         self.assertIn(LAST_UPDATED_IN_EPOCH_ATTRIBUTE, message_full_json)
         self.assertIn(TRIGGERING_MESSAGE_IDS_ATTRIBUTE, message_full_json)
         self.assertIn(WARNINGS_ATTRIBUTE, message_full_json)
+        self.assertIn(ITERATION_STATUS_ATTRIBUTE, message_full_json)
         self.assertIn(SIMULATION_STATE_ATTRIBUTE, message_full_json)
         self.assertIn(START_TIME_ATTRIBUTE, message_full_json)
         self.assertIn(END_TIME_ATTRIBUTE, message_full_json)
@@ -156,7 +138,7 @@ class TestGeneralMessage(unittest.TestCase):
         self.assertIn(NAME_ATTRIBUTE, message_full_json)
         for extra_attribute_name in DEFAULT_EXTRA_ATTRIBUTES:
             self.assertIn(extra_attribute_name, message_full_json)
-        self.assertEqual(len(message_full_json), 17)
+        self.assertEqual(len(message_full_json), 18)
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""

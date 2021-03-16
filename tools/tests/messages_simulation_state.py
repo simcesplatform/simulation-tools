@@ -11,24 +11,13 @@ import tools.exceptions.messages
 import tools.messages
 from tools.datetime_tools import to_utc_datetime_object
 
-from tools.tests.messages_common import MESSAGE_TYPE_ATTRIBUTE
-from tools.tests.messages_common import TIMESTAMP_ATTRIBUTE
-from tools.tests.messages_common import SIMULATION_ID_ATTRIBUTE
-from tools.tests.messages_common import SOURCE_PROCESS_ID_ATTRIBUTE
-from tools.tests.messages_common import MESSAGE_ID_ATTRIBUTE
-from tools.tests.messages_common import SIMULATION_STATE_ATTRIBUTE
-from tools.tests.messages_common import NAME_ATTRIBUTE
-from tools.tests.messages_common import DESCRIPTION_ATTRIBUTE
-from tools.tests.messages_common import DEFAULT_TYPE
-from tools.tests.messages_common import DEFAULT_TIMESTAMP
-from tools.tests.messages_common import DEFAULT_SIMULATION_ID
-from tools.tests.messages_common import DEFAULT_SOURCE_PROCESS_ID
-from tools.tests.messages_common import DEFAULT_MESSAGE_ID
-from tools.tests.messages_common import DEFAULT_SIMULATION_STATE
-from tools.tests.messages_common import DEFAULT_NAME
-from tools.tests.messages_common import DEFAULT_DESCRIPTION
-from tools.tests.messages_common import FULL_JSON
-from tools.tests.messages_common import ALTERNATE_JSON
+from tools.tests.messages_common import (
+    MESSAGE_TYPE_ATTRIBUTE, TIMESTAMP_ATTRIBUTE, SIMULATION_ID_ATTRIBUTE, SOURCE_PROCESS_ID_ATTRIBUTE,
+    MESSAGE_ID_ATTRIBUTE, SIMULATION_STATE_ATTRIBUTE, NAME_ATTRIBUTE, DESCRIPTION_ATTRIBUTE,
+    DEFAULT_TYPE, DEFAULT_TIMESTAMP, DEFAULT_SIMULATION_ID, DEFAULT_SOURCE_PROCESS_ID, DEFAULT_MESSAGE_ID,
+    DEFAULT_SIMULATION_STATE, DEFAULT_NAME, DEFAULT_DESCRIPTION,
+    FULL_JSON, ALTERNATE_JSON
+)
 
 DEFAULT_TYPE = "SimState"
 FULL_JSON = {**FULL_JSON, "Type": DEFAULT_TYPE}

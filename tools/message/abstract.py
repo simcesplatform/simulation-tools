@@ -5,11 +5,12 @@
 from __future__ import annotations
 import datetime
 import json
-from typing import Any, Callable, Dict, List, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 from tools.datetime_tools import get_utcnow_in_milliseconds, to_iso_format_datetime_string
-from tools.exceptions.messages import MessageDateError, MessageIdError, MessageSourceError, MessageTypeError, \
-                                      MessageValueError, MessageEpochValueError, MessageBlockError
+from tools.exceptions.messages import (
+    MessageDateError, MessageIdError, MessageSourceError, MessageTypeError,
+    MessageValueError, MessageEpochValueError, MessageBlockError)
 from tools.message.block import QuantityArrayBlock, QuantityBlock, TimeSeriesBlock
 from tools.message.factory import MessageFactory
 from tools.tools import FullLogger
@@ -473,9 +474,10 @@ class AbstractResultMessage(AbstractMessage):
         "EpochNumber": "epoch_number",
         "LastUpdatedInEpoch": "last_updated_in_epoch",
         "TriggeringMessageIds": "triggering_message_ids",
-        "Warnings": "warnings"
+        "Warnings": "warnings",
+        "IterationStatus": "iteration_status"
     }
-    OPTIONAL_ATTRIBUTES = ["LastUpdatedInEpoch", "Warnings"]
+    OPTIONAL_ATTRIBUTES = ["LastUpdatedInEpoch", "Warnings", "IterationStatus"]
 
     MESSAGE_ATTRIBUTES_FULL = {
         **AbstractMessage.MESSAGE_ATTRIBUTES_FULL,
@@ -493,13 +495,19 @@ class AbstractResultMessage(AbstractMessage):
         "warning.other"
     ]
 
+    # If the iteration status is given, it must be one of the following.
+    ITERATION_STATUS_VALUES = [
+        "intermediate",
+        "final"
+    ]
+
     @property
     def epoch_number(self) -> int:
         """The epoch number attribute."""
         return self.__epoch_number
 
     @property
-    def last_updated_in_epoch(self) -> Union[int, None]:
+    def last_updated_in_epoch(self) -> Optional[int]:
         """The last updated in epoch attribute. It is either an epoch number or None."""
         return self.__last_updated_in_epoch
 
@@ -509,9 +517,14 @@ class AbstractResultMessage(AbstractMessage):
         return self.__triggering_message_ids
 
     @property
-    def warnings(self) -> Union[List[str], None]:
+    def warnings(self) -> Optional[List[str]]:
         """The warnings attribute. It is either None or a non-empty list."""
         return self.__warnings
+
+    @property
+    def iteration_status(self) -> Optional[str]:
+        """The iteration status attribute. It is either None or one of the allowed string values."""
+        return self.__iteration_status
 
     @epoch_number.setter
     def epoch_number(self, epoch_number: int):
@@ -540,6 +553,12 @@ class AbstractResultMessage(AbstractMessage):
         else:
             self.__warnings = list(warnings)
 
+    @iteration_status.setter
+    def iteration_status(self, iteration_status: Optional[str]):
+        if not self._check_iteration_status(iteration_status):
+            raise MessageValueError("'{}' is not a valid value for iteration status".format(iteration_status))
+        self.__iteration_status = iteration_status
+
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
@@ -547,7 +566,8 @@ class AbstractResultMessage(AbstractMessage):
             self.epoch_number == other.epoch_number and
             self.last_updated_in_epoch == other.last_updated_in_epoch and
             self.triggering_message_ids == other.triggering_message_ids and
-            self.warnings == other.warnings
+            self.warnings == other.warnings and
+            self.iteration_status == other.iteration_status
         )
 
     @classmethod
@@ -590,6 +610,10 @@ class AbstractResultMessage(AbstractMessage):
                 return False
 
         return True
+
+    @classmethod
+    def _check_iteration_status(cls, iteration_status: Optional[str]) -> bool:
+        return iteration_status is None or iteration_status in cls.ITERATION_STATUS_VALUES
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Union[AbstractResultMessage, None]:

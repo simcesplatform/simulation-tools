@@ -3,7 +3,7 @@
 """This module contains general utils for working with simulation platform message classes."""
 
 import datetime
-from typing import Iterator, List, Type, Union
+from typing import Iterator, List, Optional, Type, Union
 
 from tools.exceptions.messages import MessageError
 from tools.message.abstract import AbstractMessage
@@ -82,7 +82,8 @@ class MessageGenerator:
 
     def get_epoch_message(self, EpochNumber: int, TriggeringMessageIds: List[str],
                           StartTime: Union[str, datetime.datetime], EndTime: Union[str, datetime.datetime],
-                          LastUpdatedInEpoch: int = None, Warnings: List[str] = None) \
+                          LastUpdatedInEpoch: Optional[int] = None, Warnings: Optional[List[str]] = None,
+                          IterationStatus: Optional[str] = None) \
             -> EpochMessage:
         """Returns a new EpochMessage corresponding to the given parameters.
            Throws an exception if the message creation was unsuccessful."""
@@ -98,6 +99,7 @@ class MessageGenerator:
             TriggeringMessageIds=TriggeringMessageIds,
             LastUpdatedInEpoch=LastUpdatedInEpoch,
             Warnings=Warnings,
+            IterationStatus=IterationStatus,
             StartTime=StartTime,
             EndTime=EndTime
         )
@@ -124,8 +126,8 @@ class MessageGenerator:
         )
 
     def get_status_ready_message(self, EpochNumber: int, TriggeringMessageIds: List[str],
-                                 LastUpdatedInEpoch: int = None, Warnings: List[str] = None) \
-            -> StatusMessage:
+                                 LastUpdatedInEpoch: Optional[int] = None, Warnings: Optional[List[str]] = None,
+                                 IterationStatus: Optional[str] = None) -> StatusMessage:
         """Returns a new StatusMessage corresponding to the given parameters.
            Throws an exception if the message creation was unsuccessful."""
         # pylint: disable=invalid-name
@@ -140,13 +142,14 @@ class MessageGenerator:
             TriggeringMessageIds=TriggeringMessageIds,
             LastUpdatedInEpoch=LastUpdatedInEpoch,
             Warnings=Warnings,
+            IterationStatus=IterationStatus,
             Value=StatusMessage.STATUS_VALUES[0]  # should be "ready"
         )
 
     def get_status_error_message(self, EpochNumber: int, TriggeringMessageIds: List[str],
-                                 Description: str = None,
-                                 LastUpdatedInEpoch: int = None, Warnings: List[str] = None) \
-            -> StatusMessage:
+                                 Description: Optional[str] = None,
+                                 LastUpdatedInEpoch: Optional[int] = None, Warnings: Optional[List[str]] = None,
+                                 IterationStatus: Optional[str] = None) -> StatusMessage:
         """Returns a new StatusMessage corresponding to the given parameters.
            Throws an exception if the message creation was unsuccessful."""
         # pylint: disable=invalid-name
@@ -161,12 +164,13 @@ class MessageGenerator:
             TriggeringMessageIds=TriggeringMessageIds,
             LastUpdatedInEpoch=LastUpdatedInEpoch,
             Warnings=Warnings,
+            IterationStatus=IterationStatus,
             Value=StatusMessage.STATUS_VALUES[-1],  # should be "error"
             Description=Description
         )
 
-    def get_simulation_state_message(self, SimulationState: str, Name: str = None, Description: str = None) \
-            -> SimulationStateMessage:
+    def get_simulation_state_message(self, SimulationState: str, Name: Optional[str] = None,
+                                     Description: Optional[str] = None) -> SimulationStateMessage:
         """Returns a new StatusMessage corresponding to the given parameters.
            Throws an exception if the message creation was unsuccessful."""
         # pylint: disable=invalid-name
