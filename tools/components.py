@@ -3,12 +3,13 @@
 """This module contains a base simulation component that can communicate with the RabbitMQ message bus."""
 
 import asyncio
-from typing import cast, Any, Dict, List, Union
+import json
+from typing import cast, Any, Dict, List, Optional, Union
 
 from tools.clients import RabbitmqClient
 from tools.exceptions.messages import MessageError
-from tools.messages import BaseMessage, AbstractMessage, EpochMessage, StatusMessage, SimulationStateMessage, \
-                           MessageGenerator
+from tools.messages import (
+    BaseMessage, AbstractMessage, EpochMessage, StatusMessage, SimulationStateMessage, MessageGenerator)
 from tools.tools import FullLogger, EnvironmentVariable
 
 LOGGER = FullLogger(__name__)
@@ -20,6 +21,7 @@ SIMULATION_EPOCH_MESSAGE_TOPIC = "SIMULATION_EPOCH_MESSAGE_TOPIC"
 SIMULATION_STATUS_MESSAGE_TOPIC = "SIMULATION_STATUS_MESSAGE_TOPIC"
 SIMULATION_STATE_MESSAGE_TOPIC = "SIMULATION_STATE_MESSAGE_TOPIC"
 SIMULATION_ERROR_MESSAGE_TOPIC = "SIMULATION_ERROR_MESSAGE_TOPIC"
+SIMULATION_START_MESSAGE_FILENAME = "SIMULATION_START_MESSAGE_FILENAME"
 
 # To receive any other messages other than "Epoch" and "SimState" from the message bus
 # use a comma separated list in SIMULATION_OTHER_TOPICS
@@ -160,6 +162,8 @@ class AbstractSimulationComponent:
             other_topics=other_topics
         )
 
+        self.__start_message = self.__load_start_message()
+
         self._is_stopped = True
         self.initialization_error = None
         # component goes to error state after it has sent an error message
@@ -214,6 +218,12 @@ class AbstractSimulationComponent:
     def initialization_error(self, initialization_error: Union[str, None]):
         """Set the initialization error message."""
         self._initialization_error = initialization_error
+
+    @property
+    def start_message(self) -> Optional[Dict[str, Any]]:
+        """The JSON formatted Start message as Python dictionary.
+           The Start message is set to None if the Start message is not available."""
+        return self.__start_message
 
     async def start(self) -> None:
         """Starts the component."""
@@ -535,3 +545,25 @@ class AbstractSimulationComponent:
             for parameter_name, parameter_value in kwargs.items()
             if parameter_value is not None
         }
+
+    @staticmethod
+    def __load_start_message() -> Optional[Dict[str, Any]]:
+        """Tries to load the Start message from a file.
+           The filename is gotten from the environmental variable SIMULATION_START_MESSAGE_FILENAME.
+           If the message loading is successful, returns the message as a dictionary.
+           Otherwise, returns None."""
+        try:
+            start_message_filename = EnvironmentVariable(SIMULATION_START_MESSAGE_FILENAME, str).value
+            if isinstance(start_message_filename, str):
+                with open(start_message_filename, mode="r", encoding="UTF-8") as start_message_file:
+                    start_message = json.load(start_message_file)
+                    if isinstance(start_message, dict):
+                        return start_message
+
+            LOGGER.warning("Could not load the Start message from file '{}'.".format(start_message_filename))
+            return None
+
+        except (OSError, TypeError, OverflowError, ValueError) as error:
+            LOGGER.warning("Exception '{}' when trying to load the Start message from file: {}".format(
+                type(error).__name__, error))
+            return None

@@ -91,6 +91,7 @@ class NewSimulationComponent(AbstractSimulationComponent):
         # Variables that should only be READ in the child class:
         # - self.simulation_id               the simulation id
         # - self.component_name              the component name
+        # - self.start_message               the Start message as a dictionary (None if the message is not available)
         # - self._simulation_state           either "running" or "stopped"
         # - self._latest_epoch               epoch number for the current epoch
         # - self._completed_epoch            epoch number for the latest epoch that has been completed
@@ -114,7 +115,7 @@ class NewSimulationComponent(AbstractSimulationComponent):
         NOTE: this method should be overwritten in any child class that uses epoch specific variables
         """
         # replace "pass" with the initialization of the variables for the new epoch
-        pass
+        pass  # pylint: disable=unnecessary-pass
 
     async def process_epoch(self) -> bool:
         """
