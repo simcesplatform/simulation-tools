@@ -454,6 +454,7 @@ class AbstractSimulationComponent:
         else:
             await self._rabbitmq_client.send_message(self._status_topic, status_message.bytes())
             self._completed_epoch = self._latest_epoch
+            self._latest_status_message_id = status_message.message_id
 
     async def send_error_message(self, description: str) -> None:
         """Sends an error message to the message bus."""
