@@ -40,22 +40,22 @@ class AbstractSimulationComponent:
     ERROR_STATUS = StatusMessage.STATUS_VALUES[-1]  # "error"
 
     def __init__(self,
-                 simulation_id: str = None,
-                 component_name: str = None,
-                 epoch_message_topic: str = None,
-                 simulation_state_message_topic: str = None,
-                 status_message_topic: str = None,
-                 error_message_topic: str = None,
-                 other_topics: List[str] = None,
-                 rabbitmq_host: str = None,
-                 rabbitmq_port: int = None,
-                 rabbitmq_login: str = None,
-                 rabbitmq_password: str = None,
-                 rabbitmq_ssl: bool = None,
-                 rabbitmq_ssl_version: str = None,
-                 rabbitmq_exchange: str = None,
-                 rabbitmq_exchange_autodelete: bool = None,
-                 rabbitmq_exchange_durable: bool = None,
+                 simulation_id: Optional[str] = None,
+                 component_name: Optional[str] = None,
+                 epoch_message_topic: Optional[str] = None,
+                 simulation_state_message_topic: Optional[str] = None,
+                 status_message_topic: Optional[str] = None,
+                 error_message_topic: Optional[str] = None,
+                 other_topics: Optional[List[str]] = None,
+                 rabbitmq_host: Optional[str] = None,
+                 rabbitmq_port: Optional[int] = None,
+                 rabbitmq_login: Optional[str] = None,
+                 rabbitmq_password: Optional[str] = None,
+                 rabbitmq_ssl: Optional[bool] = None,
+                 rabbitmq_ssl_version: Optional[str] = None,
+                 rabbitmq_exchange: Optional[str] = None,
+                 rabbitmq_exchange_autodelete: Optional[bool] = None,
+                 rabbitmq_exchange_durable: Optional[bool] = None,
                  **kwargs: Any):
         """Loads the simulation is and the component name as wells as the required topic names from environmental
         variables and sets up the connection to the RabbitMQ message bus for which the connection parameters are
@@ -69,7 +69,7 @@ class AbstractSimulationComponent:
         - simulation_id (str)
             - the simulation_id for the simulation, i.e. SimulationId that is used in the messages
             - environmental variable: "SIMULATION_ID"
-            - no default value
+            - default value: "2020-01-01T00:00:00.000Z"
         - component_name (str)
             - the component name, i.e. the SourceProcessId, that the component uses in the messages
             - environmental variable: "SIMULATION_COMPONENT_NAME"
@@ -237,7 +237,7 @@ class AbstractSimulationComponent:
         if self.is_client_closed:
             self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
 
-        LOGGER.info("Starting the component: '{:s}'".format(self.component_name))
+        LOGGER.info("Starting the component: '{}'".format(self.component_name))
         topics_to_listen = self._other_topics + [
             self._simulation_state_topic,
             self._epoch_topic
@@ -247,7 +247,7 @@ class AbstractSimulationComponent:
 
     async def stop(self) -> None:
         """Stops the component."""
-        LOGGER.info("Stopping the component: '{:s}'".format(self.component_name))
+        LOGGER.info("Stopping the component: '{}'".format(self.component_name))
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         await self._rabbitmq_client.close()
         self._is_stopped = True
@@ -300,7 +300,7 @@ class AbstractSimulationComponent:
             return False
 
         if self._simulation_state != AbstractSimulationComponent.SIMULATION_STATE_VALUE_RUNNING:
-            LOGGER.warning("Simulation in an unknown state: '{:s}', cannot start epoch calculations.".format(
+            LOGGER.warning("Simulation in an unknown state: '{}', cannot start epoch calculations.".format(
                 self._simulation_state))
             return False
 
@@ -313,8 +313,8 @@ class AbstractSimulationComponent:
             return True
 
         if self._completed_epoch == self._latest_epoch:
-            LOGGER.warning("The epoch {:d} has already been processed.".format(self._completed_epoch))
-            LOGGER.debug("Resending status message for epoch {:d}".format(self._latest_epoch))
+            LOGGER.warning("The epoch {} has already been processed.".format(self._completed_epoch))
+            LOGGER.debug("Resending status message for epoch {}".format(self._latest_epoch))
             await self.send_status_message()
             return True
 
@@ -323,7 +323,7 @@ class AbstractSimulationComponent:
                 # The current epoch was successfully processed.
                 self._completed_epoch = self._latest_epoch
                 await self.send_status_message()
-                LOGGER.info("Finished processing epoch {:d}".format(self._completed_epoch))
+                LOGGER.info("Finished processing epoch {}".format(self._completed_epoch))
                 return True
 
         # Some information required for the epoch is still missing.
@@ -392,24 +392,24 @@ class AbstractSimulationComponent:
            NOTE: this method should be overwritten in any child class that listens to other messages.
         """
         if isinstance(message_object, AbstractMessage):
-            LOGGER.debug("Received {:s} message from topic {:s}".format(
+            LOGGER.debug("Received {} message from topic {}".format(
                 message_object.message_type, message_routing_key))
         else:
-            LOGGER.debug("Received unknown message: {:s}".format(str(message_object)))
+            LOGGER.debug("Received unknown message: {}".format(str(message_object)))
 
     async def simulation_state_message_handler(self, message_object: SimulationStateMessage,
                                                message_routing_key: str) -> None:
         """Handles the received simulation state messages."""
         if message_object.simulation_id != self.simulation_id:
             LOGGER.info(
-                "Received state message for a different simulation: '{:s}' instead of '{:s}'".format(
+                "Received state message for a different simulation: '{}' instead of '{}'".format(
                     message_object.simulation_id, self.simulation_id))
         elif message_object.message_type != SimulationStateMessage.CLASS_MESSAGE_TYPE:
             LOGGER.info(
-                "Received a state message with wrong message type: '{:s}' instead of '{:s}'".format(
+                "Received a state message with wrong message type: '{}' instead of '{}'".format(
                     message_object.message_type, SimulationStateMessage.CLASS_MESSAGE_TYPE))
         else:
-            LOGGER.debug("Received a state message from {:s} on topic {:s}".format(
+            LOGGER.debug("Received a state message from {} on topic {}".format(
                 message_object.source_process_id, message_routing_key))
             self._triggering_message_ids = [message_object.message_id]
             await self.set_simulation_state(message_object.simulation_state)
@@ -418,17 +418,17 @@ class AbstractSimulationComponent:
         """Handles the received epoch messages."""
         if message_object.simulation_id != self.simulation_id:
             LOGGER.info(
-                "Received epoch message for a different simulation: '{:s}' instead of '{:s}'".format(
+                "Received epoch message for a different simulation: '{}' instead of '{}'".format(
                     message_object.simulation_id, self.simulation_id))
         elif message_object.message_type != EpochMessage.CLASS_MESSAGE_TYPE:
             LOGGER.info(
-                "Received a epoch message with wrong message type: '{:s}' instead of '{:s}'".format(
+                "Received a epoch message with wrong message type: '{}' instead of '{}'".format(
                     message_object.message_type, EpochMessage.CLASS_MESSAGE_TYPE))
         elif (message_object.epoch_number == self._latest_epoch and
               self._latest_status_message_id in message_object.triggering_message_ids):
-            LOGGER.info("Status message has already been registered for epoch {:d}".format(self._latest_epoch))
+            LOGGER.info("Status message has already been registered for epoch {}".format(self._latest_epoch))
         else:
-            LOGGER.debug("Received an epoch from {:s} on topic {:s}".format(
+            LOGGER.debug("Received an epoch from {} on topic {}".format(
                 message_object.source_process_id, message_routing_key))
             self._triggering_message_ids = [message_object.message_id]
             self._latest_epoch_message = message_object
@@ -438,7 +438,7 @@ class AbstractSimulationComponent:
 
             # If all the epoch calculations were completed, send a new status message.
             if not await self.start_epoch():
-                LOGGER.debug("Waiting for other required messages before processing epoch {:d}".format(
+                LOGGER.debug("Waiting for other required messages before processing epoch {}".format(
                     self._latest_epoch))
 
     async def send_status_message(self) -> None:
@@ -495,16 +495,16 @@ class AbstractSimulationComponent:
             return None
 
     def __set_component_variables(self,
-                                  simulation_id: str = None,
-                                  component_name: str = None,
-                                  epoch_message_topic: str = None,
-                                  simulation_state_message_topic: str = None,
-                                  status_message_topic: str = None,
-                                  error_message_topic: str = None,
-                                  other_topics: List[str] = None):
+                                  simulation_id: Optional[str] = None,
+                                  component_name: Optional[str] = None,
+                                  epoch_message_topic: Optional[str] = None,
+                                  simulation_state_message_topic: Optional[str] = None,
+                                  status_message_topic: Optional[str] = None,
+                                  error_message_topic: Optional[str] = None,
+                                  other_topics: Optional[List[str]] = None):
         """Sets the topic name related variables for the object. Called automatically from the constructor."""
         if simulation_id is None:
-            simulation_id = cast(str, EnvironmentVariable(SIMULATION_ID, str).value)
+            simulation_id = cast(str, EnvironmentVariable(SIMULATION_ID, str, "2020-01-01T00:00:00.000Z").value)
         if component_name is None:
             component_name = cast(str, EnvironmentVariable(SIMULATION_COMPONENT_NAME, str, "component").value)
 
