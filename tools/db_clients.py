@@ -33,7 +33,9 @@ def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableTyp
         (env_variable_name("messages_collection_prefix"), str, "simulation_"),
         (env_variable_name("invalid_messages_collection_prefix"), str, "invalid_simulation_"),
         (env_variable_name("collection_identifier"), str, "SimulationId"),
-        (env_variable_name("admin"), bool, True)
+        (env_variable_name("admin"), bool, True),
+        (env_variable_name("tls"), bool, False),
+        (env_variable_name("tls_allow_invalid_certificates"), bool, False)
     ]
 
 
@@ -53,10 +55,13 @@ def load_config_from_env_variables() -> Dict[str, Optional[EnvironmentVariableVa
 class MongodbClient:
     """MongoDB client that can be used to write JSON documents to Mongo database."""
     DEFAULT_ENV_VARIABLE_PREFIX = "MONGODB_"
-    CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware"]
+    CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware", "tls" ]
     AUTHENTICATION_INPUT_PARAMETER = "database"
     AUTHENTICATION_OUTPUT_PARAMETER = "authSource"
+    TLS_INVALID_CERTIFICATES_INPUT_PARAMETER = "tls_allow_invalid_certificates"
+    TLS_INVALID_CERTIFICATES_OUTPUT_PARAMETER = "tlsAllowInvalidCertificates"
     ADMIN_ATTRIBUTE = "admin"
+    TLS_ATTRIBUTE = "tls"
     TOPIC_ATTRIBUTE = "Topic"
 
     TIMESTAMP_ATTRIBUTE = "Timestamp"
@@ -81,7 +86,8 @@ class MongodbClient:
             "messages_collection_prefix",
             "invalid_messages_collection_prefix",
             "collection_identifier",
-            "admin"
+            "admin",
+            "tls_allow_invalid_certificates"
         ]
 
     # List of possible metadata attributes in addition to the simulation id.
@@ -114,6 +120,8 @@ class MongodbClient:
                                                    simulation messages (str)
            - collection_identifier       : the attribute name in the messages that tells the simulation id (str)
            - admin                       : whether the given account has root user access (bool)
+           - tls                         : Is TLS encryption used with the MongoDB server (bool).
+           - tls_allow_invalid_certificates : Are invalid server certificates accepted (bool).
 
            If a value for attribute is missing from kwargs, the value is read from
            the corresponding environmental variable with the given default value as a backup.
@@ -129,6 +137,8 @@ class MongodbClient:
            - MONGODB_INVALID_MESSAGES_COLLECTION_PREFIX (default value: "invalid_simulation_")
            - MONGODB_COLLECTION_IDENTIFIER (default value: "SimulationId")
            - MONGODB_ADMIN (default value: True)
+           - MONGODB_TLS (default value: False)
+           - MONGODB_TLS_ALLOW_INVALID_CERTIFICATES (default value: False)
         """
         kwargs_env = load_config_from_env_variables()
         kwargs = {
@@ -456,5 +466,8 @@ class MongodbClient:
                 cls.AUTHENTICATION_INPUT_PARAMETER in connection_config_dict):
             stripped_connection_config[cls.AUTHENTICATION_OUTPUT_PARAMETER] = \
                 connection_config_dict[cls.AUTHENTICATION_INPUT_PARAMETER]
+
+        if connection_config_dict.get(cls.TLS_ATTRIBUTE, False):
+            stripped_connection_config[cls.TLS_INVALID_CERTIFICATES_OUTPUT_PARAMETER] = connection_config_dict.get(cls.TLS_INVALID_CERTIFICATES_INPUT_PARAMETER, False)
 
         return stripped_connection_config
