@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit test for the AbstractResultMessage class."""
 
@@ -32,7 +36,7 @@ class TestAbstractResultMessage(unittest.TestCase):
         # the current time in millisecond precision is used as the default value.
         utcnow1 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow1.microsecond % 1000)
-        message_full = tools.messages.AbstractResultMessage.from_json(FULL_JSON)
+        message_full = tools.messages.AbstractResultMessage(**FULL_JSON)
         message_timestamp = to_utc_datetime_object(message_full.timestamp)
         utcnow2 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow2.microsecond % 1000)
@@ -81,7 +85,7 @@ class TestAbstractResultMessage(unittest.TestCase):
 
     def test_message_json(self):
         """Unit test for testing that the json from a message has correct attributes."""
-        message_full_json = tools.messages.AbstractResultMessage.from_json(FULL_JSON).json()
+        message_full_json = tools.messages.AbstractResultMessage(**FULL_JSON).json()
 
         self.assertIn(MESSAGE_TYPE_ATTRIBUTE, message_full_json)
         self.assertIn(SIMULATION_ID_ATTRIBUTE, message_full_json)
@@ -98,10 +102,8 @@ class TestAbstractResultMessage(unittest.TestCase):
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
         # Convert to bytes and back to Message instance
-        message_full = tools.messages.AbstractResultMessage.from_json(FULL_JSON)
-        message_copy = tools.messages.AbstractResultMessage.from_json(
-            json.loads(message_full.bytes().decode("UTF-8"))
-        )
+        message_full = tools.messages.AbstractResultMessage(**FULL_JSON)
+        message_copy = tools.messages.AbstractResultMessage(**json.loads(message_full.bytes().decode("UTF-8")))
 
         self.assertEqual(message_copy.timestamp, message_full.timestamp)
         self.assertEqual(message_copy.message_type, message_full.message_type)
@@ -144,7 +146,7 @@ class TestAbstractResultMessage(unittest.TestCase):
 
     def test_invalid_values(self):
         """Unit tests for testing that invalid attribute values are recognized."""
-        message_full = tools.messages.AbstractResultMessage.from_json(FULL_JSON)
+        message_full = tools.messages.AbstractResultMessage(**FULL_JSON)
         message_full_json = message_full.json()
 
         allowed_warning_types = [

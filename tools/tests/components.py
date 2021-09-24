@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit test module for the AbstractSimulationComponent class."""
 
@@ -7,13 +11,14 @@ import datetime
 import os
 from typing import List, Tuple, Union, cast
 
-import aiounittest
+from aiounittest.case import AsyncTestCase
 
 from tools.clients import RabbitmqClient
 from tools.components import AbstractSimulationComponent
 from tools.datetime_tools import to_iso_format_datetime_string
-from tools.messages import BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage, \
-                           SimulationStateMessage, StatusMessage, get_next_message_id
+from tools.messages import (
+    BaseMessage, AbstractMessage, AbstractResultMessage, EpochMessage,
+    SimulationStateMessage, StatusMessage, get_next_message_id)
 
 
 async def send_message(message_client: RabbitmqClient, message_object: AbstractMessage, topic_name: str) -> None:
@@ -109,7 +114,7 @@ class MessageGenerator:
         })
 
 
-class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
+class TestAbstractSimulationComponent(AsyncTestCase):
     """Unit tests for sending and receiving messages using AbstractSimulationComponent object."""
     simulation_id = "2020-01-01T00:00:00.000Z"
     component_name = "TestComponent"
@@ -212,7 +217,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
 
     async def epoch_tester(self, epoch_number: int, message_client: RabbitmqClient,
                            message_storage: MessageStorage, component_message_generator: MessageGenerator):
-        """Test the behaviour of the test_component in one epoch."""
+        """Test the behavior of the test_component in one epoch."""
         number_of_previous_messages = len(message_storage.messages_and_topics)
         if epoch_number == 0:
             # Epoch number 0 corresponds to the start of the simulation.
@@ -246,7 +251,7 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
                 self.assertTrue(self.compare_message(received_message, expected_message))
 
     async def end_tester(self, message_client: RabbitmqClient, test_component: AbstractSimulationComponent):
-        """Tests the behaviour of the test component at the end of the simulation."""
+        """Tests the behavior of the test component at the end of the simulation."""
         end_message = self.__class__.manager_message_generator.get_simulation_state_message(False)
         await send_message(message_client, end_message, end_message.message_type)
         await message_client.close()
@@ -301,5 +306,5 @@ class TestAbstractSimulationComponent(aiounittest.AsyncTestCase):
         await self.end_tester(message_client, test_component)
 
     # async def test_component_robustness(self):
-    #     """Unit test for testing simulation component behaviour when simulation does not go smoothly."""
+    #     """Unit test for testing simulation component behavior when simulation does not go smoothly."""
     #     # TODO: implement test_component_robustness

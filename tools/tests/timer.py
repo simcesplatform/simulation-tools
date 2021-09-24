@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit tests for the Timer class."""
 
 import asyncio
 
-import aiounittest
+from aiounittest.case import AsyncTestCase
 
 from tools.timer import Timer
 
@@ -19,7 +23,7 @@ class CallCounter:
         self.counter += value
 
 
-class TestTimer(aiounittest.AsyncTestCase):
+class TestTimer(AsyncTestCase):
     """Unit tests for the Timer class."""
     async def test_non_repeating_timer(self):
         """Unit test for a non repeating timer with callback without arguments."""

@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit tests for the RabbitmqClient class."""
 
 import asyncio
 from typing import Iterator, Union
 
-import aiounittest
+from aiounittest.case import AsyncTestCase
 
 from tools.clients import RabbitmqClient
-from tools.messages import BaseMessage, EpochMessage, GeneralMessage, StatusMessage, \
-                           get_next_message_id
+from tools.messages import BaseMessage, EpochMessage, GeneralMessage, StatusMessage, get_next_message_id
 from tools.tests.messages_common import EPOCH_TEST_JSON, ERROR_TEST_JSON, GENERAL_TEST_JSON, STATUS_TEST_JSON
 
 
@@ -38,7 +41,7 @@ class MessageStorage:
         self.messages.append((message_object, message_topic))
 
 
-class TestRabbitmqClient(aiounittest.AsyncTestCase):
+class TestRabbitmqClient(AsyncTestCase):
     """Unit tests for sending and receiving messages using RabbitmqClient object."""
     async def test_message_sending_and_receiving(self):
         """Tests sending and receiving message using RabbitMQ message bus using RabbitmqClient.

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit tests for the RabbitmqClient class."""
 
@@ -8,7 +12,7 @@ from json.decoder import JSONDecodeError
 import subprocess
 from typing import Union
 
-import aiounittest
+from aiounittest.case import AsyncTestCase
 
 import tools.messages as messages
 from tools.db_clients import MongodbClient
@@ -22,15 +26,15 @@ MONGO_COMMAND = ' '.join([
 ])
 
 ENV_VARIABLES = load_environmental_variables(
-        ("MONGODB_HOST", str, "localhost"),
-        ("MONGODB_PORT", int, 27017),
-        ("MONGODB_USERNAME", str, ""),
-        ("MONGODB_PASSWORD", str, ""),
-        ("MONGODB_DATABASE", str, "db"),
-        ("MONGODB_METADATA_COLLECTION", str, "simulations"),
-        ("MONGODB_MESSAGES_COLLECTION_PREFIX", str, "simulation_"),
-        ("MONGODB_COLLECTION_IDENTIFIER", str, "SimulationId")
-    )
+    ("MONGODB_HOST", str, "localhost"),
+    ("MONGODB_PORT", int, 27017),
+    ("MONGODB_USERNAME", str, ""),
+    ("MONGODB_PASSWORD", str, ""),
+    ("MONGODB_DATABASE", str, "db"),
+    ("MONGODB_METADATA_COLLECTION", str, "simulations"),
+    ("MONGODB_MESSAGES_COLLECTION_PREFIX", str, "simulation_"),
+    ("MONGODB_COLLECTION_IDENTIFIER", str, "SimulationId")
+)
 
 
 def run_mongo_query(mongo_query: str) \
@@ -91,7 +95,7 @@ def document_exists(message_object: messages.AbstractMessage, topic_name: str) -
         return False
 
 
-class TestMongodbClient(aiounittest.AsyncTestCase):
+class TestMongodbClient(AsyncTestCase):
     """Unit tests for MongodbClient object."""
     async def test_adding_single_document(self):
         """Unit test for adding documents to MongoDB one document at a time."""

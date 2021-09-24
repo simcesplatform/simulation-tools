@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit test for the MessageCallback class."""
 
@@ -6,14 +10,15 @@ import asyncio
 import json
 from typing import Union
 
-import aiounittest
-import aio_pika.message
+from aiormq.types import DeliveredMessage
+from aiounittest.case import AsyncTestCase
+from aio_pika.message import IncomingMessage
 import pamqp
 import pamqp.specification
 
 from tools.callbacks import MessageCallback
-from tools.messages import BaseMessage, EpochMessage, GeneralMessage, \
-                           ResultMessage, SimulationStateMessage, StatusMessage
+from tools.messages import (
+    BaseMessage, EpochMessage, GeneralMessage, ResultMessage, SimulationStateMessage, StatusMessage)
 from tools.tests.messages_abstract import ALTERNATE_JSON, DEFAULT_TIMESTAMP, FULL_JSON, MESSAGE_TYPE_ATTRIBUTE
 
 FAIL_TEST_JSON = {
@@ -22,14 +27,14 @@ FAIL_TEST_JSON = {
 FAIL_TEST_STR = '{"test" "fail"}'
 
 
-def get_incoming_message(body, routing_key) -> aio_pika.message.IncomingMessage:
+def get_incoming_message(body, routing_key) -> IncomingMessage:
     """Returns a dummy incoming message withough the message for the use of the unit tests."""
-    delivered_message = aio_pika.message.DeliveredMessage(
+    delivered_message = DeliveredMessage(
         delivery=pamqp.specification.Basic.Deliver(routing_key=routing_key),
         header=pamqp.ContentHeader(),
         body=body,
         channel=1)
-    return aio_pika.message.IncomingMessage(delivered_message)
+    return IncomingMessage(delivered_message)
 
 
 class DummyHandler:
@@ -47,7 +52,7 @@ class DummyHandler:
 HANDLER = DummyHandler()
 
 
-class TestMessageCallback(aiounittest.AsyncTestCase):
+class TestMessageCallback(AsyncTestCase):
     """Unit tests for the MessageCallback class."""
     GENERAL_MESSAGE = GeneralMessage(Timestamp=DEFAULT_TIMESTAMP, **FULL_JSON)
     GENERAL_JSON = GENERAL_MESSAGE.json()

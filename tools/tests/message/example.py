@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit tests for the ExampleMessage class."""
 
@@ -146,7 +150,7 @@ class TestExampleMessage(unittest.TestCase):
         # the current time in millisecond precision is used as the default value.
         utcnow1 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow1.microsecond % 1000)
-        example_message = ExampleMessage.from_json(EXAMPLE_MESSAGE)
+        example_message = ExampleMessage(**EXAMPLE_MESSAGE)
         message_timestamp = to_utc_datetime_object(example_message.timestamp)
         utcnow2 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow2.microsecond % 1000)
@@ -170,16 +174,23 @@ class TestExampleMessage(unittest.TestCase):
         self.assertEqual(example_message.power_quantity.unit_of_measure,
                          EXAMPLE_MESSAGE["PowerQuantity"]["UnitOfMeasure"])
         self.assertEqual(example_message.power_quantity.value, EXAMPLE_MESSAGE["PowerQuantity"]["Value"])
-        self.assertEqual(example_message.time_quantity.unit_of_measure,
+        self.assertIsNotNone(example_message.time_quantity)
+        time_quantity = (
+            QuantityBlock(Value=0.0, UnitOfMeasure="s") if example_message.time_quantity is None
+            else example_message.time_quantity)
+        self.assertEqual(time_quantity.unit_of_measure,
                          EXAMPLE_MESSAGE["TimeQuantity"]["UnitOfMeasure"])
-        self.assertEqual(example_message.time_quantity.value, EXAMPLE_MESSAGE["TimeQuantity"]["Value"])
+        self.assertEqual(time_quantity.value, EXAMPLE_MESSAGE["TimeQuantity"]["Value"])
 
         self.assertEqual(example_message.current_array.unit_of_measure,
                          EXAMPLE_MESSAGE["CurrentArray"]["UnitOfMeasure"])
         self.assertEqual(example_message.current_array.values, EXAMPLE_MESSAGE["CurrentArray"]["Values"])
-        self.assertEqual(example_message.voltage_array.unit_of_measure,
+        voltage_array = (
+            QuantityArrayBlock(Values=[0.0], UnitOfMeasure="V") if example_message.voltage_array is None
+            else example_message.voltage_array)
+        self.assertEqual(voltage_array.unit_of_measure,
                          EXAMPLE_MESSAGE["VoltageArray"]["UnitOfMeasure"])
-        self.assertEqual(example_message.voltage_array.values, EXAMPLE_MESSAGE["VoltageArray"]["Values"])
+        self.assertEqual(voltage_array.values, EXAMPLE_MESSAGE["VoltageArray"]["Values"])
 
         self.assertEqual(example_message.temperature.time_index, EXAMPLE_MESSAGE["Temperature"]["TimeIndex"])
         for series_name, series_values in EXAMPLE_MESSAGE["Temperature"]["Series"].items():
@@ -188,12 +199,18 @@ class TestExampleMessage(unittest.TestCase):
                                  series_values["UnitOfMeasure"])
                 self.assertEqual(example_message.temperature.series[series_name].values,
                                  series_values["Values"])
-        self.assertEqual(example_message.weight.time_index, EXAMPLE_MESSAGE["Weight"]["TimeIndex"])
+        weight = (
+            TimeSeriesBlock(
+                TimeIndex=["1970-01-01T00:00:00Z"],
+                Series={"temp": ValueArrayBlock(Values=[0.0], UnitOfMeasure="kg")})
+            if example_message.weight is None
+            else example_message.weight)
+        self.assertEqual(weight.time_index, EXAMPLE_MESSAGE["Weight"]["TimeIndex"])
         for series_name, series_values in EXAMPLE_MESSAGE["Weight"]["Series"].items():
             with self.subTest(series_name=series_name):
-                self.assertEqual(example_message.weight.series[series_name].unit_of_measure,
+                self.assertEqual(weight.series[series_name].unit_of_measure,
                                  series_values["UnitOfMeasure"])
-                self.assertEqual(example_message.weight.series[series_name].values,
+                self.assertEqual(weight.series[series_name].values,
                                  series_values["Values"])
 
         # Test message creation without the optional attributes.
@@ -225,14 +242,14 @@ class TestExampleMessage(unittest.TestCase):
             **EXAMPLE_MESSAGE,
             "Timestamp": "2020-01-01T00:00:00.000Z"
         }
-        message_json_copy = ExampleMessage.from_json(message_json).json()
+        message_json_copy = ExampleMessage(**message_json).json()
         self.assertEqual(message_json_copy, message_json)
 
     def test_message_bytes(self):
         """Unit test for testing that the bytes conversion works correctly."""
         # Convert to bytes and back to Message instance
         message_original = ExampleMessage(**EXAMPLE_MESSAGE)
-        message_copy = ExampleMessage.from_json(json.loads(message_original.bytes().decode("UTF-8")))
+        message_copy = ExampleMessage(**json.loads(message_original.bytes().decode("UTF-8")))
 
         self.assertEqual(message_copy.positive_integer, message_original.positive_integer)
         self.assertEqual(message_copy.eight_characters, message_original.eight_characters)

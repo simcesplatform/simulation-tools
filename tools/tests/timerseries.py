@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """Unit tests for the classes related to the TimeSeriesBlock."""
 
@@ -96,7 +100,7 @@ class TestValueArrayBlock(unittest.TestCase):
 
         for test_attribute in test_attributes:
             # test creating object using from_json method
-            attribute_object = ValueArrayBlock.from_json(test_attribute)
+            attribute_object = ValueArrayBlock(**test_attribute)  # pyright: reportGeneralTypeIssues=false
             self.assertIsInstance(attribute_object, ValueArrayBlock)
             self.assertEqual(attribute_object.unit_of_measure, test_attribute["UnitOfMeasure"])
             self.assertEqual(attribute_object.values, test_attribute["Values"])
@@ -163,7 +167,7 @@ class TestTimeSeriesBlock(unittest.TestCase):
 
         for test_block in test_blocks:
             # test creating object using from_json method
-            attribute_object = TimeSeriesBlock.from_json(test_block)
+            attribute_object = TimeSeriesBlock(**test_block)
             self.assertIsInstance(attribute_object, TimeSeriesBlock)
             self.assertEqual(attribute_object.time_index, test_block["TimeIndex"])
 
@@ -215,8 +219,8 @@ class TestTimeSeriesBlock(unittest.TestCase):
         block_different_length1 = {"TimeIndex": time_index_valid_3, "Series": {"X": attribute_valid_4}}
         block_different_length2 = {"TimeIndex": time_index_valid_4, "Series": {"X": attribute_valid_3}}
 
-        valid_object_3 = TimeSeriesBlock.from_json(valid_block_3)
-        valid_object_4 = TimeSeriesBlock.from_json(valid_block_4)
+        valid_object_3 = TimeSeriesBlock(**valid_block_3)
+        valid_object_4 = TimeSeriesBlock(**valid_block_4)
         self.assertIsInstance(valid_object_3, TimeSeriesBlock)
         self.assertIsInstance(valid_object_4, TimeSeriesBlock)
 
