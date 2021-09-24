@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """This module contains code examples related to using the message classes."""
 
@@ -30,6 +34,10 @@ def test_from_json():
     """Tests for creating message objects using from_json method."""
     LOGGER.info("Example of creating a Status ready message from JSON")
     status_ready = StatusMessage.from_json(status_ready_message)
+    if status_ready is None:
+        LOGGER.error("Problem loading example status ready message")
+        return
+
     LOGGER.info("Status ready:   {}".format(type(status_ready)))
     LOGGER.info(json.dumps(status_ready.json(), indent=4))  # output the message as JSON in a readable format
     LOGGER.info("")
@@ -52,6 +60,10 @@ def test_from_json():
 
     LOGGER.info("Example of creating a Status error message from JSON")
     status_error = StatusMessage.from_json(status_error_message)
+    if status_error is None:
+        LOGGER.error("Problem loading example status error message")
+        return
+
     LOGGER.info("Status error:   {}".format(type(status_error)))
     LOGGER.info(json.dumps(status_ready.json(), indent=4))  # output the message as JSON in a readable format
     LOGGER.info("")
@@ -70,6 +82,10 @@ def test_from_json():
 
     LOGGER.info("Example of creating a message of type Example from JSON")
     example = ExampleMessage.from_json(example_message)
+    if example is None or example.time_quantity is None or example.voltage_array is None or example.weight is None:
+        LOGGER.error("Problem loading example message")
+        return
+
     LOGGER.info("Example:   {}".format(type(example)))
     LOGGER.info(json.dumps(example.json(), indent=4))  # output the message as JSON in a readable format
     LOGGER.info("")
@@ -97,10 +113,10 @@ def test_from_json():
     LOGGER.info("")
     LOGGER.info("Temperature time index for Example message:    {}".format(example.temperature.time_index))
     LOGGER.info("Temperature PlaceA series for Example message: {}".format(example.temperature.series["PlaceA"]))
-    LOGGER.info("Temperature PlaceB values for Example message: {}".format(
-        example.temperature.get_single_series("PlaceB").values))
-    LOGGER.info("Temperature PlaceB unit for Example message:   {}".format(
-        example.temperature.get_single_series("PlaceB").unit_of_measure))
+    temperature_place_b = example.temperature.get_single_series("PlaceB")
+    if temperature_place_b is not None:
+        LOGGER.info("Temperature PlaceB values for Example message: {}".format(temperature_place_b.values))
+        LOGGER.info("Temperature PlaceB unit for Example message:   {}".format(temperature_place_b.unit_of_measure))
     LOGGER.info("Weight time index for Example message:         {}".format(example.weight.time_index))
     LOGGER.info("Weight series for Example message:             {}".format(example.weight.series))
     LOGGER.info("")
@@ -244,7 +260,7 @@ def get_timeseries_from_csv(filename: str,
     with open(filename, mode="r", encoding="UTF-8") as csv_file:
         csv_reader = csv.DictReader(csv_file, delimiter=column_separator)
 
-        if timestamp_column not in csv_reader.fieldnames:
+        if timestamp_column not in [] if csv_reader.fieldnames is None else csv_reader.fieldnames:
             LOGGER.warning("No timestamp column found from the CSV file {}".format(filename))
             # Return None on error.
             return None
@@ -252,7 +268,7 @@ def get_timeseries_from_csv(filename: str,
         # The other column names except the timestamp column as a list
         series_names = [
             field_name
-            for field_name in csv_reader.fieldnames
+            for field_name in ([] if csv_reader.fieldnames is None else csv_reader.fieldnames)
             if field_name != timestamp_column
         ]
 
@@ -358,6 +374,10 @@ def test_timeseries_from_csv():
 
     # Use the Time series blocks as the attribute values for a message object
     example = ExampleMessage.from_json(example_message)
+    if example is None or example.time_quantity is None or example.voltage_array is None or example.weight is None:
+        LOGGER.error("Problem loading example message")
+        return
+
     # Use the latest multi column series as the value for Temperature attribute in ExampleMessage
     example.temperature = timeseries_multi  # type: ignore  # pylint: disable=undefined-loop-variable
     # Use the single column series as the value for Weight attribute in ExampleMessage
