@@ -31,7 +31,7 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 - The timestamps for the message objects are generated automatically if the timestamp is not explicitly given.
 - The actual implementations for the message classes can be found in the folder `tools/message/` but the main file can be used to simplify import calls.
     - For example, `from tools.messages import StatusMessage` is equivalent to `from tools.message.status import StatusMessage`
-- Currently supported message types (more supported message types can be found from [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages) repository):
+- Currently supported message types (more supported message types can be found from [domain-messages](https://github.com/simcesplatform/domain-messages) repository):
     - `BaseMessage` (defined in [tools/message/abstract.py](tools/message/abstract.py))
         - Message object that contains only Type, SimulationId and Timestamp
         - Log Writer can handle any message that contains at least these three attributes.
@@ -304,9 +304,9 @@ Tools for working with simulation messages and with the RabbitMQ message bus in 
 
 ## How to include simulation-tools to your own project
 
-NOTE: If you intend to use [domain-messages](https://git.ain.rd.tut.fi/procemplus/domain-messages)
+NOTE: If you intend to use [domain-messages](https://github.com/simcesplatform/domain-messages)
 you do not have to include simulation-tools separately since domain-messages already includes it.
-Use the [instructions](https://git.ain.rd.tut.fi/procemplus/domain-messages/-/blob/master/README.md#how-to-include-domain-messages-to-your-own-project) at domain-messages instead of these when using domain-messages.
+Use the [instructions](https://github.com/simcesplatform/domain-messages/blob/master/README.md#how-to-include-domain-messages-to-your-own-project) at domain-messages instead of these when using domain-messages.
 
 These instructions try to take into account the problems arising from the fact that the GitLab server uses self signed SSL certificate. Two optional ways of including simulation-tools are described here.
 
@@ -319,7 +319,7 @@ These instructions try to take into account the problems arising from the fact t
     - Clone the simulation-tools repository:
 
         ```bash
-        git -c http.sslverify=false clone https://git.ain.rd.tut.fi/procemplus/simulation-tools.git
+        git clone https://github.com/simcesplatform/simulation-tools.git
         ```
 
     - Copy the `tools` folder from simulation-tools repository manually to the root folder of your own Python project.
@@ -340,11 +340,8 @@ These instructions try to take into account the problems arising from the fact t
 
         ```bash
         # run this from the root folder of your Git repository
-        git -c http.sslverify=false submodule add -b master https://git.ain.rd.tut.fi/procemplus/simulation-tools.git
+        git submodule add -b master https://github.com/simcesplatform/simulation-tools.git
         git submodule init
-        cd simulation-tools
-        git config http.sslverify false --local
-        cd ..
         git submodule update --remote
         ```
 
@@ -357,7 +354,7 @@ These instructions try to take into account the problems arising from the fact t
             ```
 
         2. Include a line `import init` at the beginning of the Python source code file from where your program is started. E.g. if your program is started with `python master.py` or `python -m master` include the import init line at the `master.py` file before any imports from the simulation-tools library.
-            - Another way to avoid modifying your source code would be to include the import init line in `__init__.py` file as has been used for example in the [Simulation Manager repository](https://git.ain.rd.tut.fi/procemplus/simulation-manager/-/tree/master/manager).
+            - Another way to avoid modifying your source code would be to include the import init line in `__init__.py` file as has been used for example in the [Simulation Manager repository](https://github.com/simcesplatform/simulation-manager/tree/master/manager).
     - Start using the library. For example the RabbitMQ client class can be made available by using:
 
        ```python
