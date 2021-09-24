@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """This module contains classes for the callbacks for the RabbitMQ message bus listeners."""
 
@@ -10,8 +14,9 @@ from typing import Awaitable, Callable, Union
 import aio_pika.message
 
 from tools.exceptions.messages import MessageError
-from tools.messages import AbstractMessage, AbstractResultMessage, BaseMessage, EpochMessage, GeneralMessage, \
-                           SimulationStateMessage, StatusMessage, MessageFactory
+from tools.messages import (
+    AbstractMessage, AbstractResultMessage, BaseMessage, EpochMessage, GeneralMessage,
+    SimulationStateMessage, StatusMessage, MessageFactory)
 from tools.tools import FullLogger
 
 CallbackFunctionType = Callable[[Union[BaseMessage, dict, str], str], Awaitable[None]]

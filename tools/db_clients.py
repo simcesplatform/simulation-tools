@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
+#            Otto Hylli <otto.hylli@tuni.fi>
 
 """This module contains a class for writing and reading documents to a Mongo database."""
 
@@ -55,7 +60,7 @@ def load_config_from_env_variables() -> Dict[str, Optional[EnvironmentVariableVa
 class MongodbClient:
     """MongoDB client that can be used to write JSON documents to Mongo database."""
     DEFAULT_ENV_VARIABLE_PREFIX = "MONGODB_"
-    CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware", "tls" ]
+    CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware", "tls"]
     AUTHENTICATION_INPUT_PARAMETER = "database"
     AUTHENTICATION_OUTPUT_PARAMETER = "authSource"
     TLS_INVALID_CERTIFICATES_INPUT_PARAMETER = "tls_allow_invalid_certificates"
@@ -468,6 +473,7 @@ class MongodbClient:
                 connection_config_dict[cls.AUTHENTICATION_INPUT_PARAMETER]
 
         if connection_config_dict.get(cls.TLS_ATTRIBUTE, False):
-            stripped_connection_config[cls.TLS_INVALID_CERTIFICATES_OUTPUT_PARAMETER] = connection_config_dict.get(cls.TLS_INVALID_CERTIFICATES_INPUT_PARAMETER, False)
+            stripped_connection_config[cls.TLS_INVALID_CERTIFICATES_OUTPUT_PARAMETER] = \
+                connection_config_dict.get(cls.TLS_INVALID_CERTIFICATES_INPUT_PARAMETER, False)
 
         return stripped_connection_config

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
 
 """This module contains a client class for sending and listening to messages using a RabbitMQ message bus."""
 
@@ -10,8 +14,9 @@ from aio_pika.exceptions import CONNECTION_EXCEPTIONS
 
 from tools.callbacks import CallbackFunctionType, MessageCallback
 from tools.messages import AbstractMessage
-from tools.tools import FullLogger, handle_async_exception, load_environmental_variables, \
-                        EnvironmentVariableType, EnvironmentVariableValue
+from tools.tools import (
+    FullLogger, handle_async_exception, load_environmental_variables,
+    EnvironmentVariableType, EnvironmentVariableValue)
 
 LOGGER = FullLogger(__name__)
 aio_pika.robust_connection.log = LOGGER.logger
@@ -155,7 +160,7 @@ class RabbitmqConnection:
             self.__rabbitmq_channel = None
             self.__rabbitmq_exchange = None
 
-        return self.__rabbitmq_connection
+        return self.__rabbitmq_connection  # pyright: reportGeneralTypeIssues=false
 
     async def get_channel(self) -> Optional[aio_pika.channel.Channel]:
         """Returns a channel for a RabbitMQ connection. Creates the channel on the first call."""
