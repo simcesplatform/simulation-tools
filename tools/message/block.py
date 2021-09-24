@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
+#            Otto Hylli <otto.hylli@tuni.fi>
+
 """
 Defines various message attribute value blocks that different kinds of messages can use.
 """
@@ -58,8 +64,8 @@ class QuantityBlock():
         try:
             self._value = float(value)
 
-        except ValueError:
-            raise MessageValueError(f'Unable to convert {value} to float for quantity block value.')
+        except ValueError as value_error:
+            raise MessageValueError(f'Unable to convert {value} to float for quantity block value.') from value_error
 
     @unit_of_measure.setter
     def unit_of_measure(self, unit_of_measure: str):

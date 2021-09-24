@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+# Copyright 2021 Tampere University and VTT Technical Research Centre of Finland
+# This software was developed as a part of the ProCemPlus project: https://www.senecc.fi/projects/procemplus
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ville Heikkilä <ville.heikkila@tuni.fi>
+#            Otto Hylli <otto.hylli@tuni.fi>
 
 """This module contains the abstract base classes for the simulation platform messages."""
 
@@ -279,7 +284,7 @@ class BaseMessage():
         if isinstance(value, dict):
             if not QuantityArrayBlock.validate_json(value):
                 return False
-            value = QuantityArrayBlock(**value)
+            value = QuantityArrayBlock(**value)  # pyright: reportGeneralTypeIssues=false
 
         return value.unit_of_measure == unit and (value_array_check is None or value_array_check(value.values))
 
