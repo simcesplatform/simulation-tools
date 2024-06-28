@@ -1,4 +1,4 @@
 aio_pika==6.8.2
 aiounittest==1.4.2
 motor==2.5.1
-pymongo[tls]==3.13.0
+pymongo[tls]==4.8.0
