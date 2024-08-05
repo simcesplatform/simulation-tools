@@ -6,7 +6,7 @@
     "email": "ville.heikkila@tuni.fi",
     "license": "MIT",
     "dependencies": {
-        "@lhncbc/ucum-lhc": "5.0.0",
+        "@lhncbc/ucum-lhc": "7.0.0",
         "grunt": ">=1.6.1"
     }
 }
