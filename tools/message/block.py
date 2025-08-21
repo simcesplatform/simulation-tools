@@ -35,8 +35,8 @@ class QuantityBlock():
     def __init__(self, **kwargs):
         '''Create a QuantityBlock from the given Value and UnitOfMeasure.
         Raises MessageValueError if value or measurement unit are missing or invalid.'''
-        self.value = kwargs.get(self.VALUE_ATTRIBUTE, None)
-        self.unit_of_measure = kwargs.get(self.UNIT_OF_MEASURE_ATTRIBUTE, None)
+        self.value = kwargs.get(self.VALUE_ATTRIBUTE, None)  # type: ignore
+        self.unit_of_measure = kwargs.get(self.UNIT_OF_MEASURE_ATTRIBUTE, None)  # type: ignore
 
     @property
     def value(self) -> float:
@@ -111,8 +111,7 @@ class QuantityBlock():
             return True
 
         except MessageValueError as err:
-            LOGGER.warning("{:s} error '{:s}' encountered when validating quantity block".format(
-                str(type(err)), str(err)))
+            LOGGER.warning(f"{type(err)} error '{err}' encountered when validating quantity block")
             return False
 
     @classmethod
@@ -143,7 +142,7 @@ class ValueArrayBlock:
     # By default the unit code validator is not in use.
     UNIT_CODE_VALIDATION = False
 
-    def __init__(self, Values: Union[List[Union[int, float]], List[str], List[bool]], UnitOfMeasure: str):
+    def __init__(self, Values: List[int | float] | List[str] | List[bool], UnitOfMeasure: str):
         """Creates a new value array block. Throws an exception if parameters contain invalid values."""
         self.values = Values
         self.unit_of_measure = UnitOfMeasure
@@ -161,13 +160,13 @@ class ValueArrayBlock:
     @unit_of_measure.setter
     def unit_of_measure(self, unit_of_measure: str):
         if not self._check_unit_of_measure(unit_of_measure):
-            raise MessageUnitValueError("'{:s}' is not an allowed unit of measurement".format(str(unit_of_measure)))
+            raise MessageUnitValueError(f"'{unit_of_measure}' is not an allowed unit of measurement")
         self.__unit_of_measure = unit_of_measure
 
     @values.setter
     def values(self, values: Union[List[Union[int, float]], List[str], List[bool]]):
         if not self._check_values(values):
-            raise MessageValueError("'{:s}' is not a valid for value array block".format(str(values)))
+            raise MessageValueError(f"'{values}' is not a valid for value array block")
         self.__values = values
 
     @classmethod
@@ -183,7 +182,7 @@ class ValueArrayBlock:
             return False
         if not values:  # accept empty list
             return True
-        
+
         value_type = type(values[0])
         if value_type not in cls.ALLOWED_VALUE_TYPES:  # check that the first value is a valid type
             return False
@@ -192,7 +191,7 @@ class ValueArrayBlock:
         NUMBER_TYPES = [ int, float ]
         if value_type in NUMBER_TYPES:
             value_type = tuple(NUMBER_TYPES)
-        
+
         for value in values:
             # Check that all the values in the list are of the same type.
             if not isinstance(value, value_type):
@@ -230,8 +229,7 @@ class ValueArrayBlock:
             return True
 
         except (MessageValueError, ValueError, TypeError) as message_error:
-            LOGGER.warning("{:s} error '{:s}' encountered when validating value array block".format(
-                str(type(message_error)), str(message_error)))
+            LOGGER.warning(f"{type(message_error)} error '{message_error}' encountered when validating value array block")
             return False
 
     @classmethod
@@ -257,7 +255,7 @@ class QuantityArrayBlock(ValueArrayBlock):
     @values.setter
     def values(self, values: List[Union[int, float]]):
         if not self._check_values(values):
-            raise MessageValueError("'{:s}' is not a valid for value array block".format(str(values)))
+            raise MessageValueError(f"'{values}' is not a valid for value array block")
         self.__values = values
 
 
@@ -303,11 +301,11 @@ class TimeSeriesBlock():
                 if isinstance(iso_format_string, str):
                     new_time_index_list.append(iso_format_string)
                 else:
-                    raise MessageDateError("'{:s}' is not a valid date time value".format(str(datetime_value)))
+                    raise MessageDateError(f"'{datetime_value}' is not a valid date time value")
             self.__time_index = new_time_index_list
 
         else:
-            raise MessageDateError("'{:s}' is not a valid list of date times".format(str(time_index)))
+            raise MessageDateError(f"'{time_index}' is not a valid list of date times")
 
     @series.setter
     def series(self, series: Dict[str, Union[ValueArrayBlock, Dict[str, Any]]]):
@@ -318,7 +316,7 @@ class TimeSeriesBlock():
             expected_list_length = len(self.time_index)
 
         if not self._check_series(series, expected_list_length):
-            raise MessageValueError("'{:s}' is not a valid dictionary of time series values".format(str(series)))
+            raise MessageValueError(f"'{series}' is not a valid dictionary of time series values")
 
         self.__series = {}
         for series_name, series_values in series.items():
@@ -332,8 +330,7 @@ class TimeSeriesBlock():
         if self._check_series({series_name: series_values}, len(self.__time_index)):
             self.series[series_name] = series_values
         else:
-            raise MessageValueError("'{:s}' is not a valid value series for {:s}".format(
-                str(series_name), str(series_values)))
+            raise MessageValueError(f"'{series_name}' is not a valid value series for {series_values}")
 
     @classmethod
     def _check_time_index(cls, time_index: List[Union[str, datetime.datetime]], list_length: Union[int, None] = None) -> bool:
@@ -406,8 +403,7 @@ class TimeSeriesBlock():
             return True
 
         except (MessageError, ValueError, TypeError) as time_series_error:
-            LOGGER.warning("{:s} error '{:s}' encountered when validating time series block".format(
-                str(type(time_series_error)), str(time_series_error)))
+            LOGGER.warning(f"{type(time_series_error)} error '{time_series_error}' encountered when validating time series block")
             return False
 
     @classmethod

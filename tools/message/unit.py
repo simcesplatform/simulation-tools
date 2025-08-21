@@ -20,7 +20,7 @@ LOGGER = FullLogger(__name__)
 class UnitCode:
     """Class for verifying a string as a valid UCUM (The Unified Code for Units of Measure) code."""
 
-    # Parameters related to the premade unit code files.
+    # Parameters related to the pre-made unit code files.
     UNIT_CODE_FILE_PATH = "resources"
     UNIT_CODE_FILE_NAMES = ["unit_codes.csv", "unit_codes_addition.csv"]
     UNIT_CODE_FILE_COLUMN_SEPARATOR = ";"
@@ -49,7 +49,7 @@ class UnitCode:
         # Use Javascript library ucum-lhc to validate the unit code.
         javascript_validator = cls.__find_resource_filename(cls.UNIT_CODE_FILE_PATH, cls.JAVASCRIPT_VALIDATOR)
         if javascript_validator is None:
-            # Could not find the JavaScript validator file and the given unit code was not in the premade lists.
+            # Could not find the JavaScript validator file and the given unit code was not in the pre-made lists.
             return False
         try:
             validator_result = subprocess.run([cls.JAVASCRIPT_SYSTEM_CALL, javascript_validator, unit_code],
@@ -58,7 +58,7 @@ class UnitCode:
 
             # The output from the Javascript validator should be <validator_text>;<unit_description>
             output_parts = validator_output.split(cls.VALIDATOR_RESULT_SEPARATOR)
-            LOGGER.debug("Result UCUM unit validator: {:s} -> {:s}".format(unit_code, output_parts[0]))
+            LOGGER.debug(f"Result UCUM unit validator: {unit_code} -> {output_parts[0]}")
             if output_parts[0] != cls.VALIDATOR_VALID_TEXT:
                 return False
 
@@ -68,12 +68,12 @@ class UnitCode:
             return True
 
         except subprocess.CalledProcessError as error:
-            LOGGER.warning("CalledProcessError '{}' when trying to validate unit code: {:s}".format(error, unit_code))
+            LOGGER.warning(f"CalledProcessError '{error}' when trying to validate unit code: {unit_code}")
         except OSError as error:
-            LOGGER.warning("OSError '{}' when trying to validate unit code: {:s}".format(error, unit_code))
+            LOGGER.warning(f"OSError '{error}' when trying to validate unit code: {unit_code}")
 
         # An error occurred while trying to use the JavaScript validator and
-        # the given unit code was not in the premade lists.
+        # the given unit code was not in the pre-made lists.
         return False
 
     @classmethod
@@ -101,7 +101,7 @@ class UnitCode:
             # Use glob to find the resource file paths to allow code usage in a submodule.
             for unit_code_file in current_path.glob("/".join(["**", cls.UNIT_CODE_FILE_PATH, unit_code_file_name])):
                 try:
-                    with open(unit_code_file, mode="r") as csv_file:
+                    with open(unit_code_file, mode="r", encoding="UTF-8") as csv_file:
                         csv_reader = csv.DictReader(csv_file, delimiter=cls.UNIT_CODE_FILE_COLUMN_SEPARATOR)
                         for csv_row in csv_reader:
                             unit_code = csv_row[cls.UNIT_CODE_FILE_CODE_COLUMN]
@@ -110,17 +110,13 @@ class UnitCode:
                             unit_code_dict[unit_code] = unit_description
 
                 except KeyError as key_error:
-                    LOGGER.error("KeyError '{:s}' while trying to read unit codes from file {:s}".format(
-                        str(key_error), unit_code_file))
+                    LOGGER.error(f"KeyError '{key_error}' while trying to read unit codes from file {unit_code_file}")
 
                 except csv.Error as csv_error:
-                    LOGGER.error("csv.Error '{:s}' while trying to read unit codes from file {:s}".format(
-                        str(csv_error), unit_code_file))
+                    LOGGER.error(f"csv.Error '{csv_error}' while trying to read unit codes from file {unit_code_file}")
 
                 except OSError as os_error:
-                    LOGGER.error("OSError '{:s}' while trying to read file {:s}".format(
-                        str(os_error), unit_code_file
-                    ))
+                    LOGGER.error(f"OSError '{os_error}' while trying to read file {unit_code_file}")
 
         return unit_code_dict
 
@@ -138,6 +134,4 @@ class UnitCode:
                 additional_unit_file.write(cls.UNIT_CODE_FILE_COLUMN_SEPARATOR.join(
                     [unit_code, unit_description]) + "\n")
         except OSError as os_error:
-            LOGGER.error("OSError '{:s}' while trying to write to file {:s}".format(
-                str(os_error), additional_file
-            ))
+            LOGGER.error(f"OSError '{os_error}' while trying to write to file {additional_file}")

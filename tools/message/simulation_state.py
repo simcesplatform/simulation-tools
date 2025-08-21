@@ -57,8 +57,7 @@ class SimulationStateMessage(AbstractMessage):
     @simulation_state.setter
     def simulation_state(self, simulation_state: str):
         if not self._check_simulation_state(simulation_state):
-            raise MessageStateValueError("'{:s}' is not a valid value for simulation state".format(
-                str(simulation_state)))
+            raise MessageStateValueError(f"'{simulation_state}' is not a valid value for simulation state")
         self.__simulation_state = simulation_state
 
     @name.setter

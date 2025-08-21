@@ -44,7 +44,7 @@ class StatusMessage(AbstractResultMessage):
 
         # Give a warning if an error message is created without a description.
         if self.value == self.__class__.STATUS_VALUES[-1] and not self.description:
-            LOGGER.info("No description for a message with status: '{:s}'".format(self.value))
+            LOGGER.info(f"No description for a message with status: '{self.value}'")
 
     @property
     def value(self) -> str:
@@ -60,14 +60,14 @@ class StatusMessage(AbstractResultMessage):
     @value.setter
     def value(self, value: str):
         if not self._check_value(value):
-            raise MessageValueError("'{:s}' is an invalid status value".format(str(value)))
+            raise MessageValueError(f"'{value}' is an invalid status value")
 
         self.__value = value
 
     @description.setter
     def description(self, description: Union[str, None]):
         if not self._check_description(description):
-            raise MessageValueError("'{:s}' is an invalid error description".format(str(description)))
+            raise MessageValueError(f"'{description}' is an invalid error description")
 
         self.__description = description
 

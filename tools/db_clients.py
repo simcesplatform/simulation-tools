@@ -11,7 +11,6 @@ import datetime
 import operator
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import motor.motor_asyncio
 import pymongo
 import pymongo.results
 
@@ -23,8 +22,8 @@ LOGGER = FullLogger(__name__)
 
 def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]:
     """Returns the default environment variable definitions for MongodbClient."""
-    def env_variable_name(simple_variable_name):
-        return "{:s}{:s}".format(MongodbClient.DEFAULT_ENV_VARIABLE_PREFIX, simple_variable_name.upper())
+    def env_variable_name(simple_variable_name: str) -> str:
+        return MongodbClient.DEFAULT_ENV_VARIABLE_PREFIX + simple_variable_name.upper()
 
     return [
         (env_variable_name("host"), str, "localhost"),
@@ -60,7 +59,10 @@ def load_config_from_env_variables() -> Dict[str, Optional[EnvironmentVariableVa
 class MongodbClient:
     """MongoDB client that can be used to write JSON documents to Mongo database."""
     DEFAULT_ENV_VARIABLE_PREFIX = "MONGODB_"
-    CONNECTION_PARAMTERS = ["host", "port", "username", "password", "appname", "tz_aware", "tls"]
+    CONNECTION_PARAMETERS = ["host", "port", "username", "password", "appname", "tz_aware", "tls"]
+    CONNECTION_HOST_PARAMETER = "host"
+    CONNECTION_USERNAME_PARAMETER = "username"
+    CONNECTION_URI_PARAMETER = "uri"
     AUTHENTICATION_INPUT_PARAMETER = "database"
     AUTHENTICATION_OUTPUT_PARAMETER = "authSource"
     TLS_INVALID_CERTIFICATES_INPUT_PARAMETER = "tls_allow_invalid_certificates"
@@ -84,7 +86,7 @@ class MongodbClient:
     EPOCH_ATTRIBUTE = "EpochNumber"
     PROCESS_ATTRIBUTE = "SourceProcessId"
 
-    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + \
+    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMETERS + \
         [
             "database",
             "metadata_collection",
@@ -157,16 +159,41 @@ class MongodbClient:
         self.__messages_collection_prefix = str(kwargs["messages_collection_prefix"])
         self.__invalid_messages_collection_prefix = str(kwargs["invalid_messages_collection_prefix"])
         self.__collection_identifier = str(kwargs["collection_identifier"])
+        self.__mongo_client = None
+        self.__mongo_database = None
+        self.__metadata_collection = None
 
+    async def __aenter__(self):
         # Set up the Mongo database connection and the metadata collection
-        self.__mongo_client = motor.motor_asyncio.AsyncIOMotorClient(**self.__connection_parameters)
+        if self.CONNECTION_URI_PARAMETER in self.__connection_parameters:
+            temp_connection_parameters = {
+                **self.__connection_parameters,
+                self.CONNECTION_HOST_PARAMETER: self.__connection_parameters[self.CONNECTION_URI_PARAMETER]
+            }
+            temp_connection_parameters.pop(self.CONNECTION_URI_PARAMETER, None)
+        else:
+            temp_connection_parameters = self.__connection_parameters
+
+        self.__mongo_client = pymongo.AsyncMongoClient(**temp_connection_parameters)
         self.__mongo_database = self.__mongo_client[self.__database_name]
         self.__metadata_collection = self.__mongo_database[self.__metadata_collection_name]
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+
+    async def close(self):
+        """Closes the MongoDB connection."""
+        if self.__mongo_client:
+            await self.__mongo_client.close()
+            self.__mongo_client = None
+            self.__mongo_database = None
+            self.__metadata_collection = None
 
     @property
     def host(self) -> str:
         """The host name of the MongoDB."""
-        return str(self.__connection_parameters["host"])
+        return str(self.__connection_parameters[self.CONNECTION_HOST_PARAMETER])
 
     @property
     def port(self) -> int:
@@ -193,7 +220,7 @@ class MongodbClient:
 
            documents parameters is expected to be a list of tuples (message_json, topic_name),
            where message_json is the message in JSON format and topic_name is a string for the message topic."""
-        if not documents or not isinstance(documents, list):
+        if not documents or not isinstance(documents, list) or self.__mongo_database is None:
             return []
 
         # Add the topic attribute to the JSON documents.
@@ -208,8 +235,7 @@ class MongodbClient:
         message_collection_name = self.__get_message_collection(full_documents[0], invalid, default_simulation_id)
         if message_collection_name is None:
             LOGGER.warning(
-                "The first document does not have '{:s}' attribute and default simulation was not given.".format(
-                    self.__collection_identifier))
+                f"The first document does not have '{self.__collection_identifier}' attribute and default simulation was not given.")
             return []
 
         await MongodbClient.datetime_attributes_to_objects(full_documents)
@@ -233,7 +259,10 @@ class MongodbClient:
     async def update_metadata(self, simulation_id: str, **attribute_updates) -> bool:
         """Creates or updates the metadata information for a simulation."""
         if not isinstance(simulation_id, str):
-            LOGGER.warning("Given simulation id was not of type str: '{:s}'".format(str(type(simulation_id))))
+            LOGGER.warning(f"Given simulation id was not of type str: '{type(simulation_id)}'")
+            return False
+        if self.__metadata_collection is None:
+            LOGGER.warning("Metadata collection is not set up, cannot update metadata.")
             return False
 
         simple_document = {self.__collection_identifier: simulation_id}
@@ -243,7 +272,7 @@ class MongodbClient:
         if metadata_document is None:
             metadata_document = await self.get_metadata_json(simple_document, attribute_updates)
             if metadata_document is None:
-                LOGGER.warning("Problem creating the metadata document for simulation {:s}".format(simulation_id))
+                LOGGER.warning(f"Problem creating the metadata document for simulation {simulation_id}")
                 return False
 
             write_result = await self.__metadata_collection.insert_one(metadata_document)
@@ -255,7 +284,7 @@ class MongodbClient:
         # Update previous document.
         metadata_document = await self.get_metadata_json(metadata_document, attribute_updates)
         if metadata_document is None:
-            LOGGER.warning("Problem creating the metadata document for simulation {:s}".format(simulation_id))
+            LOGGER.warning(f"Problem creating the metadata document for simulation {simulation_id}")
             return False
 
         write_result = await self.__metadata_collection.replace_one(simple_document, metadata_document)
@@ -267,6 +296,10 @@ class MongodbClient:
 
     async def update_metadata_indexes(self):
         """Updates indexes to the metadata collection and adds them if they do not exist yet."""
+        if self.__metadata_collection is None:
+            LOGGER.warning("Metadata collection is not set up, cannot update metadata indexes.")
+            return
+
         metadata_indexes = [
             pymongo.IndexModel(
                 [(self.__collection_identifier, pymongo.ASCENDING)],
@@ -290,13 +323,17 @@ class MongodbClient:
         result = await self.__metadata_collection.create_indexes(metadata_indexes)
 
         if len(result) != len(metadata_indexes):
-            LOGGER.warning("Problem with updating metadata collection indexes, result: {:s}".format(str(result)))
+            LOGGER.warning(f"Problem with updating metadata collection indexes, result: {result}")
         else:
             LOGGER.debug("Updated the metadata collection indexes successfully.")
 
     async def add_simulation_indexes(self, simulation_id: str):
         """Adds or updates indexes to the collections containing the valid and invalid messages
            from the specified simulation."""
+        if self.__mongo_database is None:
+            LOGGER.warning("MongoDB database is not set up, cannot add or update simulation indexes.")
+            return
+
         # indexes for the valid messages collection
         simulation_indexes = [
             pymongo.IndexModel(
@@ -324,13 +361,15 @@ class MongodbClient:
         ]
 
         message_collection_name = self.__get_message_collection({self.__collection_identifier: simulation_id})
+        if message_collection_name is None:
+            LOGGER.warning(f"The simulation id '{simulation_id}' does not have a valid collection name for messages.")
+            return
         result = await self.__mongo_database[message_collection_name].create_indexes(simulation_indexes)
 
         if len(result) != len(simulation_indexes):
-            LOGGER.warning("Problem with updating message collection indexes for {:s}, result: {:s}".format(
-                simulation_id, str(result)))
+            LOGGER.warning(f"Problem with updating message collection indexes for {simulation_id}, result: {result}")
         else:
-            LOGGER.debug("Updated the message collection indexes for {:s} successfully.".format(simulation_id))
+            LOGGER.debug(f"Updated the message collection indexes for {simulation_id} successfully.")
 
         # indexes for invalid messages collection
         simulation_indexes = [
@@ -353,13 +392,16 @@ class MongodbClient:
             {self.__collection_identifier: simulation_id},
             invalid=True
         )
+        if message_collection_name is None:
+            LOGGER.warning(
+                f"The given simulation id '{simulation_id}' does not have a valid collection name for invalid messages.")
+            return
         result = await self.__mongo_database[message_collection_name].create_indexes(simulation_indexes)
 
         if len(result) != len(simulation_indexes):
-            LOGGER.warning("Problem with updating invalid message collection indexes for {:s}, result: {:s}".format(
-                simulation_id, str(result)))
+            LOGGER.warning(f"Problem with updating invalid message collection indexes for {simulation_id}, result: {result}")
         else:
-            LOGGER.debug("Updated the invalid message collection indexes for {:s} successfully.".format(simulation_id))
+            LOGGER.debug(f"Updated the invalid message collection indexes for {simulation_id} successfully.")
 
     def __get_message_collection(self, json_document: dict, invalid: bool = False,
                                  default_simulation_id: Optional[str] = None) -> Optional[str]:
@@ -452,7 +494,7 @@ class MongodbClient:
                 if not cls.__check_value_types(value_element, types[1:]):
                     return False
         except TypeError as error:
-            LOGGER.warning("TypeError : {:s}".format(str(error)))
+            LOGGER.warning(f"TypeError : {error}")
             return False
 
         return True
@@ -463,7 +505,7 @@ class MongodbClient:
         stripped_connection_config = {
             config_parameter: parameter_value
             for config_parameter, parameter_value in connection_config_dict.items()
-            if config_parameter in cls.CONNECTION_PARAMTERS
+            if config_parameter in cls.CONNECTION_PARAMETERS
         }
 
         # for non-root users: authorize only for the database containing the documents instead to admin
@@ -475,5 +517,17 @@ class MongodbClient:
         if connection_config_dict.get(cls.TLS_ATTRIBUTE, False):
             stripped_connection_config[cls.TLS_INVALID_CERTIFICATES_OUTPUT_PARAMETER] = \
                 connection_config_dict.get(cls.TLS_INVALID_CERTIFICATES_INPUT_PARAMETER, False)
+
+        # If the connection uri is given, create a connection string
+        if cls.CONNECTION_USERNAME_PARAMETER in stripped_connection_config:
+            uri = (
+                f"mongodb://{stripped_connection_config[cls.CONNECTION_USERNAME_PARAMETER]}:" +
+                f"{stripped_connection_config.get('password', '')}@" +
+                f"{stripped_connection_config.get(cls.CONNECTION_HOST_PARAMETER, 'localhost')}:" +
+                f"{stripped_connection_config.get('port', 27017)}"
+            )
+            if cls.AUTHENTICATION_OUTPUT_PARAMETER in stripped_connection_config:
+                uri += f"/{stripped_connection_config[cls.AUTHENTICATION_OUTPUT_PARAMETER]}"
+            stripped_connection_config[cls.CONNECTION_URI_PARAMETER] = uri
 
         return stripped_connection_config

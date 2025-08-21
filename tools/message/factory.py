@@ -34,11 +34,9 @@ class MessageFactory:
            a message class with the same CLASS_MESSAGE_TYPE has already been registered to the factory
         """
         if message_type.CLASS_MESSAGE_TYPE == "":
-            LOGGER.warning("Cannot register {:s} to the message factory".format(
-                getattr(message_type, "__name__", str(message_type))))
+            LOGGER.warning(f"Cannot register {getattr(message_type, "__name__", str(message_type))} to the message factory")
         elif message_type.CLASS_MESSAGE_TYPE in cls.__message_types:
-            LOGGER.warning("Type {:s} has already been registered to the message factory".format(
-                message_type.CLASS_MESSAGE_TYPE))
+            LOGGER.warning(f"Type {message_type.CLASS_MESSAGE_TYPE} has already been registered to the message factory")
         else:
             cls.__message_types[message_type.CLASS_MESSAGE_TYPE] = message_type
 
@@ -48,7 +46,7 @@ class MessageFactory:
         return list(cls.__message_types)
 
     @classmethod
-    def get_message(cls, message_type: str = None, **kwargs) -> BaseMessage:
+    def get_message(cls, message_type: str | None = None, **kwargs) -> BaseMessage:
         """Returns a message object corresponding the given keyword attributes.
            The type of the message object is determined by the "message_type" attribute if it is not None
            or otherwise by the "Type" attribute.
@@ -63,6 +61,6 @@ class MessageFactory:
         if message_type is None:
             raise TypeError("No message type found")
         if message_type not in cls.__message_types:
-            raise TypeError("Message type {:s} is not supported by the factory".format(str(message_type)))
+            raise TypeError(f"Message type {message_type} is not supported by the factory")
 
         return cls.__message_types[message_type](**kwargs)

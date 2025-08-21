@@ -51,15 +51,14 @@ def validate_json(message_class: Type[BaseMessage], json_message: Dict[str, Any]
 
         if (json_attribute_name not in json_message and
                 json_attribute_name not in message_class.OPTIONAL_ATTRIBUTES_FULL):
-            LOGGER.warning("{:s} attribute is missing from the message".format(json_attribute_name))
+            LOGGER.warning(f"{json_attribute_name} attribute is missing from the message")
             return False
 
         if not getattr(
                 message_class,
                 "_".join(["_check", object_attribute_name]))(json_message.get(json_attribute_name, None)):
             # TODO: handle checking for missing timezone information
-            LOGGER.warning("'{:s}' is not valid message value for {:s}".format(
-                str(json_message[json_attribute_name]), json_attribute_name))
+            LOGGER.warning(f"'{json_message[json_attribute_name]}' is not valid message value for {json_attribute_name}")
             return False
 
     return True
@@ -106,9 +105,8 @@ class BaseMessage():
            If Timestamp is missing, it is added with a value corresponding to the current time.
            If one the arguments is not valid, throws an instance of MessageError.
         """
-        for json_attribute_name in self.__class__.MESSAGE_ATTRIBUTES_FULL:
-            setattr(self, self.__class__.MESSAGE_ATTRIBUTES_FULL[json_attribute_name],
-                    kwargs.get(json_attribute_name, None))
+        for json_attribute_name, value in self.__class__.MESSAGE_ATTRIBUTES_FULL.items():
+            setattr(self, value, kwargs.get(json_attribute_name, None))
 
     @property
     def message_type(self) -> str:
@@ -128,7 +126,7 @@ class BaseMessage():
     @message_type.setter
     def message_type(self, message_type: str):
         if not self._check_message_type(message_type):
-            raise MessageTypeError("'{:s}' is not an allowed message type".format(str(message_type)))
+            raise MessageTypeError(f"'{message_type}' is not an allowed message type")
         self.__message_type = message_type
 
     @simulation_id.setter
@@ -138,7 +136,7 @@ class BaseMessage():
             if isinstance(iso_format_string, str):
                 self.__simulation_id = iso_format_string
                 return
-        raise MessageDateError("'{:s}' is an invalid datetime".format(str(simulation_id)))
+        raise MessageDateError(f"'{simulation_id}' is an invalid datetime")
 
     @timestamp.setter
     def timestamp(self, timestamp: Union[str, datetime.datetime, None]):
@@ -151,7 +149,7 @@ class BaseMessage():
                     self.__timestamp = iso_format_string
                     return
 
-            raise MessageDateError("'{:s}' is an invalid datetime".format(str(timestamp)))
+            raise MessageDateError(f"'{timestamp}' is an invalid datetime")
 
     def __eq__(self, other: Any) -> bool:
         return (
@@ -188,7 +186,7 @@ class BaseMessage():
     def _check_quantity_block(cls, value: Union[str, float, QuantityBlock, dict, None],
                               unit: str,
                               can_be_none: bool = False,
-                              float_value_check: Callable[[float], bool] = None) -> bool:
+                              float_value_check: Callable[[float], bool] | None = None) -> bool:
         """Check that value for quantity block is valid.
         value: The value to be checked. String can be converted to float or the given QuantityBlock has the given unit
         or the dict has the required attributes and correct unit.
@@ -232,9 +230,9 @@ class BaseMessage():
         Throws MessageBlockError if the message_attribute has not been included in QUANTITY_BLOCK_ATTRIBUTES_FULL.
         """
         if message_attribute not in self.QUANTITY_BLOCK_ATTRIBUTES_FULL:
-            LOGGER.warning("Attribute {:s} is not registered as a quantity block".format(message_attribute))
+            LOGGER.warning(f"Attribute {message_attribute} is not registered as a quantity block")
             raise MessageBlockError(
-                "Attribute {:s} is not registered as a quantity block".format(message_attribute))
+                f"Attribute {message_attribute} is not registered as a quantity block")
 
         unit = self.QUANTITY_BLOCK_ATTRIBUTES_FULL[message_attribute]
         if isinstance(quantity_value, dict):
@@ -252,11 +250,10 @@ class BaseMessage():
             quantity_value)
 
     @classmethod
-    def _check_quantity_array_block(cls, value: Union[List[float], QuantityArrayBlock,
-                                                      Dict[str, Union[str, List[float]]], None],
+    def _check_quantity_array_block(cls, value: List[float] | QuantityArrayBlock | Dict[str, str | List[float]] | None,
                                     unit: str,
                                     can_be_none: bool = False,
-                                    value_array_check: Callable[[List[float]], bool] = None) -> bool:
+                                    value_array_check: Callable[[List[float]], bool] | None = None) -> bool:
         """Check that the value for quantity array block is valid.
 
         value:             The value to be checked.
@@ -284,7 +281,7 @@ class BaseMessage():
         if isinstance(value, dict):
             if not QuantityArrayBlock.validate_json(value):
                 return False
-            value = QuantityArrayBlock(**value)  # pyright: reportGeneralTypeIssues=false
+            value = QuantityArrayBlock(**value)  # type: ignore
 
         return value.unit_of_measure == unit and (value_array_check is None or value_array_check(value.values))
 
@@ -301,16 +298,16 @@ class BaseMessage():
         If the quantity_array_value contains invalid values, throws an appropriate exception.
         """
         if message_attribute not in self.QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL:
-            LOGGER.warning("Attribute {:s} is not registered as a quantity array block".format(message_attribute))
+            LOGGER.warning(f"Attribute {message_attribute} is not registered as a quantity array block")
             raise MessageBlockError(
-                "Attribute {:s} is not registered as a quantity array block".format(message_attribute))
+                f"Attribute {message_attribute} is not registered as a quantity array block")
 
         if isinstance(quantity_array_value, list):
             unit = self.QUANTITY_ARRAY_BLOCK_ATTRIBUTES_FULL[message_attribute]
             quantity_array_value = QuantityArrayBlock(Values=quantity_array_value, UnitOfMeasure=unit)
 
         elif isinstance(quantity_array_value, dict):
-            quantity_array_value = QuantityArrayBlock(**quantity_array_value)
+            quantity_array_value = QuantityArrayBlock(**quantity_array_value)  # type: ignore
 
         # set value for the attribute
         # Note: attribute name has to include the class name to be of use in subclasses since that is what
@@ -323,7 +320,7 @@ class BaseMessage():
     @classmethod
     def _check_timeseries_block(cls, value: Union[TimeSeriesBlock, Dict[str, Any], None],
                                 can_be_none: bool = False,
-                                block_check: Callable[[TimeSeriesBlock], bool] = None) -> bool:
+                                block_check: Callable[[TimeSeriesBlock], bool] | None = None) -> bool:
         """Check that value for time series block is valid.
 
         value:       The value to be checked.
@@ -359,9 +356,9 @@ class BaseMessage():
         If the timeseries_value contains invalid values, throws an appropriate exception.
         """
         if message_attribute not in self.TIMESERIES_BLOCK_ATTRIBUTES_FULL:
-            LOGGER.warning("Attribute {:s} is not registered as an time series block".format(message_attribute))
+            LOGGER.warning(f"Attribute {message_attribute} is not registered as an time series block")
             raise MessageBlockError(
-                "Attribute {:s} is not registered as an time series block".format(message_attribute))
+                f"Attribute {message_attribute} is not registered as an time series block")
 
         if isinstance(timeseries_value, dict):
             timeseries_value = TimeSeriesBlock(**timeseries_value)
@@ -436,13 +433,13 @@ class AbstractMessage(BaseMessage):
     @source_process_id.setter
     def source_process_id(self, source_process_id: str):
         if not self._check_source_process_id(source_process_id):
-            raise MessageSourceError("'{:s}' is an invalid source process id".format(str(source_process_id)))
+            raise MessageSourceError(f"'{source_process_id}' is an invalid source process id")
         self.__source_process_id = source_process_id
 
     @message_id.setter
     def message_id(self, message_id: str):
         if not self._check_message_id(message_id):
-            raise MessageIdError("'{:s}' is an invalid message id".format(str(message_id)))
+            raise MessageIdError(f"'{message_id}' is an invalid message id")
         self.__message_id = message_id
 
     def __eq__(self, other: Any) -> bool:
@@ -534,25 +531,25 @@ class AbstractResultMessage(AbstractMessage):
     @epoch_number.setter
     def epoch_number(self, epoch_number: int):
         if not self._check_epoch_number(epoch_number):
-            raise MessageEpochValueError("'{:s}' is not a valid epoch number".format(str(epoch_number)))
+            raise MessageEpochValueError(f"'{epoch_number}' is not a valid epoch number")
         self.__epoch_number = epoch_number
 
     @last_updated_in_epoch.setter
     def last_updated_in_epoch(self, last_updated_in_epoch: Union[int, None]):
         if not self._check_last_updated_in_epoch(last_updated_in_epoch):
-            raise MessageEpochValueError("'{:s}' is not a valid epoch number".format(str(last_updated_in_epoch)))
+            raise MessageEpochValueError(f"'{last_updated_in_epoch}' is not a valid epoch number")
         self.__last_updated_in_epoch = last_updated_in_epoch
 
     @triggering_message_ids.setter
     def triggering_message_ids(self, triggering_message_ids: Union[List[str], Tuple[str]]):
         if not self._check_triggering_message_ids(triggering_message_ids):
-            raise MessageIdError("'{:s}' is not a valid list of message ids".format(str(triggering_message_ids)))
+            raise MessageIdError(f"'{triggering_message_ids}' is not a valid list of message ids")
         self.__triggering_message_ids = list(triggering_message_ids)
 
     @warnings.setter
     def warnings(self, warnings: Union[List[str], Tuple[str], None]):
         if not self._check_warnings(warnings):
-            raise MessageValueError("'{:s}' is not a valid list of warnings".format(str(warnings)))
+            raise MessageValueError(f"'{warnings}' is not a valid list of warnings")
         if warnings is None or (isinstance(warnings, (list, tuple)) and len(warnings) == 0):
             self.__warnings = None
         else:
@@ -561,7 +558,7 @@ class AbstractResultMessage(AbstractMessage):
     @iteration_status.setter
     def iteration_status(self, iteration_status: Optional[str]):
         if not self._check_iteration_status(iteration_status):
-            raise MessageValueError("'{}' is not a valid value for iteration status".format(iteration_status))
+            raise MessageValueError(f"'{iteration_status}' is not a valid value for iteration status")
         self.__iteration_status = iteration_status
 
     def __eq__(self, other: Any) -> bool:

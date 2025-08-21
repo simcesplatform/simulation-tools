@@ -41,24 +41,24 @@ class Timer:
             try:
                 await self.__task
             except asyncio.CancelledError:
-                LOGGER.debug("Timer cancelled: {:s}".format(str(self)))
+                LOGGER.debug(f"Timer cancelled: {self}")
 
     def __str__(self) -> str:
-        return "{:s}".format(str({
+        return str({
             "is_repeating": self.__is_repeating,
             "timeout": self.__timeout,
             "is_running": self.is_running(),
             "callback": self.__callback.__name__
-        }))
+        })
 
     async def __timed_task(self) -> None:
         """Sleeps for timeout seconds and calls the callback function after the sleep."""
         while True:
-            LOGGER.debug("Timer started: {:s}".format(str(self)))
+            LOGGER.debug(f"Timer started: {self}")
             await asyncio.sleep(self.__timeout)
             await self.__callback(*self.__args, **self.__kwargs)
 
             if not self.__is_repeating:
                 break
 
-        LOGGER.debug("Timer finished: {:s}".format(str(self)))
+        LOGGER.debug(f"Timer finished: {self}")

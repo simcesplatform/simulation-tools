@@ -68,8 +68,7 @@ class MessageGenerator:
             return self.get_simulation_state_message(**kwargs)
 
         if not issubclass(message_class, AbstractMessage):
-            raise MessageError("{:s} is not a subclass of {:s}".format(
-                getattr(message_class, "__name__"), AbstractMessage.__name__))
+            raise MessageError(f"{getattr(message_class, "__name__")} is not a subclass of {AbstractMessage.__name__}")
 
         # No predefined function for the given message class type.
         # => Argument checking is done by the message class but no error messages related to extra arguments

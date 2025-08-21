@@ -52,8 +52,7 @@ class GeneralMessage(BaseMessage):
     @general_attributes.setter
     def general_attributes(self, general_attributes: dict):
         if not self._check_general_attributes(general_attributes):
-            raise MessageValueError("'{:s}' is an invalid general attribute dictionary".format(
-                str(general_attributes)))
+            raise MessageValueError(f"'{general_attributes}' is an invalid general attribute dictionary")
 
         self.__general_attributes = general_attributes
 
@@ -127,7 +126,7 @@ class ResultMessage(AbstractResultMessage):
     @result_values.setter
     def result_values(self, result_values: Dict[str, Any]):
         if not self._check_result_values(result_values):
-            raise MessageValueError("'{:s}' is an invalid result value dictionary".format(str(result_values)))
+            raise MessageValueError(f"'{result_values}' is an invalid result value dictionary")
 
         self.__result_values = result_values
 

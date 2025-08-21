@@ -1,0 +1,7 @@
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=0
+
+[MESSAGES CONTROL]
+# Disable the message, report, category or checker with the given id(s).
+disable=C0301

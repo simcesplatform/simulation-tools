@@ -19,7 +19,7 @@ DIGITS_IN_MILLISECONDS = 3
 
 def get_utcnow_in_milliseconds() -> str:
     """Returns the current ISO 8601 format datetime string in UTC timezone."""
-    isoformat_with_milliseconds = isoformat_to_milliseconds(datetime.datetime.utcnow().isoformat())
+    isoformat_with_milliseconds = isoformat_to_milliseconds(datetime.datetime.now(datetime.timezone.utc).isoformat())
     if isoformat_with_milliseconds is None:
         LOGGER.error("Unexpected error when trying to get current time in ISO 8601 format")
         return "1970-01-01T00:00:00.000Z"

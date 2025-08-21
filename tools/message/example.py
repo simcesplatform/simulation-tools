@@ -151,56 +151,56 @@ class ExampleMessage(AbstractResultMessage):
         if self._check_positive_integer(positive_integer):
             self.__positive_integer = positive_integer
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: positive_integer".format(positive_integer))
+            raise MessageValueError(f"Invalid value, {positive_integer}, for attribute: positive_integer")
 
     @power_quantity.setter
     def power_quantity(self, power_quantity: Union[str, float, QuantityBlock, Dict[str, Any]]):
         if self._check_power_quantity(power_quantity):
             self._set_quantity_block_value(self.POWER_ATTRIBUTE, power_quantity)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: power_quantity".format(power_quantity))
+            raise MessageValueError(f"Invalid value, {power_quantity}, for attribute: power_quantity")
 
     @current_array.setter
     def current_array(self, current_array: Union[QuantityArrayBlock, Dict[str, Any]]):
         if self._check_current_array(current_array):
             self._set_quantity_array_block_value(self.CURRENT_ARRAY_ATTRIBUTE, current_array)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: current_array".format(current_array))
+            raise MessageValueError(f"Invalid value, {current_array}, for attribute: current_array")
 
     @temperature.setter
     def temperature(self, temperature: Union[TimeSeriesBlock, Dict[str, Any]]):
         if self._check_temperature(temperature):
             self._set_timeseries_block_value(self.TEMPERATURE_ATTRIBUTE, temperature)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: temperature".format(temperature))
+            raise MessageValueError(f"Invalid value, {temperature}, for attribute: temperature")
 
     @eight_characters.setter
     def eight_characters(self, eight_characters: Union[str, None]):
         if self._check_eight_characters(eight_characters):
             self.__eight_characters = eight_characters
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: eight_characters".format(eight_characters))
+            raise MessageValueError(f"Invalid value, {eight_characters}, for attribute: eight_characters")
 
     @time_quantity.setter
     def time_quantity(self, time_quantity: Union[str, float, QuantityBlock, Dict[str, Any], None]):
         if self._check_time_quantity(time_quantity):
             self._set_quantity_block_value(self.TIME_ATTRIBUTE, time_quantity)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: time_quantity".format(time_quantity))
+            raise MessageValueError(f"Invalid value, {time_quantity}, for attribute: time_quantity")
 
     @voltage_array.setter
     def voltage_array(self, voltage_array: Union[QuantityArrayBlock, Dict[str, Any], None]):
         if self._check_voltage_array(voltage_array):
             self._set_quantity_array_block_value(self.VOLTAGE_ARRAY_ATTRIBUTE, voltage_array)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: voltage_array".format(voltage_array))
+            raise MessageValueError(f"Invalid value, {voltage_array}, for attribute: voltage_array")
 
     @weight.setter
     def weight(self, weight: Union[TimeSeriesBlock, Dict[str, Any], None]):
         if self._check_weight(weight):
             self._set_timeseries_block_value(self.WEIGHT_ATTRIBUTE, weight)
         else:
-            raise MessageValueError("Invalid value, {}, for attribute: weight".format(weight))
+            raise MessageValueError(f"Invalid value, {weight}, for attribute: weight")
 
     # provide a new implementation for the "test of message equality" function
     def __eq__(self, other: Any) -> bool:

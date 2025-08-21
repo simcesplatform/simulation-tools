@@ -72,37 +72,33 @@ class MessageCallback():
     def log_last_message(self) -> None:
         """Writes a log message based on the last received message."""
         if isinstance(self.last_message, SimulationStateMessage):
-            LOGGER.info("Received simulation state message '{:s}' from '{:s}'".format(
-                self.last_message.simulation_state, self.last_message.source_process_id))
+            LOGGER.info(
+                f"Received simulation state message '{self.last_message.simulation_state}' from " +
+                f"'{self.last_message.source_process_id}'")
         elif isinstance(self.last_message, EpochMessage):
-            LOGGER.info("Epoch message received from '{:s}' for epoch number {:d} ({:s} - {:s})".format(
-                self.last_message.source_process_id,
-                self.last_message.epoch_number,
-                self.last_message.start_time,
-                self.last_message.end_time))
+            LOGGER.info(
+                f"Epoch message received from '{self.last_message.source_process_id}' for epoch number " +
+                f"{self.last_message.epoch_number} ({self.last_message.start_time} - {self.last_message.end_time})")
         elif isinstance(self.last_message, StatusMessage):
-            LOGGER.info("Status message received from '{:s}' for epoch number {:d} with value: {:s}".format(
-                self.last_message.source_process_id,
-                self.last_message.epoch_number,
-                self.last_message.value))
+            LOGGER.info(
+                f"Status message received from '{self.last_message.source_process_id}' for epoch number " +
+                f"{self.last_message.epoch_number} with value: {self.last_message.value}")
         elif isinstance(self.last_message, AbstractResultMessage):
-            LOGGER.info("Received '{:s}' message from '{:s}' for epoch {:d}".format(
-                self.last_message.message_type,
-                self.last_message.source_process_id,
-                self.last_message.epoch_number))
+            LOGGER.info(
+                f"Received '{self.last_message.message_type}' message from " +
+                f"'{self.last_message.source_process_id}' for epoch {self.last_message.epoch_number}")
         elif isinstance(self.last_message, AbstractMessage):
-            LOGGER.info("Received '{:s}' message from '{:s}' on topic '{:s}'".format(
-                self.last_message.message_type,
-                self.last_message.source_process_id,
-                self.last_topic))
+            LOGGER.info(
+                f"Received '{self.last_message.message_type}' message from " +
+                f"'{self.last_message.source_process_id}' on topic '{self.last_topic}'")
         elif isinstance(self.last_message, BaseMessage):
-            LOGGER.info("Received message from topic '{:s}'".format(self.last_topic))
+            LOGGER.info(f"Received message from topic '{self.last_topic}'")
         elif isinstance(self.last_message, dict):
-            LOGGER.info("Received a JSON message with errors: '{:s}'".format(json.dumps(self.last_message)))
+            LOGGER.info(f"Received a JSON message with errors: '{json.dumps(self.last_message)}'")
         elif self.last_message is None:
             LOGGER.warning("No last message found.")
         else:
-            LOGGER.warning("The last message in unknown format: '{:s}'".format(str(self.last_message)))
+            LOGGER.warning(f"The last message in unknown format: '{self.last_message}'")
 
     async def callback(self, message: aio_pika.message.IncomingMessage) -> None:
         """Callback function for the received messages from the message bus.
@@ -137,9 +133,7 @@ class MessageCallback():
             except (TypeError, ValueError, MessageError) as message_error:
                 # The message did not conform to the simulation platform message schema or
                 # the message type was not supported by the message factory.
-                LOGGER.warning("Received {:s} error when creating message object: {:s}".format(
-                    type(message_error).__name__, str(message_error)
-                ))
+                LOGGER.warning(f"Received {type(message_error).__name__} error when creating message object: {message_error}")
                 message_object = message_json
 
             self.__last_message = message_object
@@ -147,7 +141,6 @@ class MessageCallback():
             self.log_last_message()
 
             if inspect.iscoroutinefunction(self.__callback_function):
-                asyncio.create_task(self.__callback_function(message_object, message.routing_key))
+                asyncio.create_task(self.__callback_function(message_object, str(message.routing_key)))
             else:
-                LOGGER.error("Callback function '{:s}' is not awaitable.".format(
-                    str(getattr(self.__callback_function, "__name__", None))))
+                LOGGER.error(f"Callback function '{getattr(self.__callback_function, "__name__", None)}' is not awaitable.")

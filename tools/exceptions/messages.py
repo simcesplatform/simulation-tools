@@ -14,7 +14,7 @@ LOGGER = FullLogger(__name__)
 class MessageError(Exception):
     """Base class for message related errors."""
     def __init__(self, message):
-        super(MessageError, self).__init__(message)
+        super().__init__(message)
         LOGGER.error(message)
         self.message = message
 

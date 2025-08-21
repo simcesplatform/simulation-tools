@@ -11,6 +11,7 @@ import logging
 from typing import Dict, List, Optional, Tuple, Union, cast
 
 import aio_pika
+from aio_pika import RobustChannel, RobustConnection, RobustExchange
 from aio_pika.exceptions import CONNECTION_EXCEPTIONS
 
 from tools.callbacks import CallbackFunctionType, MessageCallback
@@ -30,7 +31,7 @@ MAX_CONNECTION_TRIES = 18
 def default_env_variable_definitions() -> List[Tuple[str, EnvironmentVariableType, EnvironmentVariableValue]]:
     """Returns the default environment variable definitions for RabbitmqClient."""
     def env_variable_name(simple_variable_name: str) -> str:
-        return "{:s}{:s}".format(RabbitmqClient.DEFAULT_ENV_VARIABLE_PREFIX, simple_variable_name.upper())
+        return RabbitmqClient.DEFAULT_ENV_VARIABLE_PREFIX + simple_variable_name.upper()
 
     return [
         (env_variable_name("host"), str, "localhost"),
@@ -74,7 +75,7 @@ def validate_message(topic_name: str, message_to_publish: Union[bytes, AbstractM
         return None, None
 
     if not isinstance(message_to_publish, bytes):
-        LOGGER.warning("Wrong message type ('{:s}') for publishing.".format(str(type(message_to_publish))))
+        LOGGER.warning(f"Wrong message type ('{type(message_to_publish)}') for publishing.")
         return None, None
 
     return topic_name, message_to_publish
@@ -111,11 +112,11 @@ class RabbitmqConnection:
         self.__connection_parameters = connection_parameters
         self.__exchange_parameters = exchange_parameters
 
-        self.__rabbitmq_connection = None
-        self.__rabbitmq_channel = None
-        self.__rabbitmq_exchange = None
+        self.__rabbitmq_connection: RobustConnection | None = None
+        self.__rabbitmq_channel: RobustChannel | None = None
+        self.__rabbitmq_exchange: RobustExchange | None = None
 
-    async def get_connection(self) -> Optional[aio_pika.connection.ConnectionType]:
+    async def get_connection(self) -> Optional[RobustConnection]:
         """Returns a RabbitMQ connection. Creates the connection on the first call.
            If the connection has been closed, tries to create a new connection."""
         if self.__rabbitmq_connection is None or self.__rabbitmq_connection.is_closed:
@@ -128,8 +129,7 @@ class RabbitmqConnection:
                 interval += CONNECTION_CREATION_INTERVAL
 
                 if try_number < MAX_CONNECTION_TRIES:
-                    LOGGER.info("Trying to create the connection again in {} seconds.".format(
-                        interval))
+                    LOGGER.info(f"Trying to create the connection again in {interval} seconds.")
                     await asyncio.sleep(interval)
                 else:
                     LOGGER.error("Giving up on trying to connect to the RabbitMQ message bus.")
@@ -143,9 +143,9 @@ class RabbitmqConnection:
                     self.__rabbitmq_connection = await aio_pika.connect_robust(
                         reconnect_interval=RECONNECT_INTERVAL,
                         **self.__connection_parameters,
-                    )
+                    )  # type: ignore
 
-                    if not self.__rabbitmq_connection.is_closed:
+                    if self.__rabbitmq_connection is not None and not self.__rabbitmq_connection.is_closed:
                         connection_created = True
                     else:
                         connection_try_number, connection_creation_interval = \
@@ -153,17 +153,16 @@ class RabbitmqConnection:
                                 connection_try_number, connection_creation_interval)
 
                 except CONNECTION_EXCEPTIONS as connection_error:
-                    LOGGER.warning("When creating RabbitMQ connection, received: {} : {}".format(
-                        type(connection_error).__name__, connection_error))
+                    LOGGER.warning(f"When creating RabbitMQ connection, received: {type(connection_error).__name__} : {connection_error}")
                     connection_try_number, connection_creation_interval = \
                         await update_connection_attempt_variables(connection_try_number, connection_creation_interval)
 
             self.__rabbitmq_channel = None
             self.__rabbitmq_exchange = None
 
-        return self.__rabbitmq_connection  # pyright: reportGeneralTypeIssues=false
+        return self.__rabbitmq_connection
 
-    async def get_channel(self) -> Optional[aio_pika.channel.Channel]:
+    async def get_channel(self) -> Optional[RobustChannel]:
         """Returns a channel for a RabbitMQ connection. Creates the channel on the first call."""
         if self.__rabbitmq_channel is None or self.__rabbitmq_channel.is_closed:
             connection = await self.get_connection()
@@ -173,17 +172,16 @@ class RabbitmqConnection:
 
             else:
                 try:
-                    self.__rabbitmq_channel = await connection.channel()
+                    self.__rabbitmq_channel = await connection.channel()  # type: ignore
                 except CONNECTION_EXCEPTIONS as channel_error:
-                    LOGGER.warning("When creating RabbitMQ channel, received: {} : {}".format(
-                        type(channel_error).__name__, channel_error))
+                    LOGGER.warning(F"When creating RabbitMQ channel, received: {type(channel_error).__name__} : {channel_error}")
                     self.__rabbitmq_channel = None
 
             self.__rabbitmq_exchange = None
 
         return self.__rabbitmq_channel
 
-    async def get_exchange(self) -> Optional[aio_pika.exchange.Exchange]:
+    async def get_exchange(self) -> Optional[RobustExchange]:
         """Returns an exchange for a RabbitMQ connection. Declares the exchange on the first call.
            No checking to ensure that exchange still exists on later calls."""
         if self.__rabbitmq_exchange is None:
@@ -198,10 +196,9 @@ class RabbitmqConnection:
                         name=self.__exchange_parameters.exchange_name,
                         type=aio_pika.exchange.ExchangeType.TOPIC,
                         auto_delete=self.__exchange_parameters.auto_delete,
-                        durable=self.__exchange_parameters.durable)
+                        durable=self.__exchange_parameters.durable)  # type: ignore
                 except CONNECTION_EXCEPTIONS as exchange_error:
-                    LOGGER.warning("When creating RabbitMQ channel, received: {} : {}".format(
-                        type(exchange_error).__name__, exchange_error))
+                    LOGGER.warning(f"When creating RabbitMQ channel, received: {type(exchange_error).__name__} : {exchange_error}")
                     self.__rabbitmq_exchange = None
 
         return self.__rabbitmq_exchange
@@ -216,8 +213,7 @@ class RabbitmqConnection:
                 root_logger.setLevel(logging.CRITICAL)
                 await self.__rabbitmq_connection.close()
             except CONNECTION_EXCEPTIONS as closing_error:
-                LOGGER.warning("When closing RabbitMQ connection, received: {} : {}".format(
-                    type(closing_error).__name__, closing_error))
+                LOGGER.warning(f"When closing RabbitMQ connection, received: {type(closing_error).__name__} : {closing_error}")
             finally:
                 root_logger.setLevel(root_logger_level)
 
@@ -229,7 +225,7 @@ class RabbitmqConnection:
 class RabbitmqClient:
     """RabbitMQ client that can be used to send messages and to create topic listeners."""
     DEFAULT_ENV_VARIABLE_PREFIX = "RABBITMQ_"
-    CONNECTION_PARAMTERS = ["host", "port", "login", "password", "ssl"]
+    CONNECTION_PARAMETERS = ["host", "port", "login", "password", "ssl"]
     OPTIONAL_SSL_PARAMETER_TOP = "ssl_options"
     OPTIONAL_SSL_PARAMETER = "ssl_version"
 
@@ -238,7 +234,7 @@ class RabbitmqClient:
     EXCHANGE_ATTRIBUTE_DURABLE = "exchange_durable"
     EXCHANGE_PARAMETERS = [EXCHANGE_ATTRIBUTE_NAME, EXCHANGE_ATTRIBUTE_AUTODELETE, EXCHANGE_ATTRIBUTE_DURABLE]
 
-    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMTERS + [OPTIONAL_SSL_PARAMETER] + EXCHANGE_PARAMETERS
+    FULL_ATTRIBUTE_NAME_LIST = CONNECTION_PARAMETERS + [OPTIONAL_SSL_PARAMETER] + EXCHANGE_PARAMETERS
 
     MESSAGE_ENCODING = "UTF-8"
 
@@ -372,15 +368,14 @@ class RabbitmqClient:
                     return
 
                 await send_exchange.publish(aio_pika.Message(message_to_publish), routing_key=topic_name)
-                LOGGER.debug("Message '{:s}' send to topic: '{:s}'".format(
-                    message_to_publish.decode(RabbitmqClient.MESSAGE_ENCODING), topic_name))
+                LOGGER.debug(f"Message '{message_to_publish.decode(RabbitmqClient.MESSAGE_ENCODING)}' send to topic: '{topic_name}'")
 
             except SystemExit:
                 LOGGER.debug("SystemExit received when trying to publish message.")
                 await self.__send_connection.close()
                 raise
             except CONNECTION_EXCEPTIONS as error:
-                LOGGER.warning("{}: '{}' when trying to publish message.".format(type(error).__name__, error))
+                LOGGER.warning(f"{type(error).__name__}: '{error}' when trying to publish message.")
             except GeneratorExit:
                 LOGGER.warning("GeneratorExit received when trying to publish message.")
 
@@ -391,14 +386,14 @@ class RabbitmqClient:
             topic_names = [topic_names]
 
         async def wait_before_reconnecting():
-            LOGGER.info("Could not create a connection. Trying again in {} seconds.".format(RECONNECT_INTERVAL))
+            LOGGER.info(f"Could not create a connection. Trying again in {RECONNECT_INTERVAL} seconds.")
             await asyncio.sleep(RECONNECT_INTERVAL)
 
         reconnect_listeners = True
         while reconnect_listeners:
             # by default, no reconnect unless there is a reason for it
             reconnect_listeners = False
-            LOGGER.info("Opening RabbitMQ listener for the topics: '{:s}'".format(", ".join(topic_names)))
+            LOGGER.info(f"Opening RabbitMQ listener for the topics: '{', '.join(topic_names)}'")
 
             try:
                 rabbitmq_connection = await connection_class.get_connection()
@@ -424,15 +419,15 @@ class RabbitmqClient:
                         # Binding the queue to the given topics
                         for topic_name in topic_names:
                             await rabbitmq_queue.bind(rabbitmq_exchange, routing_key=topic_name)
-                            LOGGER.info("Now listening to messages; exc={}, topic={}".format(
-                                rabbitmq_exchange.name, topic_name))
+                            LOGGER.info(f"Now listening to messages; exc={rabbitmq_exchange.name}, topic={topic_name}")
 
                         async with rabbitmq_queue.iterator() as queue_iter:
                             async for message in queue_iter:
                                 async with message.process():
-                                    LOGGER.debug("Message '{}' received from topic: '{}'".format(
-                                        message.body.decode(RabbitmqClient.MESSAGE_ENCODING), message.routing_key))
-                                    asyncio.create_task(callback_class.callback(message))
+                                    LOGGER.debug(
+                                        f"Message '{message.body.decode(RabbitmqClient.MESSAGE_ENCODING)}' "
+                                        f"received from topic: '{message.routing_key}'")
+                                    asyncio.create_task(callback_class.callback(message))  # type: ignore
 
                 if reconnect_listeners:
                     await wait_before_reconnecting()
@@ -443,12 +438,11 @@ class RabbitmqClient:
                 raise
 
             except CONNECTION_EXCEPTIONS as error:
-                LOGGER.warning("{}: '{}' when trying to listen to the message bus.".format(
-                    type(error).__name__, error))
+                LOGGER.warning(f"{type(error).__name__}: '{error}' when trying to listen to the message bus.")
                 reconnect_listeners = True
                 await wait_before_reconnecting()
 
-        LOGGER.info("Closing listener for topics: '{:s}'".format(", ".join(topic_names)))
+        LOGGER.info(f"Closing listener for topics: '{', '.join(topic_names)}'")
         await connection_class.close()
 
     @classmethod
@@ -457,7 +451,7 @@ class RabbitmqClient:
         stripped_connection_config = {
             config_parameter: parameter_value
             for config_parameter, parameter_value in connection_config_dict.items()
-            if config_parameter in cls.CONNECTION_PARAMTERS
+            if config_parameter in cls.CONNECTION_PARAMETERS
         }
         if stripped_connection_config["ssl"]:
             stripped_connection_config[cls.OPTIONAL_SSL_PARAMETER_TOP] = {

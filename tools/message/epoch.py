@@ -53,12 +53,11 @@ class EpochMessage(AbstractResultMessage):
             # Check that the start time is not after the end time.
             if isinstance(new_start_time, str):
                 if getattr(self, "end_time", None) is not None and new_start_time >= self.end_time:
-                    raise MessageValueError("Epoch start time ({:s}) should be before the end time ({:s})".format(
-                        new_start_time, self.end_time))
+                    raise MessageValueError(f"Epoch start time ({new_start_time}) should be before the end time ({self.end_time})")
                 self.__start_time = new_start_time
                 return
 
-        raise MessageDateError("'{:s}' is an invalid datetime".format(str(start_time)))
+        raise MessageDateError(f"'{start_time}' is an invalid datetime")
 
     @end_time.setter
     def end_time(self, end_time: Union[str, datetime.datetime]):
@@ -68,12 +67,11 @@ class EpochMessage(AbstractResultMessage):
             # Check that the end time is not before the start time.
             if isinstance(new_end_time, str):
                 if getattr(self, "start_time", None) is not None and new_end_time <= self.start_time:
-                    raise MessageValueError("Epoch end time ({:s}) should be after the start time ({:s})".format(
-                        new_end_time, self.start_time))
+                    raise MessageValueError(f"Epoch end time ({new_end_time}) should be after the start time ({self.start_time})")
                 self.__end_time = new_end_time
                 return
 
-        raise MessageDateError("'{:s}' is an invalid datetime".format(str(end_time)))
+        raise MessageDateError(f"'{end_time}' is an invalid datetime")
 
     def __eq__(self, other: Any) -> bool:
         return (

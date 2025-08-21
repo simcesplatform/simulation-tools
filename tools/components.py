@@ -98,7 +98,7 @@ class AbstractSimulationComponent:
         - other_topics (List[str])
             - a list of topic names that the component needs to listen to in addition to the epoch and simulation state
             - environmental variable: "SIMULATION_OTHER_TOPICS"
-                - in the environmental variable the list is given as a comma seprated string, e.g. "Result,Info"
+                - in the environmental variable the list is given as a comma separated string, e.g. "Result,Info"
             - default value: []
         - rabbitmq_host (str)
             - the host name for the RabbitMQ server
@@ -215,7 +215,7 @@ class AbstractSimulationComponent:
 
     @property
     def initialization_error(self) -> Union[str, None]:
-        """If the component has encountered an error during initialization contains an errorr message.
+        """If the component has encountered an error during initialization contains an error message.
         If there was no error will be None."""
         return self._initialization_error
 
@@ -234,15 +234,15 @@ class AbstractSimulationComponent:
         """Starts the component."""
         if self.initialization_error is not None or self._in_error_state:
             if self.initialization_error is not None:
-                LOGGER.error("Component has an initialization error: {}".format(self.initialization_error))
+                LOGGER.error(f"Component has an initialization error: {self.initialization_error}")
             else:
-                LOGGER.error("Component because it is in an error state: {}".format(self._error_description))
+                LOGGER.error(f"Component because it is in an error state: {self._error_description}")
             LOGGER.warning("The component will be started to allow the others to know about the error.")
 
         if self.is_client_closed:
             self._rabbitmq_client = RabbitmqClient(**self._rabbitmq_parameters)
 
-        LOGGER.info("Starting the component: '{}'".format(self.component_name))
+        LOGGER.info(f"Starting the component: '{self.component_name}'")
         topics_to_listen = self._other_topics + [
             self._simulation_state_topic,
             self._epoch_topic
@@ -252,7 +252,7 @@ class AbstractSimulationComponent:
 
     async def stop(self) -> None:
         """Stops the component."""
-        LOGGER.info("Stopping the component: '{}'".format(self.component_name))
+        LOGGER.info(f"Stopping the component: '{self.component_name}'")
         self._simulation_state = AbstractSimulationComponent.SIMULATION_STATE_VALUE_STOPPED
         await self._rabbitmq_client.close()
         self._is_stopped = True
@@ -305,21 +305,20 @@ class AbstractSimulationComponent:
             return False
 
         if self._simulation_state != AbstractSimulationComponent.SIMULATION_STATE_VALUE_RUNNING:
-            LOGGER.warning("Simulation in an unknown state: '{}', cannot start epoch calculations.".format(
-                self._simulation_state))
+            LOGGER.warning(f"Simulation in an unknown state: '{self._simulation_state}', cannot start epoch calculations.")
             return False
 
         self._latest_epoch = self._latest_epoch_message.epoch_number
 
         if self._in_error_state:
             # Component is in an error state and instead of starting a new epoch will just send an error message.
-            LOGGER.error("Component is in an error state: {}".format(self._error_description))
+            LOGGER.error(f"Component is in an error state: {self._error_description}")
             await self.send_error_message(self._error_description)
             return True
 
         if self._completed_epoch == self._latest_epoch:
-            LOGGER.warning("The epoch {} has already been processed.".format(self._completed_epoch))
-            LOGGER.debug("Resending status message for epoch {}".format(self._latest_epoch))
+            LOGGER.warning(f"The epoch {self._completed_epoch} has already been processed.")
+            LOGGER.debug(f"Resending status message for epoch {self._latest_epoch}")
             await self.send_status_message()
             return True
 
@@ -328,7 +327,7 @@ class AbstractSimulationComponent:
                 # The current epoch was successfully processed.
                 self._completed_epoch = self._latest_epoch
                 await self.send_status_message()
-                LOGGER.info("Finished processing epoch {}".format(self._completed_epoch))
+                LOGGER.info(f"Finished processing epoch {self._completed_epoch}")
                 return True
 
         # Some information required for the epoch is still missing.
@@ -397,25 +396,23 @@ class AbstractSimulationComponent:
            NOTE: this method should be overwritten in any child class that listens to other messages.
         """
         if isinstance(message_object, AbstractMessage):
-            LOGGER.debug("Received {} message from topic {}".format(
-                message_object.message_type, message_routing_key))
+            LOGGER.debug(f"Received {message_object.message_type} message from topic {message_routing_key}")
         else:
-            LOGGER.debug("Received unknown message: {}".format(str(message_object)))
+            LOGGER.debug(f"Received unknown message: {message_object}")
 
     async def simulation_state_message_handler(self, message_object: SimulationStateMessage,
                                                message_routing_key: str) -> None:
         """Handles the received simulation state messages."""
         if message_object.simulation_id != self.simulation_id:
             LOGGER.info(
-                "Received state message for a different simulation: '{}' instead of '{}'".format(
-                    message_object.simulation_id, self.simulation_id))
+                "Received state message for a different simulation: " +
+                f"'{message_object.simulation_id}' instead of '{self.simulation_id}'")
         elif message_object.message_type != SimulationStateMessage.CLASS_MESSAGE_TYPE:
             LOGGER.info(
-                "Received a state message with wrong message type: '{}' instead of '{}'".format(
-                    message_object.message_type, SimulationStateMessage.CLASS_MESSAGE_TYPE))
+                "Received a state message with wrong message type: " +
+                f"'{message_object.message_type}' instead of '{SimulationStateMessage.CLASS_MESSAGE_TYPE}'")
         else:
-            LOGGER.debug("Received a state message from {} on topic {}".format(
-                message_object.source_process_id, message_routing_key))
+            LOGGER.debug(f"Received a state message from {message_object.source_process_id} on topic {message_routing_key}")
             self._triggering_message_ids = [message_object.message_id]
             await self.set_simulation_state(message_object.simulation_state)
 
@@ -423,18 +420,17 @@ class AbstractSimulationComponent:
         """Handles the received epoch messages."""
         if message_object.simulation_id != self.simulation_id:
             LOGGER.info(
-                "Received epoch message for a different simulation: '{}' instead of '{}'".format(
-                    message_object.simulation_id, self.simulation_id))
+                "Received epoch message for a different simulation: " +
+                f"'{message_object.simulation_id}' instead of '{self.simulation_id}'")
         elif message_object.message_type != EpochMessage.CLASS_MESSAGE_TYPE:
             LOGGER.info(
-                "Received a epoch message with wrong message type: '{}' instead of '{}'".format(
-                    message_object.message_type, EpochMessage.CLASS_MESSAGE_TYPE))
+                "Received a epoch message with wrong message type: " +
+                f"'{message_object.message_type}' instead of '{EpochMessage.CLASS_MESSAGE_TYPE}'")
         elif (message_object.epoch_number == self._latest_epoch and
               self._latest_status_message_id in message_object.triggering_message_ids):
-            LOGGER.info("Status message has already been registered for epoch {}".format(self._latest_epoch))
+            LOGGER.info(f"Status message has already been registered for epoch {self._latest_epoch}")
         else:
-            LOGGER.debug("Received an epoch from {} on topic {}".format(
-                message_object.source_process_id, message_routing_key))
+            LOGGER.debug(f"Received an epoch from {message_object.source_process_id} on topic {message_routing_key}")
             self._triggering_message_ids = [message_object.message_id]
             self._latest_epoch_message = message_object
 
@@ -443,8 +439,7 @@ class AbstractSimulationComponent:
 
             # If all the epoch calculations were completed, send a new status message.
             if not await self.start_epoch():
-                LOGGER.debug("Waiting for other required messages before processing epoch {}".format(
-                    self._latest_epoch))
+                LOGGER.debug(f"Waiting for other required messages before processing epoch {self._latest_epoch}")
 
     async def send_status_message(self) -> None:
         """Sends a new status message to the message bus."""
@@ -483,7 +478,7 @@ class AbstractSimulationComponent:
                 TriggeringMessageIds=self._triggering_message_ids)
 
         except (ValueError, TypeError, MessageError) as message_error:
-            LOGGER.error("Problem with creating a status message: {}".format(message_error))
+            LOGGER.error(f"Problem with creating a status message: {message_error}")
             return None
 
     def _get_error_message(self, description: str) -> Union[StatusMessage, None]:
@@ -496,7 +491,7 @@ class AbstractSimulationComponent:
                 Description=description)
 
         except (ValueError, TypeError, MessageError) as message_error:
-            LOGGER.error("Problem with creating an error message: {}".format(message_error))
+            LOGGER.error(f"Problem with creating an error message: {message_error}")
             return None
 
     def __set_component_variables(self,
@@ -566,10 +561,9 @@ class AbstractSimulationComponent:
                     if isinstance(start_message, dict):
                         return start_message
 
-            LOGGER.warning("Could not load the Start message from file '{}'.".format(start_message_filename))
+            LOGGER.warning(f"Could not load the Start message from file '{start_message_filename}'.")
             return None
 
         except (OSError, TypeError, OverflowError, ValueError) as error:
-            LOGGER.warning("Exception '{}' when trying to load the Start message from file: {}".format(
-                type(error).__name__, error))
+            LOGGER.warning(f"Exception '{type(error).__name__}' when trying to load the Start message from file: {error}")
             return None
