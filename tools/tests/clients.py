@@ -112,7 +112,7 @@ class TestRabbitmqClient(AsyncTestCase):
         # 5 second wait to allow the message handlers to finish.
         await asyncio.sleep(5)
 
-        # Check that the received messages equal to the excpected messages.
+        # Check that the received messages equal to the expected messages.
         for message_storage, check_list in zip(message_storages, check_lists):
             self.assertEqual(message_storage.messages, check_list)
 

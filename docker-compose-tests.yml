@@ -1,12 +1,10 @@
-version: '3.5'
-
 services:
 
   simulation_tools_tests:
     build:
       context: .
       dockerfile: Dockerfile-tests
-    image: simulation_tools_tests:1.0.4
+    image: simulation_tools_tests:1.1.0
     container_name: simulation_tools_tests
     restart: "no"
     environment:

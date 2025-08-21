@@ -100,7 +100,7 @@ class TestValueArrayBlock(unittest.TestCase):
 
         for test_attribute in test_attributes:
             # test creating object using from_json method
-            attribute_object = ValueArrayBlock(**test_attribute)  # pyright: reportGeneralTypeIssues=false
+            attribute_object = ValueArrayBlock(**test_attribute)  # type: ignore
             self.assertIsInstance(attribute_object, ValueArrayBlock)
             self.assertEqual(attribute_object.unit_of_measure, test_attribute["UnitOfMeasure"])
             self.assertEqual(attribute_object.values, test_attribute["Values"])
@@ -112,7 +112,7 @@ class TestValueArrayBlock(unittest.TestCase):
                 Values=cast(list, test_attribute["Values"])
             )
             self.assertEqual(attribute_object, attribute_object2)
-    
+
     def test_mixed_ints_and_floats(self):
         """Unit test to check value array block and quantity array block can
         have both ints and floats in the values list."""
@@ -180,7 +180,7 @@ class TestTimeSeriesBlock(unittest.TestCase):
     def test_valid_blocks(self):
         """Unit test for creating TimeSeriesBlock objects with valid input."""
         test_blocks = [
-            generate_timeseries_block(datetime.datetime.utcnow(), index, 24)
+            generate_timeseries_block(datetime.datetime.now(datetime.timezone.utc), index, 24)
             for index in range(1, 21)
         ]
 

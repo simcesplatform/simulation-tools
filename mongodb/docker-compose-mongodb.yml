@@ -1,9 +1,7 @@
-version: '3.5'
-
 services:
 
   mongodb:
-    image: mongo:4.2.24
+    image: mongo:8.0.12
     container_name: mongodb_tools_tests
     restart: always
     expose:

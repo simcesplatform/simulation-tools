@@ -14,7 +14,8 @@ from aiormq.types import DeliveredMessage
 from aiounittest.case import AsyncTestCase
 from aio_pika.message import IncomingMessage
 import pamqp
-import pamqp.specification
+import pamqp.commands
+import pamqp.header
 
 from tools.callbacks import MessageCallback
 from tools.messages import (
@@ -28,12 +29,13 @@ FAIL_TEST_STR = '{"test" "fail"}'
 
 
 def get_incoming_message(body, routing_key) -> IncomingMessage:
-    """Returns a dummy incoming message withough the message for the use of the unit tests."""
+    """Returns a dummy incoming message for the use of the unit tests."""
     delivered_message = DeliveredMessage(
-        delivery=pamqp.specification.Basic.Deliver(routing_key=routing_key),
-        header=pamqp.ContentHeader(),
+        delivery=pamqp.commands.Basic.Deliver(routing_key=routing_key),
+        header=pamqp.header.ContentHeader(),
         body=body,
-        channel=1)
+        channel=1  # type: ignore[assignment] -- this is a dummy message, channel is not used in the tests
+    )
     return IncomingMessage(delivered_message)
 
 

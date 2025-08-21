@@ -43,11 +43,11 @@ class TestStatusMessage(unittest.TestCase):
 
         # When message is created without a Timestamp attribute,
         # the current time in millisecond precision is used as the default value.
-        utcnow1 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        utcnow1 = datetime.datetime.now(datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow1.microsecond % 1000)
         message_full = tools.messages.StatusMessage(**FULL_JSON)
         message_timestamp = to_utc_datetime_object(message_full.timestamp)
-        utcnow2 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        utcnow2 = datetime.datetime.now(datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow2.microsecond % 1000)
 
         self.assertGreaterEqual(message_timestamp, utcnow1)
@@ -64,7 +64,7 @@ class TestStatusMessage(unittest.TestCase):
         self.assertEqual(message_full.value, DEFAULT_VALUE)
         self.assertEqual(message_full.description, DEFAULT_DESCRIPTION)
 
-        # Test with explicitely set timestamp
+        # Test with explicitly set timestamp
         message_timestamped = tools.messages.StatusMessage(Timestamp=DEFAULT_TIMESTAMP, **FULL_JSON)
         self.assertEqual(message_timestamped.timestamp, DEFAULT_TIMESTAMP)
         self.assertEqual(message_timestamped.message_type, DEFAULT_TYPE)
@@ -231,12 +231,12 @@ class TestStatusMessage(unittest.TestCase):
             VALUE_ATTRIBUTE: ["waiting", "-ready", 12, ""],
             DESCRIPTION_ATTRIBUTE: [12, True]
         }
-        for invalid_attribute in invalid_attribute_exceptions:
+        for invalid_attribute, exception_type in invalid_attribute_exceptions.items():
             if invalid_attribute != TIMESTAMP_ATTRIBUTE and invalid_attribute not in optional_attributes:
                 json_invalid_attribute = copy.deepcopy(message_full_json)
                 json_invalid_attribute.pop(invalid_attribute)
                 with self.subTest(attribute=invalid_attribute):
-                    with self.assertRaises(invalid_attribute_exceptions[invalid_attribute]):
+                    with self.assertRaises(exception_type):
                         tools.messages.StatusMessage(**json_invalid_attribute)
 
             for invalid_value in invalid_attribute_values[invalid_attribute]:

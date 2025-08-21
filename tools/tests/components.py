@@ -160,7 +160,7 @@ class TestAbstractSimulationComponent(AsyncTestCase):
         self.assertEqual(first_message.message_type, second_message.message_type)
         self.assertEqual(first_message.simulation_id, second_message.simulation_id)
         self.assertEqual(first_message.source_process_id, second_message.source_process_id)
-        # The id number in the message id does not have to be exactly the exprected but check the starting string.
+        # The id number in the message id does not have to be exactly the expected but check the starting string.
         self.assertEqual("-".join(first_message.message_id.split("-")[:-1]),
                          "-".join(second_message.message_id.split("-")[:-1]))
 
@@ -241,12 +241,12 @@ class TestAbstractSimulationComponent(AsyncTestCase):
 
         # Compare the received messages to the expected messages.
         # TODO: implement message checking that does not care about the order of the received messages
-        for index, (received_responce, expected_responce) in enumerate(
+        for index, (received_response, expected_response) in enumerate(
                 zip(received_messages[-len(expected_responds):], expected_responds),
                 start=1):
             with self.subTest(message_index=index):
-                received_message, received_topic = received_responce
-                expected_message, expected_topic = expected_responce
+                received_message, received_topic = received_response
+                expected_message, expected_topic = expected_response
                 self.assertEqual(received_topic, expected_topic)
                 self.assertTrue(self.compare_message(received_message, expected_message))
 

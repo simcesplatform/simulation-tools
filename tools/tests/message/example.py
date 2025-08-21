@@ -148,11 +148,11 @@ class TestExampleMessage(unittest.TestCase):
 
         # When message is created without a Timestamp attribute,
         # the current time in millisecond precision is used as the default value.
-        utcnow1 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        utcnow1 = datetime.datetime.now(datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow1.microsecond % 1000)
         example_message = ExampleMessage(**EXAMPLE_MESSAGE)
         message_timestamp = to_utc_datetime_object(example_message.timestamp)
-        utcnow2 = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        utcnow2 = datetime.datetime.now(datetime.timezone.utc)
         utcnow1 -= datetime.timedelta(microseconds=utcnow2.microsecond % 1000)
 
         # the AbstractResult attributes
@@ -383,12 +383,12 @@ class TestExampleMessage(unittest.TestCase):
             ]
         }
 
-        for invalid_attribute in invalid_attribute_exceptions:
+        for invalid_attribute, exception_type in invalid_attribute_exceptions.items():
             if invalid_attribute not in optional_attributes:
                 json_invalid_attribute = copy.deepcopy(message_json)
                 json_invalid_attribute.pop(invalid_attribute)
                 with self.subTest(invalid_attribute=invalid_attribute):
-                    with self.assertRaises(invalid_attribute_exceptions[invalid_attribute]):
+                    with self.assertRaises(exception_type):
                         ExampleMessage(**json_invalid_attribute)
 
             for invalid_value in invalid_attribute_values[invalid_attribute]:

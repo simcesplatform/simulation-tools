@@ -18,9 +18,9 @@ class TestDatetimeTools(unittest.TestCase):
 
     def test_get_utcnow(self):
         """Unit test for get_utcnow_in_milliseconds function."""
-        now_before = datetime.utcnow()
+        now_before = datetime.now(timezone.utc)
         result_string = get_utcnow_in_milliseconds()
-        now_after = datetime.utcnow()
+        now_after = datetime.now(timezone.utc)
         test_string_before = TestDatetimeTools.isoformat.format(
             year=now_before.year, month=now_before.month, day=now_before.day,
             hour=now_before.hour, minute=now_before.minute, second=now_before.second,

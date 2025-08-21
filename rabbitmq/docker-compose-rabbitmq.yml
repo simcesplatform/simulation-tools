@@ -1,9 +1,7 @@
-version: '3.5'
-
 services:
 
   rabbitmq:
-    image: rabbitmq:3.8.34-management
+    image: rabbitmq:4.1.3-management
     container_name: rabbitmq_tools_tests
     restart: always
     expose:
